@@ -1,0 +1,32 @@
+# Build output
+build/
+dist/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Generated
+src/version.h
+version.h
+
+# IDE
+.vs/
+.vscode/
+*.user
+
+# Objects / binaries
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.a
+*.lib
+
+# Windows
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,63 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 / MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          mkdir build && cd build
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build
+        shell: msys2 {0}
+        run: cd build && ninja
+
+      - name: Read build number
+        id: buildnum
+        shell: pwsh
+        run: |
+          $n = (Get-Content build_number.txt).Trim()
+          echo "number=$n" >> $env:GITHUB_OUTPUT
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $tag  = "${{ github.ref_name }}"
+          $bn   = "${{ steps.buildnum.outputs.number }}"
+          $name = "CatiaMenuWin32-${tag}.${bn}"
+          New-Item -ItemType Directory -Path "dist\$name" | Out-Null
+          Copy-Item "build\CatiaMenuWin32.exe" "dist\$name\"
+          Copy-Item "README.md"  "dist\$name\"
+          Copy-Item "LICENSE.txt" "dist\$name\"
+          Copy-Item "CONTRIBUTORS.md" "dist\$name\"
+          Compress-Archive -Path "dist\$name\*" `
+                           -DestinationPath "dist\${name}.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "CatiaMenuWin32 ${{ github.ref_name }}.${{ steps.buildnum.outputs.number }}"
+          files: dist/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

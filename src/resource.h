@@ -1,0 +1,49 @@
+#ifndef RESOURCE_H
+#define RESOURCE_H
+
+#define IDI_APP_ICON            101
+
+#define IDR_MAINMENU            200
+#define IDM_REFRESH             201
+#define IDM_SETTINGS            202
+#define IDM_EXIT                203
+#define IDM_RUN_LAST            204
+#define IDM_OPEN_CACHE          205
+#define IDM_ABOUT               206
+#define IDM_GITHUB              207
+#define IDM_UPDATE_DEPS         208
+#define IDM_ALWAYS_ON_TOP       209
+#define IDM_MINIMIZE_TO_TRAY    210
+#define IDM_START_WITH_WINDOWS  211
+#define IDM_START_MINIMIZED     212
+#define IDM_THEME_DARK          213
+#define IDM_THEME_LIGHT         214
+#define IDM_THEME_SYSTEM        215
+
+#define IDD_SETTINGS            300
+#define IDD_ABOUT               301
+
+#define IDC_EDIT_PYTHON         401
+#define IDC_BTN_BROWSE_PY       402
+#define IDC_EDIT_CACHE          403
+#define IDC_BTN_BROWSE_DIR      404
+#define IDC_CHK_DOWNLOAD        405
+#define IDC_CHK_CONSOLE         406
+#define IDC_CHK_TOKEN           407
+#define IDC_EDIT_TOKEN          408
+#define IDC_CHK_AUTOSYNC        409
+
+#define IDC_TAB_CTRL            501
+#define IDC_STATUS_BAR          502
+#define IDC_BTN_REFRESH         503
+#define IDC_BTN_SETTINGS        504
+#define IDC_SCROLL_PANEL        505
+#define IDC_BTN_UPDATE_DEPS     506
+
+#define IDC_SCRIPT_BTN_BASE     1000
+
+/* System tray message */
+#define WM_TRAYICON             (WM_USER + 10)
+#define TRAY_ID                 1
+
+#endif

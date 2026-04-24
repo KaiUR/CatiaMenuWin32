@@ -1,0 +1,112 @@
+#include <windows.h>
+
+101 ICON "app_icon.ico"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+200 MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Refresh + Sync\tF5",   201
+        MENUITEM SEPARATOR
+        MENUITEM "S&ettings...",          202
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                 203
+    END
+    POPUP "&Run"
+    BEGIN
+        MENUITEM "Run &Last Script\tF9",  204
+        MENUITEM SEPARATOR
+        MENUITEM "Open &Cache Folder...", 205
+        MENUITEM "Update &Dependencies",  208
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "Always on &Top",        209
+        MENUITEM SEPARATOR
+        POPUP "&Theme"
+        BEGIN
+            MENUITEM "&Dark",             213
+            MENUITEM "&Light",            214
+            MENUITEM "&System (default)", 215
+        END
+    END
+    POPUP "&Window"
+    BEGIN
+        MENUITEM "Minimize to &Tray",     210
+        MENUITEM "Start &with Windows",   211
+        MENUITEM "Start &Minimized",      212
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About",                206
+        MENUITEM "View on &GitHub",       207
+    END
+END
+
+300 DIALOG 0, 0, 330, 222
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Settings"
+FONT 9, "Segoe UI"
+BEGIN
+    GROUPBOX "Python Interpreter", -1, 7, 7, 316, 40
+    LTEXT "Path:", -1, 14, 22, 28, 10
+    EDITTEXT 401, 46, 20, 224, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...", 402, 274, 19, 44, 16
+    GROUPBOX "Script Cache Folder", -1, 7, 52, 316, 40
+    LTEXT "Path:", -1, 14, 67, 28, 10
+    EDITTEXT 403, 46, 65, 224, 14, ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON "Browse...", 404, 274, 64, 44, 16
+    GROUPBOX "Sync Options", -1, 7, 97, 316, 68
+    AUTOCHECKBOX "Sync scripts automatically on startup", 409, 14, 112, 220, 12
+    AUTOCHECKBOX "Always download latest before running", 405, 14, 128, 220, 12
+    AUTOCHECKBOX "Show Python console window when running", 406, 14, 144, 220, 12
+    GROUPBOX "GitHub Token (optional)", -1, 7, 170, 316, 36
+    AUTOCHECKBOX "Use token", 407, 14, 184, 60, 12
+    EDITTEXT 408, 78, 182, 216, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON "OK", 1, 214, 200, 58, 16
+    PUSHBUTTON "Cancel", 2, 278, 200, 50, 16
+END
+
+301 DIALOG 0, 0, 230, 118
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About CatiaMenuWin32"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "CatiaMenuWin32", -1, 36, 9, 182, 11
+    LTEXT "PyCATIA script launcher for CATIA V5.", -1, 7, 30, 216, 10
+    LTEXT "Scripts from KaiUR/Pycatia_Scripts on GitHub.", -1, 7, 42, 216, 10
+    LTEXT "Author: Kai-Uwe Rathjen", -1, 7, 60, 216, 10
+    LTEXT "License: MIT", -1, 7, 72, 216, 10
+    DEFPUSHBUTTON "OK", 1, 90, 100, 50, 14
+END
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", "Kai-Uwe Rathjen"
+            VALUE "FileDescription", "CatiaMenuWin32"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "ProductName", "CatiaMenuWin32"
+            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "LegalCopyright", "Copyright 2025 Kai-Uwe Rathjen"
+            VALUE "OriginalFilename", "CatiaMenuWin32.exe"
+            VALUE "InternalName", "CatiaMenuWin32"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 0x04B0
+    END
+END
