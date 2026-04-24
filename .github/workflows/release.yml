@@ -1,63 +1,105 @@
-name: Build and Release
+name: MinGW-w64 Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [ "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Setup MSYS2 / MinGW-w64
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-ninja
 
-      - name: Configure
-        shell: msys2 {0}
-        run: |
-          mkdir build && cd build
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
+    - name: Update Contributors File
+      shell: bash
+      run: |
+        git fetch origin master
+        git checkout master
+        git pull origin master
 
-      - name: Build
-        shell: msys2 {0}
-        run: cd build && ninja
+        echo "# Contributors" > CONTRIBUTORS.md
+        echo "" >> CONTRIBUTORS.md
+        echo "Thanks to everyone who has helped with CatiaMenuWin32:" >> CONTRIBUTORS.md
+        echo "" >> CONTRIBUTORS.md
 
-      - name: Read build number
-        id: buildnum
-        shell: pwsh
-        run: |
-          $n = (Get-Content build_number.txt).Trim()
-          echo "number=$n" >> $env:GITHUB_OUTPUT
+        # Pull all unique committers and format as a Markdown list
+        git shortlog -sn --all | cut -f2- | sed 's/^/* /' >> CONTRIBUTORS.md
 
-      - name: Package
-        shell: pwsh
-        run: |
-          $tag  = "${{ github.ref_name }}"
-          $bn   = "${{ steps.buildnum.outputs.number }}"
-          $name = "CatiaMenuWin32-${tag}.${bn}"
-          New-Item -ItemType Directory -Path "dist\$name" | Out-Null
-          Copy-Item "build\CatiaMenuWin32.exe" "dist\$name\"
-          Copy-Item "README.md"  "dist\$name\"
-          Copy-Item "LICENSE.txt" "dist\$name\"
-          Copy-Item "CONTRIBUTORS.md" "dist\$name\"
-          Compress-Archive -Path "dist\$name\*" `
-                           -DestinationPath "dist\${name}.zip"
+        echo "CONTRIBUTORS.md updated from Git history."
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "CatiaMenuWin32 ${{ github.ref_name }}.${{ steps.buildnum.outputs.number }}"
-          files: dist/*.zip
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Configure and Build
+      shell: msys2 {0}
+      run: |
+        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        cmake --build build
+
+    - name: Updated Build Number
+      if: startsWith(github.ref, 'refs/tags/v')
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git checkout -B master origin/master
+        git pull origin master
+
+        git add build_number.txt CONTRIBUTORS.md
+
+    - name: Commit & Push changes build_number contributors
+      uses: iarekylew00t/verified-bot-commit@v2
+      with:
+        message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
+        files: |
+          build_number.txt
+          CONTRIBUTORS.md
+
+    - name: Update Commit and Push New Tag
+      if: startsWith(github.ref, 'refs/tags/v')
+      shell: bash
+      run: |
+        BASE_TAG=${{ github.ref_name }}
+        BUILD_NUM=$(cat build_number.txt)
+        BUILD_NUM=$((BUILD_NUM - 1))
+
+        FULL_VERSION="${BASE_TAG}.${BUILD_NUM}"
+        echo "Creating release for $FULL_VERSION"
+        echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+
+        git tag -d "$BASE_TAG"
+        git push --delete origin "$BASE_TAG"
+        git tag "$FULL_VERSION"
+        git push -u origin "$FULL_VERSION"
+
+    - name: Release New Binary
+      if: startsWith(github.ref, 'refs/tags/v')
+      shell: bash
+      run: |
+        gh release create "$FULL_VERSION" build/CatiaMenuWin32.exe \
+          README.md \
+          CONTRIBUTORS.md \
+          LICENSE.txt \
+          --title "CATIA Macro Menu $FULL_VERSION" \
+          --generate-notes \
+          --target master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FULL_VERSION: ${{ env.FULL_VERSION }}

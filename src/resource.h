@@ -38,6 +38,9 @@
 #define IDC_BTN_REFRESH         503
 #define IDC_BTN_SETTINGS        504
 #define IDC_SCROLL_PANEL        505
+
+#define IDC_CHK_KEEP_OPEN       410
+#define IDC_CHK_CHECK_UPDATES   411
 #define IDC_BTN_UPDATE_DEPS     506
 
 #define IDC_SCRIPT_BTN_BASE     1000

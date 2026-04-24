@@ -4,7 +4,9 @@
 /*
  * main.h  -  CatiaMenuWin32
  * Central header.
- * Author : Kai-Uwe Rathjen  |  License: MIT
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -66,6 +68,9 @@
 #define BTN_MY           10
 #define SCROLL_STEP      40
 #define INFO_BTN_W       28
+#define TIP_W            320    /* tooltip width  */
+#define TIP_ROW_H        18     /* height per metadata row */
+#define TIP_HEADER_ROWS  5      /* Script/Purpose/Author/Version/Date */
 
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
@@ -80,10 +85,11 @@
 /* ------------------------------------------------------------------ */
 /*  Messages                                                            */
 /* ------------------------------------------------------------------ */
-#define WM_SYNC_DONE     (WM_USER + 1)
-#define WM_STATUS_SET    (WM_USER + 2)
-#define WM_TRAYICON      (WM_USER + 10)
-#define TRAY_ID          1
+#define WM_SYNC_DONE       (WM_USER + 1)
+#define WM_STATUS_SET      (WM_USER + 2)
+#define WM_TRAYICON        (WM_USER + 10)
+#define WM_UPDATE_AVAIL    (WM_USER + 11)
+#define TRAY_ID            1
 
 /* ------------------------------------------------------------------ */
 /*  Theme mode                                                          */
@@ -109,7 +115,7 @@ typedef struct {
     WCHAR author[64];
     WCHAR version[32];
     WCHAR date[32];
-    WCHAR description[256];
+    WCHAR description[512];   /* longer to hold full description */
 } ScriptMeta;
 
 typedef struct {
@@ -139,21 +145,22 @@ typedef struct {
     bool      auto_sync;
     bool      download_before_run;
     bool      show_console;
+    bool      console_keep_open;   /* pause after script so user sees output */
     bool      always_on_top;
     bool      minimize_to_tray;
     bool      start_with_windows;
     bool      start_minimized;
+    bool      check_updates;       /* check for new app release on startup */
     ThemeMode theme;
 } Settings;
 
 /* ------------------------------------------------------------------ */
-/*  Dark/light colour helpers  (runtime, not compile-time constants)   */
+/*  Colours  (dark/light pairs)                                        */
 /* ------------------------------------------------------------------ */
-/* These are functions because they depend on g.dark_mode at runtime   */
-#define COL_BG_DARK      RGB(28,  28,  35)
-#define COL_BG_LIGHT     RGB(240, 240, 245)
-#define COL_TOOLBAR_DARK RGB(20,  20,  28)
-#define COL_TOOLBAR_LIGHT RGB(210,210,220)
+#define COL_BG_DARK        RGB(28,  28,  35)
+#define COL_BG_LIGHT       RGB(240, 240, 245)
+#define COL_TOOLBAR_DARK   RGB(20,  20,  28)
+#define COL_TOOLBAR_LIGHT  RGB(210, 210, 220)
 #define COL_BTN_NORM_DARK  RGB(44,  46,  64)
 #define COL_BTN_NORM_LIGHT RGB(220, 222, 235)
 #define COL_BTN_HOT_DARK   RGB(62,  65,  90)
@@ -162,19 +169,19 @@ typedef struct {
 #define COL_BTN_PRESS_LIGHT RGB(170,175,205)
 #define COL_INFO_ZONE_DARK  RGB(36, 38,  55)
 #define COL_INFO_ZONE_LIGHT RGB(200,202,220)
-#define COL_ACCENT       RGB(82, 155, 245)
-#define COL_ACCENT_DIM   RGB(48,  92, 160)
-#define COL_SUCCESS      RGB(80, 200, 120)
-#define COL_WARN         RGB(240, 190,  60)
-#define COL_TEXT_DARK    RGB(210, 215, 240)
-#define COL_TEXT_LIGHT   RGB(30,  30,  40)
-#define COL_SUBTEXT_DARK RGB(110, 116, 148)
-#define COL_SUBTEXT_LIGHT RGB(100,100,120)
-#define COL_DIVIDER_DARK RGB(46,  48,  66)
-#define COL_DIVIDER_LIGHT RGB(190,192,210)
-#define COL_TIP_BG_DARK  RGB(22,  22,  32)
-#define COL_TIP_BG_LIGHT RGB(245, 245, 252)
-#define COL_TIP_BORDER   RGB(82, 155, 245)
+#define COL_ACCENT         RGB(82, 155, 245)
+#define COL_ACCENT_DIM     RGB(48,  92, 160)
+#define COL_SUCCESS        RGB(80, 200, 120)
+#define COL_WARN           RGB(240, 190,  60)
+#define COL_TEXT_DARK      RGB(210, 215, 240)
+#define COL_TEXT_LIGHT     RGB(30,  30,  40)
+#define COL_SUBTEXT_DARK   RGB(110, 116, 148)
+#define COL_SUBTEXT_LIGHT  RGB(100, 100, 120)
+#define COL_DIVIDER_DARK   RGB(46,  48,  66)
+#define COL_DIVIDER_LIGHT  RGB(190, 192, 210)
+#define COL_TIP_BG_DARK    RGB(22,  22,  32)
+#define COL_TIP_BG_LIGHT   RGB(245, 245, 252)
+#define COL_TIP_BORDER     RGB(82, 155, 245)
 
 /* ------------------------------------------------------------------ */
 /*  AppState                                                            */
@@ -191,7 +198,7 @@ typedef struct {
     int      folder_count;
     int      active_tab;
     Settings cfg;
-    bool     dark_mode;    /* resolved from cfg.theme + system setting */
+    bool     dark_mode;
 
     HFONT  font_ui;
     HFONT  font_bold;
@@ -206,14 +213,23 @@ typedef struct {
     bool   syncing;
     int    hot_btn;
     int    tip_btn;
+    int    tip_h;           /* current computed tooltip height */
     WCHAR  last_run_path[MAX_APPPATH];
     WCHAR  appdata_dir[MAX_APPPATH];
+    WCHAR  latest_version[32];   /* latest release tag from GitHub */
     int    scroll_y;
     int    scroll_max;
     bool   tray_icon_added;
 } AppState;
 
 extern AppState g;
+
+/* ------------------------------------------------------------------ */
+/*  DWM dark mode                                                       */
+/* ------------------------------------------------------------------ */
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
 
 /* ------------------------------------------------------------------ */
 /*  Runtime colour accessors                                            */
@@ -228,13 +244,6 @@ static inline COLORREF COL_TEXT(void)      { return g.dark_mode ? COL_TEXT_DARK 
 static inline COLORREF COL_SUBTEXT(void)   { return g.dark_mode ? COL_SUBTEXT_DARK   : COL_SUBTEXT_LIGHT;   }
 static inline COLORREF COL_DIVIDER(void)   { return g.dark_mode ? COL_DIVIDER_DARK   : COL_DIVIDER_LIGHT;   }
 static inline COLORREF COL_TIP_BG(void)    { return g.dark_mode ? COL_TIP_BG_DARK    : COL_TIP_BG_LIGHT;    }
-
-/* ------------------------------------------------------------------ */
-/*  DWM dark mode attribute                                             */
-/* ------------------------------------------------------------------ */
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
-#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
-#endif
 
 /* ------------------------------------------------------------------ */
 /*  Prototypes                                                          */
@@ -252,6 +261,7 @@ void App_ResolveTheme(void);
 void Window_Create(HINSTANCE);
 void Window_OnSize(int w, int h);
 void Window_ApplyDarkMode(HWND hwnd);
+void Window_ApplyDarkMenu(HWND hwnd);
 void Window_ApplyAlwaysOnTop(void);
 void Window_AddTrayIcon(void);
 void Window_RemoveTrayIcon(void);
@@ -289,6 +299,10 @@ bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
 DWORD WINAPI Runner_Thread(LPVOID);
 
+/* updater.c */
+DWORD WINAPI Updater_CheckThread(LPVOID);
+void  Updater_PromptAndInstall(const WCHAR *latest_tag);
+
 /* settings.c */
 void Settings_Load(Settings *s);
 void Settings_Save(const Settings *s);
@@ -298,9 +312,11 @@ INT_PTR CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
 
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);
+void Paint_ToolbarButton(DRAWITEMSTRUCT *dis);
 void Paint_ScriptButton(HWND, HDC, bool hot, bool pressed,
                         bool info_hot, const Script *s);
 void Paint_Tooltip(HWND hwnd);
+void Paint_Tab(DRAWITEMSTRUCT *dis);
 LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 LRESULT CALLBACK TipWndProc(HWND, UINT, WPARAM, LPARAM);
 

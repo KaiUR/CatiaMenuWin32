@@ -17,22 +17,24 @@ void Window_ApplyDarkMode(HWND hwnd)
 
 /* ================================================================== */
 /*  Window_ApplyThemeToChildren                                        */
-/*  Forces tab control and status bar to repaint with new colours      */
 /* ================================================================== */
 void Window_ApplyThemeToChildren(HWND hwnd)
 {
-    /* Remove visual styles from tab control so WM_CTLCOLOR* applies */
     if (g.dark_mode) {
         SetWindowTheme(g.hwnd_tab,    L"", L"");
         SetWindowTheme(g.hwnd_status, L"", L"");
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_REFRESH),     L"", L"");
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_SETTINGS),    L"", L"");
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_UPDATE_DEPS), L"", L"");
     } else {
         SetWindowTheme(g.hwnd_tab,    NULL, NULL);
         SetWindowTheme(g.hwnd_status, NULL, NULL);
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_REFRESH),     NULL, NULL);
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_SETTINGS),    NULL, NULL);
+        SetWindowTheme(GetDlgItem(hwnd, IDC_BTN_UPDATE_DEPS), NULL, NULL);
     }
     InvalidateRect(g.hwnd_tab,    NULL, TRUE);
     InvalidateRect(g.hwnd_status, NULL, TRUE);
-    InvalidateRect(hwnd, NULL, TRUE);
-    /* Redraw toolbar buttons */
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
@@ -41,13 +43,48 @@ void Window_ApplyThemeToChildren(HWND hwnd)
 /* ================================================================== */
 void Window_ApplyAlwaysOnTop(void)
 {
-    /* SWP_NOACTIVATE keeps focus where it is.
-       Call twice - first sets the Z-order flag, second forces it to take. */
     HWND z = g.cfg.always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST;
     SetWindowPos(g.hwnd, z, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     SetWindowPos(g.hwnd, z, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+}
+
+/* ================================================================== */
+/*  Dark menu bar via owner-draw                                        */
+/* ================================================================== */
+void Window_ApplyDarkMenu(HWND hwnd)
+{
+    HMENU hm = GetMenu(hwnd);
+    if (!hm) return;
+
+    /* Set menu background colour only.
+       Do NOT use MFT_OWNERDRAW - it breaks text rendering.
+       On Windows 11 with DwmSetWindowAttribute dark mode, Windows
+       automatically renders menu text in the correct colour.
+       On Windows 10, we accept the system menu text colour. */
+    MENUINFO mi = {0};
+    mi.cbSize = sizeof(mi);
+    mi.fMask  = MIM_BACKGROUND | MIM_APPLYTOSUBMENUS;
+    if (g.dark_mode) {
+        /* Use toolbar colour for menu background */
+        mi.hbrBack = CreateSolidBrush(COL_TOOLBAR());
+    } else {
+        mi.hbrBack = (HBRUSH)(COLOR_MENU + 1);
+    }
+    SetMenuInfo(hm, &mi);
+
+    /* Remove any leftover MFT_OWNERDRAW flags from previous calls */
+    int count = GetMenuItemCount(hm);
+    for (int i = 0; i < count; i++) {
+        MENUITEMINFO mii = {0};
+        mii.cbSize = sizeof(mii);
+        mii.fMask  = MIIM_FTYPE;
+        GetMenuItemInfo(hm, i, TRUE, &mii);
+        mii.fType &= ~MFT_OWNERDRAW;
+        SetMenuItemInfo(hm, i, TRUE, &mii);
+    }
+    DrawMenuBar(hwnd);
 }
 
 /* ================================================================== */
@@ -73,9 +110,7 @@ void Window_RemoveTrayIcon(void)
 {
     if (!g.tray_icon_added) return;
     NOTIFYICONDATA nid = {0};
-    nid.cbSize = sizeof(nid);
-    nid.hWnd   = g.hwnd;
-    nid.uID    = TRAY_ID;
+    nid.cbSize = sizeof(nid); nid.hWnd = g.hwnd; nid.uID = TRAY_ID;
     Shell_NotifyIcon(NIM_DELETE, &nid);
     g.tray_icon_added = false;
 }
@@ -85,23 +120,82 @@ void Window_ShowTrayMenu(void)
     HMENU hm = CreatePopupMenu();
     AppendMenu(hm, MF_STRING, IDM_REFRESH, L"Refresh Scripts");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING, IDM_EXIT,    L"Exit");
-
-    POINT pt;
-    GetCursorPos(&pt);
+    AppendMenu(hm, MF_STRING, IDM_EXIT, L"Exit");
+    POINT pt; GetCursorPos(&pt);
     SetForegroundWindow(g.hwnd);
     TrackPopupMenu(hm, TPM_RIGHTBUTTON, pt.x, pt.y, 0, g.hwnd, NULL);
     DestroyMenu(hm);
 }
 
 /* ================================================================== */
-/*  Tooltip window proc                                                 */
+/*  Custom status bar WndProc  (owner-drawn, no native STATUSCLASSNAME)*/
+/* ================================================================== */
+static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
+                                       WPARAM wp, LPARAM lp)
+{
+    switch (msg)
+    {
+    case WM_ERASEBKGND:
+        return 1;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rc; GetClientRect(hwnd, &rc);
+
+        /* Background */
+        HBRUSH bg = CreateSolidBrush(COL_TOOLBAR());
+        FillRect(hdc, &rc, bg);
+        DeleteObject(bg);
+
+        /* Top divider line */
+        HPEN pen = CreatePen(PS_SOLID, 1, COL_DIVIDER());
+        HPEN op  = SelectObject(hdc, pen);
+        MoveToEx(hdc, 0, 0, NULL);
+        LineTo(hdc, rc.right, 0);
+        SelectObject(hdc, op); DeleteObject(pen);
+
+        /* Text */
+        WCHAR text[256] = {0};
+        GetWindowText(hwnd, text, 255);
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, COL_SUBTEXT());
+        HFONT of = SelectObject(hdc, g.font_small);
+        RECT tr = { 6, 0, rc.right - 6, rc.bottom };
+        DrawText(hdc, text, -1, &tr, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        SelectObject(hdc, of);
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    /* Intercept SB_SETTEXT to store and repaint */
+    case SB_SETTEXT:
+    {
+        const WCHAR *txt = (const WCHAR *)lp;
+        if (txt) SetWindowText(hwnd, txt);
+        InvalidateRect(hwnd, NULL, FALSE);
+        return TRUE;
+    }
+
+    case SB_GETTEXT:
+        return GetWindowText(hwnd, (WCHAR *)lp, (int)wp);
+
+    case WM_SIZE:
+        InvalidateRect(hwnd, NULL, FALSE);
+        return 0;
+    }
+    return DefWindowProc(hwnd, msg, wp, lp);
+}
+
+/* ================================================================== */
+/*  Tooltip internal proc                                               */
 /* ================================================================== */
 static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
                                             WPARAM wp, LPARAM lp)
 {
     switch (msg) {
-    case WM_PAINT:   Paint_Tooltip(hwnd); return 0;
+    case WM_PAINT:      Paint_Tooltip(hwnd); return 0;
     case WM_ERASEBKGND: return 1;
     }
     return DefWindowProc(hwnd, msg, wp, lp);
@@ -113,6 +207,18 @@ static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
 void Window_Create(HINSTANCE hInst)
 {
     App_InitGDI();
+
+    /* Register status bar class */
+    WNDCLASSEX wcsb = {
+        .cbSize        = sizeof(wcsb),
+        .style         = CS_HREDRAW | CS_VREDRAW,
+        .lpfnWndProc   = StatusBarProc,
+        .hInstance     = hInst,
+        .hCursor       = LoadCursor(NULL, IDC_ARROW),
+        .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH),
+        .lpszClassName = L"CMW32StatusBar",
+    };
+    RegisterClassEx(&wcsb);
 
     /* Main class */
     WNDCLASSEX wc = {
@@ -164,19 +270,19 @@ void Window_Create(HINSTANCE hInst)
 
     Window_ApplyDarkMode(g.hwnd);
 
-    /* Toolbar buttons */
+    /* Toolbar buttons - BS_OWNERDRAW so WM_DRAWITEM paints them */
     CreateWindow(L"BUTTON", L"\u27F3  Refresh",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
         6, 5, 108, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_REFRESH, hInst, NULL);
 
     CreateWindow(L"BUTTON", L"\u2699  Settings",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
         120, 5, 108, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_SETTINGS, hInst, NULL);
 
     CreateWindow(L"BUTTON", L"\u2B07  Update Deps",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
         234, 5, 120, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_UPDATE_DEPS, hInst, NULL);
 
@@ -184,20 +290,13 @@ void Window_Create(HINSTANCE hInst)
     SendDlgItemMessage(g.hwnd, IDC_BTN_SETTINGS,    WM_SETFONT, (WPARAM)g.font_ui, TRUE);
     SendDlgItemMessage(g.hwnd, IDC_BTN_UPDATE_DEPS, WM_SETFONT, (WPARAM)g.font_ui, TRUE);
 
-    /* Apply dark theme to toolbar buttons */
-    if (g.dark_mode) {
-        SetWindowTheme(GetDlgItem(g.hwnd, IDC_BTN_REFRESH),     L"", L"");
-        SetWindowTheme(GetDlgItem(g.hwnd, IDC_BTN_SETTINGS),    L"", L"");
-        SetWindowTheme(GetDlgItem(g.hwnd, IDC_BTN_UPDATE_DEPS), L"", L"");
-    }
-
-    /* Tab control */
+    /* Tab control - TCS_OWNERDRAWFIXED allows us to paint tabs in dark mode */
     g.hwnd_tab = CreateWindow(WC_TABCONTROL, NULL,
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_HOTTRACK,
+        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | TCS_HOTTRACK | TCS_OWNERDRAWFIXED,
         0, TOOLBAR_H, ww, TAB_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
     SendMessage(g.hwnd_tab, WM_SETFONT, (WPARAM)g.font_ui, TRUE);
-    if (g.dark_mode) SetWindowTheme(g.hwnd_tab, L"", L"");
+    SetWindowTheme(g.hwnd_tab, L"", L"");
 
     /* Scroll panel */
     int ct = TOOLBAR_H + TAB_H;
@@ -208,22 +307,23 @@ void Window_Create(HINSTANCE hInst)
         0, ct, ww, ch,
         g.hwnd, (HMENU)(UINT_PTR)IDC_SCROLL_PANEL, hInst, NULL);
 
-    /* Status bar */
-    g.hwnd_status = CreateWindow(STATUSCLASSNAME, NULL,
-        WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
-        0, 0, 0, 0,
+    /* Custom status bar (owner-drawn, no native STATUSCLASSNAME) */
+    g.hwnd_status = CreateWindow(
+        L"CMW32StatusBar", L"Checking for updates\u2026",
+        WS_CHILD | WS_VISIBLE,
+        0, wh - STATUS_H, ww, STATUS_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_STATUS_BAR, hInst, NULL);
     SendMessage(g.hwnd_status, WM_SETFONT, (WPARAM)g.font_small, TRUE);
-    if (g.dark_mode) SetWindowTheme(g.hwnd_status, L"", L"");
-    SendMessage(g.hwnd_status, SB_SETTEXT, 0,
-                (LPARAM)L"Checking for updates\u2026");
 
-    /* Tooltip popup (hidden) */
+    /* Tooltip popup */
     g.hwnd_tip = CreateWindowEx(
         WS_EX_TOPMOST | WS_EX_NOACTIVATE,
         L"CMW32Tip", NULL, WS_POPUP,
         0, 0, 300, 160,
         g.hwnd, NULL, hInst, NULL);
+
+    /* Apply dark menu */
+    Window_ApplyDarkMenu(g.hwnd);
 
     /* Set initial menu checkmarks */
     HMENU hm = GetMenu(g.hwnd);
@@ -250,17 +350,15 @@ void Window_Create(HINSTANCE hInst)
 /* ================================================================== */
 void Window_OnSize(int w, int h)
 {
-    SendMessage(g.hwnd_status, WM_SIZE, 0, 0);
-    RECT sr; GetWindowRect(g.hwnd_status, &sr);
-    int sh = sr.bottom - sr.top;
-
     int ct = TOOLBAR_H + TAB_H;
-    int ch = h - ct - sh;
+    int ch = h - ct - STATUS_H;
     if (ch < 0) ch = 0;
 
     SetWindowPos(g.hwnd_tab, NULL, 0, TOOLBAR_H, w, TAB_H,
                  SWP_NOZORDER | SWP_NOACTIVATE);
     SetWindowPos(g.hwnd_scroll, NULL, 0, ct, w, ch,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(g.hwnd_status, NULL, 0, h - STATUS_H, w, STATUS_H,
                  SWP_NOZORDER | SWP_NOACTIVATE);
 
     Tabs_RebuildButtons();

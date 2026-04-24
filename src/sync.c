@@ -296,7 +296,31 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         }
     }
 
-    /* ── Step 5: Persist updated manifest ───────────────────────── */
+    /* ── Step 5: Download setup files (requirements.txt, update.bat) ── */
+    {
+        const WCHAR *setup_files[] = {
+            L"setup/requirements.txt",
+            L"setup/update.bat",
+            NULL
+        };
+        for (int i = 0; setup_files[i]; i++) {
+            WCHAR local_setup[MAX_APPPATH];
+            /* Convert forward slashes to backslashes for local path */
+            _snwprintf(local_setup, MAX_APPPATH - 1, L"%s\setup\%s",
+                       g.cfg.cache_dir,
+                       wcsrchr(setup_files[i], L'/') + 1);
+            if (GetFileAttributes(local_setup) == INVALID_FILE_ATTRIBUTES) {
+                /* Ensure setup dir exists */
+                WCHAR setup_dir[MAX_APPPATH];
+                _snwprintf(setup_dir, MAX_APPPATH - 1, L"%s\setup",
+                           g.cfg.cache_dir);
+                SHCreateDirectoryEx(NULL, setup_dir, NULL);
+                GitHub_DownloadRaw(setup_files[i], local_setup, token);
+            }
+        }
+    }
+
+    /* ── Step 6: Persist updated manifest ───────────────────────── */
     Sync_SaveManifest();
 
     /* ── Step 6: Build human-readable result message ────────────── */

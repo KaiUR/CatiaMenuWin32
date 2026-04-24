@@ -32,6 +32,7 @@ add_executable(CatiaMenuWin32 WIN32
     src/sync.c
     src/runner.c
     src/meta.c
+    src/updater.c
     src/settings.c
     src/paint.c
     res/resource.rc

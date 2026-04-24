@@ -53,6 +53,12 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
         g.syncing = true;
         HANDLE hT = CreateThread(NULL, 0, Sync_Thread, NULL, 0, NULL);
         if (hT) CloseHandle(hT);
+    }
+
+    /* Check for app updates in background */
+    if (g.cfg.check_updates) {
+        HANDLE hU = CreateThread(NULL, 0, Updater_CheckThread, NULL, 0, NULL);
+        if (hU) CloseHandle(hU);
     } else {
         SendMessage(g.hwnd_status, SB_SETTEXT, 0,
                     (LPARAM)L"Auto-sync disabled. Press Refresh to load scripts.");
@@ -218,6 +224,46 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
+    /* Owner-draw toolbar buttons and tabs */
+    case WM_DRAWITEM:
+    {
+        DRAWITEMSTRUCT *dis = (DRAWITEMSTRUCT *)lp;
+        if (dis->CtlType == ODT_BUTTON) {
+            int id = (int)dis->CtlID;
+            if (id == IDC_BTN_REFRESH ||
+                id == IDC_BTN_SETTINGS ||
+                id == IDC_BTN_UPDATE_DEPS) {
+                Paint_ToolbarButton(dis);
+                return TRUE;
+            }
+        }
+        if (dis->CtlType == ODT_TAB) {
+            Paint_Tab(dis);
+            return TRUE;
+        }
+        break;
+    }
+
+    /* Owner-draw menu bar items */
+    case WM_MEASUREITEM:
+    {
+        MEASUREITEMSTRUCT *mis = (MEASUREITEMSTRUCT *)lp;
+        if (mis->CtlType == ODT_MENU && g.dark_mode) {
+            HDC hdc = GetDC(hwnd);
+            HFONT of = SelectObject(hdc, g.font_ui);
+            const WCHAR *text = (const WCHAR *)(ULONG_PTR)mis->itemData;
+            SIZE sz = {60, 18};
+            if (text && text[0])
+                GetTextExtentPoint32W(hdc, text, (int)wcslen(text), &sz);
+            mis->itemWidth  = sz.cx + 24;
+            mis->itemHeight = sz.cy + 6;
+            SelectObject(hdc, of);
+            ReleaseDC(hwnd, hdc);
+            return TRUE;
+        }
+        break;
+    }
+
     /* Dark-mode aware child colouring */
     case WM_CTLCOLORSTATIC:
     {
@@ -254,6 +300,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
     case WM_SYNC_DONE:
         Handle_SyncDone((SyncResult *)wp);
+        return 0;
+
+    case WM_UPDATE_AVAIL:
+        InvalidateRect(hwnd, NULL, FALSE);  /* repaint toolbar to show badge */
+        Updater_PromptAndInstall(g.latest_version);
         return 0;
 
     case WM_STATUS_SET:
