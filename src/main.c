@@ -423,6 +423,10 @@ static void Handle_SyncDone(SyncResult *sr)
 {
     g.syncing = false;
     if (!sr) return;
+    /* Reset so meta re-reads from freshly downloaded files */
+    for (int fi = 0; fi < g.folder_count; fi++)
+        for (int si = 0; si < g.folders[fi].count; si++)
+            g.folders[fi].scripts[si].meta_loaded = false;
     Meta_ParseAll();
     Tabs_Build();
     Tabs_Switch(g.active_tab < g.folder_count ? g.active_tab : 0);
