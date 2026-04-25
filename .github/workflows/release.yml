@@ -32,7 +32,9 @@ jobs:
     - name: Update Contributors File
       shell: bash
       run: |
-        git fetch origin main
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
         git checkout main
         git pull origin main
 
@@ -40,11 +42,7 @@ jobs:
         echo "" >> CONTRIBUTORS.md
         echo "Thanks to everyone who has helped with CatiaMenuWin32:" >> CONTRIBUTORS.md
         echo "" >> CONTRIBUTORS.md
-
-        # Pull all unique committers and format as a Markdown list
         git shortlog -sn --all | cut -f2- | sed 's/^/* /' >> CONTRIBUTORS.md
-
-        echo "CONTRIBUTORS.md updated from Git history."
 
     - name: Configure and Build
       shell: msys2 {0}
@@ -52,19 +50,14 @@ jobs:
         cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
         cmake --build build
 
-    - name: Updated Build Number
+    - name: Stage Changes
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-        git checkout -B main origin/main
-        git pull origin main
-
         git add build_number.txt CONTRIBUTORS.md
 
     - name: Commit & Push changes build_number contributors
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: iarekylew00t/verified-bot-commit@v2
       with:
         message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
@@ -81,13 +74,12 @@ jobs:
         BUILD_NUM=$((BUILD_NUM - 1))
 
         FULL_VERSION="${BASE_TAG}.${BUILD_NUM}"
-        echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
         git tag -d "$BASE_TAG"
         git push --delete origin "$BASE_TAG"
         git tag "$FULL_VERSION"
-        git push -u origin "$FULL_VERSION"
+        git push origin "$FULL_VERSION"
 
     - name: Release New Binary
       if: startsWith(github.ref, 'refs/tags/v')
