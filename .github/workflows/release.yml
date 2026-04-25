@@ -67,19 +67,24 @@ jobs:
         cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
         cmake --build build
 
-    - name: Updated Build Number
+    - name: Read build number and commit
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+        # CMake already incremented build_number.txt during configure above
+        BUILD_NUM=$(cat build_number.txt)
+        echo "BUILD_NUM=$BUILD_NUM" >> $GITHUB_ENV
+        echo "Build number: $BUILD_NUM"
+
         git fetch origin main
         git checkout -B main origin/main
 
         git add build_number.txt CONTRIBUTORS.md
 
-    - name: Commit & Push changes build_number contributors
+    - name: Commit & Push build number and contributors
       if: startsWith(github.ref, 'refs/tags/v')
       uses: iarekylew00t/verified-bot-commit@v2
       with:
@@ -88,13 +93,12 @@ jobs:
           build_number.txt
           CONTRIBUTORS.md
 
-    - name: Update Commit and Push New Tag
+    - name: Push New Tag with build number
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
         BASE_TAG=${{ github.ref_name }}
-        BUILD_NUM=$(cat build_number.txt)
-        BUILD_NUM=$((BUILD_NUM - 1))
+        BUILD_NUM=${{ env.BUILD_NUM }}
 
         FULL_VERSION="${BASE_TAG}.${BUILD_NUM}"
         echo "Creating release for $FULL_VERSION"

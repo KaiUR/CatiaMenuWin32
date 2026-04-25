@@ -39,6 +39,8 @@ project(CatiaMenuWin32 VERSION ${APP_VERSION} LANGUAGES C RC)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # --- Build Number ---
+# CMake always increments the build number - both locally and in CI.
+# The workflow reads the resulting number from build_number.txt for the tag.
 if(EXISTS "${CMAKE_SOURCE_DIR}/build_number.txt")
     file(READ "${CMAKE_SOURCE_DIR}/build_number.txt" BUILD_NUMBER)
     string(STRIP "${BUILD_NUMBER}" BUILD_NUMBER)
