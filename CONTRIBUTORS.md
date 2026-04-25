@@ -1,5 +1,5 @@
 # Contributors
 
-| Name              | Role                |
-|-------------------|---------------------|
-| Kai-Uwe Rathjen   | Author / Maintainer |
+Thanks to everyone who has helped with CatiaMenuWin32:
+
+* KaiUR
