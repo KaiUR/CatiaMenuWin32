@@ -1,6 +1,6 @@
 # CatiaMenuWin32
 
-A lightweight, native **Win32 API / C** macro launcher for PyCATIA scripts,
+A lightweight, native **Win32 API / C** macro launcher for PyCATIA scripts
 — direct Win32 API, no frameworks, pure C11.
 
 ## 🎯 What It Does
@@ -31,6 +31,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Script info tooltip** | Hover over the `i` badge on any button to see Purpose, Author, Version, Date, and full Description parsed from the script header |
 | **Certificate validation** | Every HTTPS connection validates the server certificate subject and issuer — blocks MITM attacks |
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
+| **Single instance** | Only one instance runs at a time — launching a second brings the existing window to the front |
 | **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
 | **System Tray** | Minimize to tray; restore with double-click |
@@ -44,9 +45,20 @@ added or removed from the repo, tabs update automatically on the next sync:
 
 All communication with GitHub is secured at two levels:
 
-**Certificate validation** — every HTTPS request (API and raw downloads) validates that the server certificate subject contains `github.com` or `githubusercontent.com` and the issuer is DigiCert, Sectigo, or GlobalSign. Connections that fail this check are aborted before any data is read.
+**Certificate validation** — every HTTPS request (API and raw downloads) validates that the server certificate subject contains `github.com` or `github.io` and the issuer is a known CA (DigiCert, Sectigo, GlobalSign, or Let's Encrypt). Connections that fail this check are aborted before any data is read.
 
 **SHA verification** — before any script is executed, its local file SHA is computed using Git's blob SHA format (`SHA1("blob <size>\0<content>")`) and compared against the SHA returned by the GitHub API. If they don't match, a warning is shown and the script is blocked until re-downloaded and verified.
+
+## 🔏 Code Signing Policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io),
+certificate by [SignPath Foundation](https://signpath.org).
+
+| Role | Member |
+|------|--------|
+| Committers, Reviewers and Approvers | [KaiUR](https://github.com/KaiUR) |
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The only external connections made are to `api.github.com` and `raw.githubusercontent.com` to sync scripts and check for updates, and only when explicitly triggered by the user or enabled in settings.
 
 ## 🛠️ Built With
 
