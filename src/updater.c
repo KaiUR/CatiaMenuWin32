@@ -57,28 +57,6 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
     return (tag_out[0] != L'\0');
 }
 
-/* ------------------------------------------------------------------ */
-/*  Parse browser_download_url for a .zip or .exe asset               */
-/* ------------------------------------------------------------------ */
-static bool ParseDownloadUrl(const char *json, char *url_out, int max)
-{
-    /* Look for assets array and find first .zip or .exe download URL */
-    const char *p = json;
-    while ((p = strstr(p, "\"browser_download_url\"")) != NULL) {
-        p += strlen("\"browser_download_url\"");
-        while (*p == ' ' || *p == ':') p++;
-        if (*p != '"') { p++; continue; }
-        p++;
-        int i = 0;
-        while (*p && *p != '"' && i < max - 1) url_out[i++] = *p++;
-        url_out[i] = '\0';
-        /* Accept .zip or .exe */
-        if (strstr(url_out, ".zip") || strstr(url_out, ".exe"))
-            return true;
-        p++;
-    }
-    return false;
-}
 
 /* ================================================================== */
 /*  Updater_CheckThread  -  runs in background                         */
@@ -86,6 +64,13 @@ static bool ParseDownloadUrl(const char *json, char *url_out, int max)
 DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
     (void)unused;
+
+    /* Skip update check for local/dev builds */
+#ifndef IS_LOCAL_BUILD
+#define IS_LOCAL_BUILD 0
+#endif
+    if (IS_LOCAL_BUILD) return 0;
+
 
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) return 1;
