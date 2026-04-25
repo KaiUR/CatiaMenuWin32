@@ -81,7 +81,7 @@ target_include_directories(CatiaMenuWin32 PRIVATE
 # --- Link Libraries ---
 target_link_libraries(CatiaMenuWin32 PRIVATE
     user32 gdi32 comctl32 comdlg32
-    wininet shell32 shlwapi uxtheme dwmapi
+    wininet shell32 shlwapi uxtheme dwmapi crypt32
 )
 
 if(MINGW)

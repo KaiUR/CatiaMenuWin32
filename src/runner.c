@@ -149,6 +149,34 @@ bool Runner_Run(int fi, int si)
         wcsncpy(s->local, local, MAX_APPPATH - 1);
     }
 
+    /* SHA verification - confirm local file matches GitHub blob SHA */
+    if (s->sha[0] && !GitHub_VerifyScriptSHA(s)) {
+        int res = MessageBox(g.hwnd,
+            L"Warning: Script SHA does not match the expected value from GitHub.\n\n"
+            L"The local file may have been tampered with.\n\n"
+            L"Do you want to re-download and run the script?",
+            L"Security Warning", MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+        if (res == IDYES) {
+            /* Force re-download */
+            const WCHAR *tok = g.cfg.github_token[0] ? g.cfg.github_token : NULL;
+            if (!GitHub_DownloadRaw(s->gh_path, local, tok)) {
+                MessageBox(g.hwnd, L"Failed to re-download script.",
+                           L"Error", MB_ICONERROR | MB_OK);
+                return false;
+            }
+            /* Verify again after re-download */
+            if (!GitHub_VerifyScriptSHA(s)) {
+                MessageBox(g.hwnd,
+                    L"SHA still does not match after re-download.\n"
+                    L"Script will not run.",
+                    L"Security Error", MB_ICONERROR | MB_OK);
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
     wcsncpy(g.last_run_path, s->gh_path, MAX_APPPATH - 1);
     PostStatus(L"Running: %s", s->name);
 

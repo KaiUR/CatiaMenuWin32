@@ -1,13 +1,85 @@
 /*
  * github.c  -  WinINet HTTPS GET + JSON parsing for GitHub API v3.
  * CatiaMenuWin32
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #include "main.h"
+#include <wincrypt.h>
+
+/* ================================================================== */
+/*  GitHub_VerifyCert                                                   */
+/*  Checks that the server certificate for hReq:                       */
+/*    1. Is issued by a known GitHub CA (DigiCert or Sectigo)          */
+/*    2. The subject CN matches the expected hostname                   */
+/*  Returns true if the cert looks legitimate, false to abort.         */
+/* ================================================================== */
+static bool GitHub_VerifyCert(HINTERNET hReq, const WCHAR *expected_host)
+{
+    /* INTERNET_CERTIFICATE_INFO string fields are always ANSI even in
+       Unicode builds - WinINet fills them with narrow strings regardless
+       of the UNICODE define. Cast to char* for correct string ops. */
+    INTERNET_CERTIFICATE_INFO ci;
+    DWORD ci_size = sizeof(ci);
+    if (!InternetQueryOption(hReq, INTERNET_OPTION_SECURITY_CERTIFICATE_STRUCT,
+                             &ci, &ci_size))
+        return false;
+
+    /* Convert expected_host to narrow for comparison */
+    char host_a[256] = {0};
+    WideCharToMultiByte(CP_ACP, 0, expected_host, -1,
+                        host_a, sizeof(host_a) - 1, NULL, NULL);
+
+    bool ok = false;
+
+    /* ── Check 1: subject must contain the expected host ─────────── */
+    if (ci.lpszSubjectInfo) {
+        const char *subj = (const char *)ci.lpszSubjectInfo;
+        if (strstr(subj, host_a)              ||
+            strstr(subj, "github.com")        ||
+            strstr(subj, "githubusercontent.com")) {
+            ok = true;
+        }
+        Util_Log(L"CertCheck subject: %S", subj);
+    }
+
+    if (!ok) {
+        Util_Log(L"CertCheck: subject mismatch for %s", expected_host);
+        LocalFree(ci.lpszSubjectInfo);
+        LocalFree(ci.lpszIssuerInfo);
+        LocalFree(ci.lpszProtocolName);
+        LocalFree(ci.lpszSignatureAlgName);
+        LocalFree(ci.lpszEncryptionAlgName);
+        return false;
+    }
+
+    /* ── Check 2: issuer must be a known GitHub CA ────────────────── */
+    ok = false;
+    if (ci.lpszIssuerInfo) {
+        const char *issr = (const char *)ci.lpszIssuerInfo;
+        Util_Log(L"CertCheck issuer: %S", issr);
+        if (strstr(issr, "DigiCert")  ||
+            strstr(issr, "Sectigo")   ||
+            strstr(issr, "GlobalSign")) {
+            ok = true;
+        }
+        if (!ok)
+            Util_Log(L"CertCheck: unknown CA - blocking");
+    }
+
+    LocalFree(ci.lpszSubjectInfo);
+    LocalFree(ci.lpszIssuerInfo);
+    LocalFree(ci.lpszProtocolName);
+    LocalFree(ci.lpszSignatureAlgName);
+    LocalFree(ci.lpszEncryptionAlgName);
+
+    return ok;
+}
 
 /* ================================================================== */
 /*  GitHub_HttpGet                                                      */
-/*  HTTPS GET https://<host><path>  -> buf (NUL-terminated)            */
 /* ================================================================== */
 bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
                     const WCHAR *token, char *buf, DWORD *len)
@@ -53,7 +125,16 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         return false;
     }
 
-    /* Check HTTP status code */
+    /* ── Certificate validation ──────────────────────────────────── */
+    if (!GitHub_VerifyCert(hReq, host)) {
+        Util_Log(L"CertCheck: FAILED for %s - aborting", host);
+        InternetCloseHandle(hReq);
+        InternetCloseHandle(hConn);
+        InternetCloseHandle(hInet);
+        return false;
+    }
+
+    /* ── HTTP status check ───────────────────────────────────────── */
     DWORD status = 0, ssz = sizeof(DWORD);
     HttpQueryInfo(hReq,
                   HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
@@ -81,8 +162,92 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
 }
 
 /* ================================================================== */
+/*  GitHub_ComputeFileSHA1                                              */
+/*  GitHub blob SHAs are:  SHA1("blob <size>\0<content>")              */
+/*  Returns hex string in out (40 chars + NUL).                        */
+/* ================================================================== */
+bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
+                             WCHAR *sha_out, int sha_max)
+{
+    sha_out[0] = L'\0';
+
+    HANDLE hf = CreateFile(local_path, GENERIC_READ, FILE_SHARE_READ,
+                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hf == INVALID_HANDLE_VALUE) return false;
+
+    DWORD file_size = GetFileSize(hf, NULL);
+    char *file_buf  = (char *)malloc(file_size + 1);
+    if (!file_buf) { CloseHandle(hf); return false; }
+
+    DWORD read_bytes = 0;
+    ReadFile(hf, file_buf, file_size, &read_bytes, NULL);
+    CloseHandle(hf);
+    if (read_bytes != file_size) { free(file_buf); return false; }
+
+    /* Build the git blob header: "blob <size>\0" */
+    char header[64];
+    int  header_len = snprintf(header, sizeof(header), "blob %lu", (unsigned long)file_size);
+    /* header_len does NOT include the NUL - but the NUL IS part of the hash input */
+
+    /* Hash = SHA1(header + NUL + file_content) */
+    HCRYPTPROV hProv = 0;
+    HCRYPTHASH hHash = 0;
+    bool ok = false;
+
+    if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT)) {
+        if (CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash)) {
+            /* Hash "blob <size>" */
+            CryptHashData(hHash, (BYTE *)header, header_len, 0);
+            /* Hash the NUL byte */
+            BYTE nul = 0;
+            CryptHashData(hHash, &nul, 1, 0);
+            /* Hash file content */
+            CryptHashData(hHash, (BYTE *)file_buf, file_size, 0);
+
+            BYTE  hash[20];
+            DWORD hash_len = sizeof(hash);
+            if (CryptGetHashParam(hHash, HP_HASHVAL, hash, &hash_len, 0)) {
+                /* Convert to hex string */
+                WCHAR *p = sha_out;
+                for (int i = 0; i < 20 && p < sha_out + sha_max - 2; i++) {
+                    _snwprintf(p, 3, L"%02x", hash[i]);
+                    p += 2;
+                }
+                *p = L'\0';
+                ok = true;
+            }
+            CryptDestroyHash(hHash);
+        }
+        CryptReleaseContext(hProv, 0);
+    }
+
+    free(file_buf);
+    return ok;
+}
+
+/* ================================================================== */
+/*  GitHub_VerifyScriptSHA                                              */
+/*  Returns true if the local file's SHA matches the expected SHA      */
+/*  from the GitHub API (stored in s->sha).                            */
+/* ================================================================== */
+bool GitHub_VerifyScriptSHA(const Script *s)
+{
+    if (!s->sha[0]) return true;   /* no expected SHA - skip check */
+
+    WCHAR computed[MAX_SHA] = {0};
+    if (!GitHub_ComputeFileSHA1(s->local, computed, MAX_SHA))
+        return false;
+
+    bool match = (wcscmp(computed, s->sha) == 0);
+    if (!match)
+        Util_Log(L"SHA mismatch for %s: expected %s got %s",
+                 s->name, s->sha, computed);
+    return match;
+}
+
+/* ================================================================== */
 /*  GitHub_DownloadRaw                                                  */
-/*  Download a raw file from raw.githubusercontent.com to local_path.  */
 /* ================================================================== */
 bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                         const WCHAR *token)
@@ -96,10 +261,8 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
     if (!buf) return false;
 
     DWORD len = 0;
-    bool  ok  = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url,
-                               token, buf, &len);
+    bool  ok  = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url, token, buf, &len);
     if (ok && len > 0) {
-        /* Ensure parent directory exists */
         WCHAR dir[MAX_APPPATH];
         wcsncpy(dir, local_path, MAX_APPPATH - 1);
         PathRemoveFileSpec(dir);
@@ -122,13 +285,8 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
 }
 
 /* ================================================================== */
-/*  Minimal JSON helpers (no external dependency)                      */
+/*  Minimal JSON helpers                                                */
 /* ================================================================== */
-
-/*
- * json_str: find  "key":"value"  in json, copy value into out.
- * Returns pointer past the closing quote, or NULL.
- */
 static const char *json_str(const char *p, const char *key,
                              char *out, int max)
 {
@@ -140,7 +298,7 @@ static const char *json_str(const char *p, const char *key,
     p += strlen(needle);
     while (*p == ' ' || *p == ':') p++;
     if (*p != '"') return NULL;
-    p++;   /* skip opening quote */
+    p++;
 
     int i = 0;
     while (*p && *p != '"' && i < max - 1) {
@@ -153,7 +311,6 @@ static const char *json_str(const char *p, const char *key,
 
 /* ================================================================== */
 /*  GitHub_ParseRoot                                                    */
-/*  Populate g.folders[] from the top-level /contents/ response.       */
 /* ================================================================== */
 void GitHub_ParseRoot(const char *json)
 {
@@ -168,21 +325,18 @@ void GitHub_ParseRoot(const char *json)
         if (!after) { p++; continue; }
 
         if (strcmp(type_val, "dir") == 0) {
-            /* Walk back to the opening '{' of this object */
             const char *obj = p;
             while (obj > json && *obj != '{') obj--;
 
             char name_a[MAX_NAME] = {0};
             json_str(obj, "name", name_a, sizeof(name_a));
 
-            /* Skip the setup folder */
             if (_stricmp(name_a, "setup") == 0) { p = after; continue; }
 
             ScriptFolder *f = &g.folders[g.folder_count++];
             memset(f, 0, sizeof(*f));
 
-            MultiByteToWideChar(CP_UTF8, 0,
-                                name_a, -1, f->name, MAX_NAME);
+            MultiByteToWideChar(CP_UTF8, 0, name_a, -1, f->name, MAX_NAME);
             wcscpy(f->display, f->name);
             Util_SnakeToTitle(f->display);
         }
@@ -192,8 +346,6 @@ void GitHub_ParseRoot(const char *json)
 
 /* ================================================================== */
 /*  GitHub_ParseFolder                                                  */
-/*  Populate f->scripts[] from a folder /contents/ response.           */
-/*  Stores the GitHub blob SHA for each file.                           */
 /* ================================================================== */
 void GitHub_ParseFolder(const char *json, int fi)
 {
@@ -219,7 +371,6 @@ void GitHub_ParseFolder(const char *json, int fi)
             json_str(obj, "path", path_a,  sizeof(path_a));
             json_str(obj, "sha",  sha_a,   sizeof(sha_a));
 
-            /* .py files only */
             size_t nl = strlen(name_a);
             if (nl < 4 || strcmp(name_a + nl - 3, ".py") != 0) {
                 p = after; continue;
@@ -232,13 +383,10 @@ void GitHub_ParseFolder(const char *json, int fi)
             MultiByteToWideChar(CP_UTF8, 0, path_a, -1, s->gh_path, MAX_APPPATH);
             MultiByteToWideChar(CP_UTF8, 0, sha_a,  -1, s->sha,     MAX_SHA);
 
-            /* Build local cached path */
             _snwprintf(s->local, MAX_APPPATH - 1, L"%s\\%s\\%s",
                        g.cfg.cache_dir, g.folders[fi].name, s->name);
-            /* .name still has .py at this point; strip for display */
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
-            /* local path needs the .py extension back */
             wcscat(s->local, L".py");
         }
         p = after;

@@ -284,6 +284,8 @@ void GitHub_ParseRoot(const char *json);
 void GitHub_ParseFolder(const char *json, int fi);
 bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                         const WCHAR *token);
+bool GitHub_ComputeFileSHA1(const WCHAR *local_path, WCHAR *sha_out, int max);
+bool GitHub_VerifyScriptSHA(const Script *s);
 
 /* sync.c */
 DWORD WINAPI Sync_Thread(LPVOID);
@@ -334,6 +336,16 @@ static inline void Util_SnakeToTitle(WCHAR *s) {
         else if (cap && *p != L' ') { *p = (WCHAR)towupper(*p); cap = false; }
     }
 }
+static inline void Util_Log(const WCHAR *fmt, ...) {
+    /* Debug log - writes to debug output, harmless in release */
+    WCHAR buf[512];
+    va_list va; va_start(va, fmt);
+    _vsnwprintf(buf, 511, fmt, va); va_end(va);
+    buf[511] = L'\0';
+    OutputDebugStringW(buf);
+    OutputDebugStringW(L"\n");
+}
+
 static inline void PostStatus(const WCHAR *fmt, ...) {
     WCHAR *buf = (WCHAR *)malloc(256 * sizeof(WCHAR));
     if (!buf) return;
