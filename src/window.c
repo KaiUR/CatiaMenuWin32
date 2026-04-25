@@ -67,8 +67,9 @@ void Window_ShowMenu(void)
     AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
     AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED,    L"Start Minimized");
 
-    AppendMenu(hHelp, MF_STRING, IDM_ABOUT,  L"About");
-    AppendMenu(hHelp, MF_STRING, IDM_GITHUB, L"View on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_ABOUT,          L"About");
+    AppendMenu(hHelp, MF_STRING, IDM_GITHUB,         L"View App on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_GITHUB_SCRIPTS, L"View Scripts on GitHub");
 
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hFile, L"File");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hRun,  L"Run");

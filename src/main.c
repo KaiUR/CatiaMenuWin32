@@ -453,6 +453,11 @@ apply_theme:
 
     case IDM_GITHUB:
         ShellExecute(NULL, L"open",
+            L"https://github.com/KaiUR/CatiaMenuWin32", NULL, NULL, SW_SHOW);
+        break;
+
+    case IDM_GITHUB_SCRIPTS:
+        ShellExecute(NULL, L"open",
             L"https://github.com/KaiUR/Pycatia_Scripts", NULL, NULL, SW_SHOW);
         break;
 

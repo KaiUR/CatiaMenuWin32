@@ -11,6 +11,7 @@
 #define IDM_OPEN_CACHE          205
 #define IDM_ABOUT               206
 #define IDM_GITHUB              207
+#define IDM_GITHUB_SCRIPTS      216
 #define IDM_UPDATE_DEPS         208
 #define IDM_ALWAYS_ON_TOP       209
 #define IDM_MINIMIZE_TO_TRAY    210
