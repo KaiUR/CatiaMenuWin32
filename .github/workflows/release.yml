@@ -48,7 +48,6 @@ jobs:
       shell: bash
       run: |
         TAG=${{ github.ref_name }}
-        # Strip leading 'v' and take only major.minor.patch (first 3 parts)
         VERSION=$(echo "$TAG" | sed 's/^v//' | cut -d. -f1-3)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Extracted version: $VERSION from tag: $TAG"
@@ -74,11 +73,14 @@ jobs:
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git fetch origin main
         git checkout -B main origin/main
-        git pull origin main
+
         git add build_number.txt CONTRIBUTORS.md
 
     - name: Commit & Push changes build_number contributors
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: iarekylew00t/verified-bot-commit@v2
       with:
         message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
@@ -98,8 +100,8 @@ jobs:
         echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
-        git tag -d "$BASE_TAG"
-        git push --delete origin "$BASE_TAG"
+        git tag -d "$BASE_TAG" 2>/dev/null || true
+        git push --delete origin "$BASE_TAG" 2>/dev/null || true
         git tag "$FULL_VERSION"
         git push -u origin "$FULL_VERSION"
 
