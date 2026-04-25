@@ -17,25 +17,35 @@
 /*  Simple semver compare: "v1.2.3" vs "v1.2.4"                       */
 /*  Returns true if remote > local.                                    */
 /* ------------------------------------------------------------------ */
+/* Parse "1.2.3.4" into 4 integers - avoids swscanf locale issues on MinGW */
+static void ParseVersion(const WCHAR *s, int v[4])
+{
+    v[0] = v[1] = v[2] = v[3] = 0;
+    int part = 0;
+    for (const WCHAR *p = s; *p && part < 4; p++) {
+        if (*p >= L'0' && *p <= L'9') {
+            v[part] = v[part] * 10 + (*p - L'0');
+        } else if (*p == L'.') {
+            part++;
+        }
+    }
+}
+
 static bool IsNewer(const WCHAR *remote_tag)
 {
     /* Strip leading 'v' or 'V' */
     const WCHAR *r = remote_tag;
     if (*r == L'v' || *r == L'V') r++;
 
-    /* The workflow produces tags like "v1.0.0.8" (major.minor.patch.build).
-       VERSION_STRING_W is also "major.minor.patch.build" e.g. "1.0.0.8".
-       Compare all 4 parts so that a higher build number on a release IS
-       correctly detected as newer than a locally built older binary. */
-    int rv[4] = {0}, lv[4] = {0};
-    swscanf(r, L"%d.%d.%d.%d", &rv[0], &rv[1], &rv[2], &rv[3]);
-    swscanf(VERSION_STRING_W, L"%d.%d.%d.%d", &lv[0], &lv[1], &lv[2], &lv[3]);
+    int rv[4], lv[4];
+    ParseVersion(r, rv);
+    ParseVersion(VERSION_STRING_W, lv);
 
     for (int i = 0; i < 4; i++) {
         if (rv[i] > lv[i]) return true;
         if (rv[i] < lv[i]) return false;
     }
-    return false; /* equal */
+    return false;
 }
 
 /* ------------------------------------------------------------------ */
