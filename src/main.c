@@ -49,17 +49,28 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* Apply always-on-top AFTER ShowWindow so it sticks */
     Window_ApplyAlwaysOnTop();
 
+    /* Load scripts from local cache immediately so tabs show before
+       sync completes and when there is no internet connection */
+    Sync_LoadManifest();
+    if (g.folder_count > 0) {
+        Tabs_Build();
+        Tabs_Switch(0);
+    }
+
     if (g.cfg.auto_sync) {
         g.syncing = true;
         HANDLE hT = CreateThread(NULL, 0, Sync_Thread, NULL, 0, NULL);
         if (hT) CloseHandle(hT);
+    } else {
+        SendMessage(g.hwnd_status, SB_SETTEXT, 0,
+                    (LPARAM)L"Auto-sync disabled. Press Refresh to sync.");
     }
 
     /* Check for app updates in background */
     if (g.cfg.check_updates) {
         HANDLE hU = CreateThread(NULL, 0, Updater_CheckThread, NULL, 0, NULL);
         if (hU) CloseHandle(hU);
-    } else {
+    } else if (!g.cfg.auto_sync) {
         SendMessage(g.hwnd_status, SB_SETTEXT, 0,
                     (LPARAM)L"Auto-sync disabled. Press Refresh to load scripts.");
     }
@@ -217,8 +228,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
 
     case WM_NOTIFY:
-        /* Custom tab bar handles its own clicks via WM_LBUTTONDOWN */
-        return 0;
+        break;
 
     /* Owner-draw toolbar buttons */
     case WM_DRAWITEM:
@@ -453,6 +463,15 @@ static void Handle_SyncDone(SyncResult *sr)
 {
     g.syncing = false;
     if (!sr) return;
+
+    if (sr->status == SR_NO_INTERNET) {
+        /* No connection - keep whatever is already displayed from cache.
+           Just update the status bar message. */
+        SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
+        free(sr);
+        return;
+    }
+
     /* Reset so meta re-reads from freshly downloaded files */
     for (int fi = 0; fi < g.folder_count; fi++)
         for (int si = 0; si < g.folders[fi].count; si++)

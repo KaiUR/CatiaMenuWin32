@@ -83,15 +83,75 @@ void Sync_SaveManifest(void)
     }
 }
 
-/*
- * Sync_LoadManifest  (currently unused at load time - SHAs are
- * compared live during the sync thread, but the function is provided
- * for future offline use.)
- */
 void Sync_LoadManifest(void)
 {
-    /* No-op: SHAs are read per-script during Sync_Thread via
-     * Sync_GetLocalSHA() when needed. */
+    /* Scan the cache directory and populate g.folders[] from what is
+       already on disk. This runs at startup so scripts are visible
+       immediately even before the sync completes or if there is no internet. */
+    if (!g.cfg.cache_dir[0]) return;
+
+    g.folder_count = 0;
+
+    WCHAR pattern[MAX_APPPATH];
+    _snwprintf(pattern, MAX_APPPATH - 1, L"%s\\*", g.cfg.cache_dir);
+
+    WIN32_FIND_DATAW fd;
+    HANDLE hFind = FindFirstFileW(pattern, &fd);
+    if (hFind == INVALID_HANDLE_VALUE) return;
+
+    do {
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        if (wcscmp(fd.cFileName, L".") == 0)     continue;
+        if (wcscmp(fd.cFileName, L"..") == 0)    continue;
+        if (wcscmp(fd.cFileName, L"setup") == 0) continue;
+        if (g.folder_count >= MAX_FOLDERS)        break;
+
+        ScriptFolder *f = &g.folders[g.folder_count++];
+        memset(f, 0, sizeof(*f));
+        wcsncpy(f->name, fd.cFileName, MAX_NAME - 1);
+        wcscpy(f->display, f->name);
+        Util_SnakeToTitle(f->display);
+
+        /* Scan .py files inside this folder */
+        WCHAR sub[MAX_APPPATH];
+        _snwprintf(sub, MAX_APPPATH - 1, L"%s\\%s\\*.py",
+                   g.cfg.cache_dir, f->name);
+
+        WIN32_FIND_DATAW sf;
+        HANDLE hSub = FindFirstFileW(sub, &sf);
+        if (hSub == INVALID_HANDLE_VALUE) continue;
+
+        do {
+            if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+            if (f->count >= MAX_SCRIPTS) break;
+
+            Script *s = &f->scripts[f->count++];
+            memset(s, 0, sizeof(*s));
+
+            /* gh_path: FolderName/filename.py */
+            _snwprintf(s->gh_path, MAX_APPPATH - 1,
+                       L"%s/%s", f->name, sf.cFileName);
+
+            /* local path */
+            _snwprintf(s->local, MAX_APPPATH - 1,
+                       L"%s\\%s\\%s",
+                       g.cfg.cache_dir, f->name, sf.cFileName);
+
+            /* display name: strip .py and format */
+            wcsncpy(s->name, sf.cFileName, MAX_NAME - 1);
+            Util_StripExt(s->name);
+            Util_SnakeToTitle(s->name);
+
+            /* SHA from manifest */
+            Sync_GetLocalSHA(s->gh_path, s->sha);
+
+        } while (FindNextFileW(hSub, &sf));
+        FindClose(hSub);
+
+        f->loaded = (f->count > 0);
+
+    } while (FindNextFileW(hFind, &fd));
+    FindClose(hFind);
 }
 
 /* ================================================================== */
@@ -144,12 +204,14 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
         sr->status = SR_NO_INTERNET;
-        /* Fall back to whatever is already in g.folders from
-         * the manifest so the UI still shows cached data. */
-        _snwprintf(sr->message, 255,
-                   L"No internet. Showing %d cached folder(s).",
-                   g.folder_count);
-        /* Still rebuild tabs from existing data */
+        if (g.folder_count > 0) {
+            _snwprintf(sr->message, 255,
+                       L"Showing %d cached folder(s). Connect to internet to sync.",
+                       g.folder_count);
+        } else {
+            wcscpy(sr->message,
+                   L"No internet connection. No cached scripts found.");
+        }
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         free(buf);
         return 0;

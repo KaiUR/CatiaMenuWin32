@@ -6,15 +6,8 @@
  * License: MIT
  */
 
-/*
- * NOTE: Need to fix unsafe functions
- */
-
 #include "main.h"
 
-/* ================================================================== */
-/*  Window_ApplyDarkMode                                                */
-/* ================================================================== */
 void Window_ApplyDarkMode(HWND hwnd)
 {
     BOOL dark = g.dark_mode ? TRUE : FALSE;
@@ -22,25 +15,16 @@ void Window_ApplyDarkMode(HWND hwnd)
     DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
 }
 
-/* ================================================================== */
-/*  Window_ApplyThemeToChildren                                        */
-/* ================================================================== */
 void Window_ApplyThemeToChildren(HWND hwnd)
 {
     SetWindowTheme(g.hwnd_status, L"", L"");
-    InvalidateRect(g.hwnd_tab,    NULL, TRUE); /* custom tab bar repaints */
+    InvalidateRect(g.hwnd_tab,    NULL, TRUE);
     InvalidateRect(g.hwnd_status, NULL, TRUE);
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
-/* ================================================================== */
-/*  Window_ApplyDarkMenu  -  no-op, menu is now a toolbar button      */
-/* ================================================================== */
 void Window_ApplyDarkMenu(HWND hwnd) { (void)hwnd; }
 
-/* ================================================================== */
-/*  Window_ApplyAlwaysOnTop                                             */
-/* ================================================================== */
 void Window_ApplyAlwaysOnTop(void)
 {
     HWND z = g.cfg.always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST;
@@ -50,78 +34,48 @@ void Window_ApplyAlwaysOnTop(void)
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
 }
 
-/* ================================================================== */
-/*  DarkenMenu  -  apply dark background brush to a menu recursively   */
-/* ================================================================== */
-static void DarkenMenu(HMENU hm)
-{
-    if (!g.dark_mode || !hm) return;
-    MENUINFO mi = {0};
-    mi.cbSize  = sizeof(mi);
-    mi.fMask   = MIM_BACKGROUND | MIM_APPLYTOSUBMENUS;
-    mi.hbrBack = CreateSolidBrush(COL_BTN_NORM());
-    SetMenuInfo(hm, &mi);
-}
-
-/* ================================================================== */
-/*  Window_ShowMenu  -  builds and shows popup at the menu button      */
-/* ================================================================== */
 void Window_ShowMenu(void)
 {
-    /* Build the full popup menu programmatically */
-    HMENU hm  = CreatePopupMenu();
-    HMENU hFile = CreatePopupMenu();
-    HMENU hRun  = CreatePopupMenu();
-    HMENU hView = CreatePopupMenu();
-    HMENU hTheme= CreatePopupMenu();
-    HMENU hWin  = CreatePopupMenu();
-    HMENU hHelp = CreatePopupMenu();
+    HMENU hm     = CreatePopupMenu();
+    HMENU hFile  = CreatePopupMenu();
+    HMENU hRun   = CreatePopupMenu();
+    HMENU hView  = CreatePopupMenu();
+    HMENU hTheme = CreatePopupMenu();
+    HMENU hWin   = CreatePopupMenu();
+    HMENU hHelp  = CreatePopupMenu();
 
-    /* File */
-    AppendMenu(hFile, MF_STRING, IDM_REFRESH,  L"Refresh + Sync\tF5");
+    AppendMenu(hFile, MF_STRING,    IDM_REFRESH,  L"Refresh + Sync\tF5");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hFile, MF_STRING, IDM_SETTINGS, L"Settings...");
+    AppendMenu(hFile, MF_STRING,    IDM_SETTINGS, L"Settings...");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hFile, MF_STRING, IDM_EXIT,     L"Exit");
+    AppendMenu(hFile, MF_STRING,    IDM_EXIT,     L"Exit");
 
-    /* Run */
-    AppendMenu(hRun, MF_STRING, IDM_RUN_LAST,     L"Run Last Script\tF9");
+    AppendMenu(hRun, MF_STRING,    IDM_RUN_LAST,    L"Run Last Script\tF9");
     AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hRun, MF_STRING, IDM_OPEN_CACHE,   L"Open Cache Folder...");
-    AppendMenu(hRun, MF_STRING, IDM_UPDATE_DEPS,  L"Update Dependencies");
+    AppendMenu(hRun, MF_STRING,    IDM_OPEN_CACHE,  L"Open Cache Folder...");
+    AppendMenu(hRun, MF_STRING,    IDM_UPDATE_DEPS, L"Update Dependencies");
 
-    /* Theme submenu */
     AppendMenu(hTheme, MF_STRING, IDM_THEME_DARK,   L"Dark");
     AppendMenu(hTheme, MF_STRING, IDM_THEME_LIGHT,  L"Light");
     AppendMenu(hTheme, MF_STRING, IDM_THEME_SYSTEM, L"System (default)");
 
-    /* View */
-    AppendMenu(hView, MF_STRING, IDM_ALWAYS_ON_TOP, L"Always on Top");
+    AppendMenu(hView, MF_STRING,    IDM_ALWAYS_ON_TOP, L"Always on Top");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hView, MF_POPUP, (UINT_PTR)hTheme,   L"Theme");
+    AppendMenu(hView, MF_POPUP, (UINT_PTR)hTheme, L"Theme");
 
-    /* Window */
     AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY,   L"Minimize to Tray");
     AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
     AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED,    L"Start Minimized");
 
-    /* Help */
     AppendMenu(hHelp, MF_STRING, IDM_ABOUT,  L"About");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB, L"View on GitHub");
 
-    /* Top-level */
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hFile, L"File");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hRun,  L"Run");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hView, L"View");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hWin,  L"Window");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hHelp, L"Help");
 
-    /* Apply dark background to all menus */
-    DarkenMenu(hm);
-    DarkenMenu(hFile); DarkenMenu(hRun);  DarkenMenu(hView);
-    DarkenMenu(hTheme); DarkenMenu(hWin); DarkenMenu(hHelp);
-
-    /* Apply checkmarks */
     CheckMenuItem(hView, IDM_ALWAYS_ON_TOP,
         g.cfg.always_on_top ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_MINIMIZE_TO_TRAY,
@@ -137,18 +91,15 @@ void Window_ShowMenu(void)
     CheckMenuItem(hTheme, IDM_THEME_SYSTEM,
         g.cfg.theme == THEME_SYSTEM ? MF_CHECKED : MF_UNCHECKED);
 
-    /* Show below the menu button */
     HWND hBtn = GetDlgItem(g.hwnd, IDC_BTN_MENU);
     RECT rc; GetWindowRect(hBtn, &rc);
+
     TrackPopupMenu(hm, TPM_LEFTALIGN | TPM_TOPALIGN,
                    rc.left, rc.bottom, 0, g.hwnd, NULL);
 
-    DestroyMenu(hm); /* destroys submenus too */
+    DestroyMenu(hm);
 }
 
-/* ================================================================== */
-/*  Tray                                                                */
-/* ================================================================== */
 void Window_AddTrayIcon(void)
 {
     if (g.tray_icon_added) return;
@@ -177,19 +128,16 @@ void Window_RemoveTrayIcon(void)
 void Window_ShowTrayMenu(void)
 {
     HMENU hm = CreatePopupMenu();
-    AppendMenu(hm, MF_STRING, IDM_REFRESH, L"Refresh Scripts");
+    AppendMenu(hm, MF_STRING,    IDM_REFRESH, L"Refresh Scripts");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING, IDM_EXIT, L"Exit");
-    DarkenMenu(hm);
+    AppendMenu(hm, MF_STRING,    IDM_EXIT,    L"Exit");
+
     POINT pt; GetCursorPos(&pt);
     SetForegroundWindow(g.hwnd);
     TrackPopupMenu(hm, TPM_RIGHTBUTTON, pt.x, pt.y, 0, g.hwnd, NULL);
     DestroyMenu(hm);
 }
 
-/* ================================================================== */
-/*  CMW32TabBar  -  fully custom tab bar, replaces native tab control  */
-/* ================================================================== */
 static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                                     WPARAM wp, LPARAM lp)
 {
@@ -206,29 +154,26 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         int w = rc.right, h = rc.bottom;
         int n = g.folder_count;
 
-        /* Background */
         HBRUSH bg = CreateSolidBrush(COL_TOOLBAR());
         FillRect(hdc, &rc, bg);
         DeleteObject(bg);
 
         if (n == 0) { EndPaint(hwnd, &ps); return 0; }
 
-        int tab_w = (n > 0) ? w / n : w;
+        int tab_w = w / n;
         SetBkMode(hdc, TRANSPARENT);
 
         for (int i = 0; i < n; i++) {
-            int x = i * tab_w;
-            int tw = (i == n - 1) ? (w - x) : tab_w; /* last tab fills remainder */
+            int x  = i * tab_w;
+            int tw = (i == n - 1) ? (w - x) : tab_w;
             bool sel = (i == g.active_tab);
 
-            /* Tab background */
             COLORREF bg_col = sel ? COL_BTN_NORM() : COL_TOOLBAR();
             HBRUSH tbr = CreateSolidBrush(bg_col);
             RECT tr = { x, 0, x + tw, h };
             FillRect(hdc, &tr, tbr);
             DeleteObject(tbr);
 
-            /* Top accent line for selected tab */
             if (sel) {
                 HPEN ap = CreatePen(PS_SOLID, 2, COL_ACCENT);
                 HPEN op = SelectObject(hdc, ap);
@@ -238,7 +183,6 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(ap);
             }
 
-            /* Divider between tabs */
             if (i < n - 1) {
                 HPEN dp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
                 HPEN op = SelectObject(hdc, dp);
@@ -248,7 +192,6 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(dp);
             }
 
-            /* Tab label */
             SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
             HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
             RECT lr = { x + 4, 0, x + tw - 4, h };
@@ -257,7 +200,6 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             SelectObject(hdc, of);
         }
 
-        /* Bottom border line */
         HPEN bp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
         HPEN op = SelectObject(hdc, bp);
         MoveToEx(hdc, 0, h - 1, NULL);
@@ -274,9 +216,9 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         RECT rc; GetClientRect(hwnd, &rc);
         int n = g.folder_count;
         if (n == 0) break;
-        int x = GET_X_LPARAM(lp);
+        int x     = GET_X_LPARAM(lp);
         int tab_w = rc.right / n;
-        int idx = x / tab_w;
+        int idx   = x / tab_w;
         if (idx >= n) idx = n - 1;
         if (idx != g.active_tab)
             Tabs_Switch(idx);
@@ -290,9 +232,6 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
-/* ================================================================== */
-/*  Custom status bar                                                   */
-/* ================================================================== */
 static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
                                        WPARAM wp, LPARAM lp)
 {
@@ -347,9 +286,6 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
-/* ================================================================== */
-/*  Tooltip proc                                                        */
-/* ================================================================== */
 static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
                                             WPARAM wp, LPARAM lp)
 {
@@ -360,14 +296,10 @@ static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
-/* ================================================================== */
-/*  Window_Create                                                       */
-/* ================================================================== */
 void Window_Create(HINSTANCE hInst)
 {
     App_InitGDI();
 
-    /* Register custom classes */
     WNDCLASSEX wcsb = { .cbSize=sizeof(wcsb), .style=CS_HREDRAW|CS_VREDRAW,
         .lpfnWndProc=StatusBarProc, .hInstance=hInst,
         .hCursor=LoadCursor(NULL,IDC_ARROW),
@@ -389,12 +321,18 @@ void Window_Create(HINSTANCE hInst)
         .lpszClassName=L"CMW32Tip" };
     RegisterClassEx(&wct);
 
-    /* Main window class - NO lpszMenuName so there is no native menu bar */
+    WNDCLASSEX wctb = { .cbSize=sizeof(wctb), .style=CS_HREDRAW|CS_VREDRAW,
+        .lpfnWndProc=TabBarProc, .hInstance=hInst,
+        .hCursor=LoadCursor(NULL,IDC_ARROW),
+        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
+        .lpszClassName=L"CMW32TabBar" };
+    RegisterClassEx(&wctb);
+
     WNDCLASSEX wc = { .cbSize=sizeof(wc), .style=CS_HREDRAW|CS_VREDRAW,
         .lpfnWndProc=MainWndProc, .hInstance=hInst,
         .hCursor=LoadCursor(NULL,IDC_ARROW),
         .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszMenuName=NULL,   /* <-- no native menu bar */
+        .lpszMenuName=NULL,
         .lpszClassName=APP_CLASS,
         .hIcon=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)),
         .hIconSm=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)) };
@@ -404,32 +342,25 @@ void Window_Create(HINSTANCE hInst)
     int sh = GetSystemMetrics(SM_CYSCREEN);
     int ww = 700, wh = 540;
 
-    g.hwnd = CreateWindowEx(
-        0, APP_CLASS, APP_TITLE, WS_OVERLAPPEDWINDOW,
-        (sw-ww)/2, (sh-wh)/2, ww, wh,
-        NULL, NULL, hInst, NULL);
+    g.hwnd = CreateWindowEx(0, APP_CLASS, APP_TITLE, WS_OVERLAPPEDWINDOW,
+        (sw-ww)/2, (sh-wh)/2, ww, wh, NULL, NULL, hInst, NULL);
 
     Window_ApplyDarkMode(g.hwnd);
 
-    /* ── Toolbar buttons ─────────────────────────────────────────── */
-    /* Menu button (hamburger) */
     CreateWindow(L"BUTTON", L"\u2630  Menu",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
         6, 5, 90, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_MENU, hInst, NULL);
-
     CreateWindow(L"BUTTON", L"\u27F3  Refresh",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
         102, 5, 100, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_REFRESH, hInst, NULL);
-
     CreateWindow(L"BUTTON", L"\u2699  Settings",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
         208, 5, 100, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_SETTINGS, hInst, NULL);
-
     CreateWindow(L"BUTTON", L"\u2B07  Update Deps",
-        WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
         314, 5, 120, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_UPDATE_DEPS, hInst, NULL);
 
@@ -439,44 +370,30 @@ void Window_Create(HINSTANCE hInst)
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 
-    /* Register and create fully custom tab bar (no native WC_TABCONTROL) */
-    WNDCLASSEX wctb = { .cbSize=sizeof(wctb), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=TabBarProc, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName=L"CMW32TabBar" };
-    RegisterClassEx(&wctb);
-
     g.hwnd_tab = CreateWindow(L"CMW32TabBar", NULL,
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+        WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS,
         0, TOOLBAR_H, ww, TAB_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
 
-    /* Scroll panel */
     int ct = TOOLBAR_H + TAB_H;
     int ch = wh - ct - STATUS_H;
     g.hwnd_scroll = CreateWindowEx(0, L"CMW32ScrollPanel", NULL,
-        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
+        WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_CLIPCHILDREN,
         0, ct, ww, ch,
         g.hwnd, (HMENU)(UINT_PTR)IDC_SCROLL_PANEL, hInst, NULL);
 
-    /* Custom status bar */
     g.hwnd_status = CreateWindow(L"CMW32StatusBar",
         L"Checking for updates\u2026",
-        WS_CHILD | WS_VISIBLE,
-        0, wh - STATUS_H, ww, STATUS_H,
+        WS_CHILD|WS_VISIBLE,
+        0, wh-STATUS_H, ww, STATUS_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_STATUS_BAR, hInst, NULL);
     SendMessage(g.hwnd_status, WM_SETFONT, (WPARAM)g.font_small, TRUE);
 
-    /* Tooltip popup */
-    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST|WS_EX_NOACTIVATE,
         L"CMW32Tip", NULL, WS_POPUP,
         0, 0, 300, 160, g.hwnd, NULL, hInst, NULL);
 }
 
-/* ================================================================== */
-/*  Window_OnSize                                                       */
-/* ================================================================== */
 void Window_OnSize(int w, int h)
 {
     int ct = TOOLBAR_H + TAB_H;
@@ -484,11 +401,11 @@ void Window_OnSize(int w, int h)
     if (ch < 0) ch = 0;
 
     SetWindowPos(g.hwnd_tab,    NULL, 0, TOOLBAR_H, w, TAB_H,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+                 SWP_NOZORDER|SWP_NOACTIVATE);
     SetWindowPos(g.hwnd_scroll, NULL, 0, ct, w, ch,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
-    SetWindowPos(g.hwnd_status, NULL, 0, h - STATUS_H, w, STATUS_H,
-                 SWP_NOZORDER | SWP_NOACTIVATE);
+                 SWP_NOZORDER|SWP_NOACTIVATE);
+    SetWindowPos(g.hwnd_status, NULL, 0, h-STATUS_H, w, STATUS_H,
+                 SWP_NOZORDER|SWP_NOACTIVATE);
 
     Tabs_RebuildButtons();
     InvalidateRect(g.hwnd, NULL, FALSE);
