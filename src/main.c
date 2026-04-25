@@ -217,52 +217,27 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
 
     case WM_NOTIFY:
-    {
-        NMHDR *nmh = (NMHDR *)lp;
-        if (nmh->idFrom == IDC_TAB_CTRL && nmh->code == TCN_SELCHANGE)
-            Tabs_Switch(TabCtrl_GetCurSel(g.hwnd_tab));
+        /* Custom tab bar handles its own clicks via WM_LBUTTONDOWN */
         return 0;
-    }
 
-    /* Owner-draw toolbar buttons and tabs */
+    /* Owner-draw toolbar buttons */
     case WM_DRAWITEM:
     {
         DRAWITEMSTRUCT *dis = (DRAWITEMSTRUCT *)lp;
         if (dis->CtlType == ODT_BUTTON) {
             int id = (int)dis->CtlID;
-            if (id == IDC_BTN_REFRESH ||
+            if (id == IDC_BTN_MENU ||
+                id == IDC_BTN_REFRESH ||
                 id == IDC_BTN_SETTINGS ||
                 id == IDC_BTN_UPDATE_DEPS) {
                 Paint_ToolbarButton(dis);
                 return TRUE;
             }
         }
-        if (dis->CtlType == ODT_TAB) {
-            Paint_Tab(dis);
-            return TRUE;
-        }
         break;
     }
 
-    /* Owner-draw menu bar items */
-    case WM_MEASUREITEM:
-    {
-        MEASUREITEMSTRUCT *mis = (MEASUREITEMSTRUCT *)lp;
-        if (mis->CtlType == ODT_MENU && g.dark_mode) {
-            HDC hdc = GetDC(hwnd);
-            HFONT of = SelectObject(hdc, g.font_ui);
-            const WCHAR *text = (const WCHAR *)(ULONG_PTR)mis->itemData;
-            SIZE sz = {60, 18};
-            if (text && text[0])
-                GetTextExtentPoint32W(hdc, text, (int)wcslen(text), &sz);
-            mis->itemWidth  = sz.cx + 24;
-            mis->itemHeight = sz.cy + 6;
-            SelectObject(hdc, of);
-            ReleaseDC(hwnd, hdc);
-            return TRUE;
-        }
-        break;
-    }
+
 
     /* Dark-mode aware child colouring */
     case WM_CTLCOLORSTATIC:
@@ -355,6 +330,10 @@ static void Handle_Command(WPARAM wp)
 
     switch (id)
     {
+    case IDC_BTN_MENU:
+        Window_ShowMenu();
+        break;
+
     case IDM_REFRESH:
     case IDC_BTN_REFRESH:
         if (!g.syncing) {

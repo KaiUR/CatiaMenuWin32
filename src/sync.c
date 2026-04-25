@@ -296,27 +296,30 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         }
     }
 
-    /* ── Step 5: Download setup files (requirements.txt, update.bat) ── */
+    /* Step 5: Download setup files */
     {
-        const WCHAR *setup_files[] = {
+        WCHAR setup_dir[MAX_APPPATH];
+        _snwprintf(setup_dir, MAX_APPPATH - 1,
+                   L"%s" L"\\" L"setup", g.cfg.cache_dir);
+        setup_dir[MAX_APPPATH - 1] = L'\0';
+        SHCreateDirectoryEx(NULL, setup_dir, NULL);
+
+        const WCHAR *gh_files[] = {
             L"setup/requirements.txt",
             L"setup/update.bat",
             NULL
         };
-        for (int i = 0; setup_files[i]; i++) {
-            WCHAR local_setup[MAX_APPPATH];
-            /* Convert forward slashes to backslashes for local path */
-            _snwprintf(local_setup, MAX_APPPATH - 1, L"%s\setup\%s",
-                       g.cfg.cache_dir,
-                       wcsrchr(setup_files[i], L'/') + 1);
-            if (GetFileAttributes(local_setup) == INVALID_FILE_ATTRIBUTES) {
-                /* Ensure setup dir exists */
-                WCHAR setup_dir[MAX_APPPATH];
-                _snwprintf(setup_dir, MAX_APPPATH - 1, L"%s\setup",
-                           g.cfg.cache_dir);
-                SHCreateDirectoryEx(NULL, setup_dir, NULL);
-                GitHub_DownloadRaw(setup_files[i], local_setup, token);
-            }
+        const WCHAR *local_names[] = {
+            L"requirements.txt",
+            L"update.bat",
+            NULL
+        };
+        for (int i = 0; gh_files[i]; i++) {
+            WCHAR lpath[MAX_APPPATH];
+            _snwprintf(lpath, MAX_APPPATH - 1,
+                       L"%s" L"\\" L"%s", setup_dir, local_names[i]);
+            lpath[MAX_APPPATH - 1] = L'\0';
+            GitHub_DownloadRaw(gh_files[i], lpath, token);
         }
     }
 

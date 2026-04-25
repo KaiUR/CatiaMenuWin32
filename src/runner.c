@@ -208,12 +208,16 @@ void Runner_UpdateDeps(void)
     if (GetFileAttributes(bat) != INVALID_FILE_ATTRIBUTES) {
         /* Run update.bat - keep console open so user sees output */
         _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"cmd.exe /k \"%s\"", bat);
+                   g.cfg.deps_keep_open
+                   ? L"cmd.exe /k \"%s\""
+                   : L"cmd.exe /c \"%s\"", bat);
     } else if (Runner_FindPython(python, MAX_APPPATH) &&
                GetFileAttributes(req) != INVALID_FILE_ATTRIBUTES) {
         /* Fallback: pip install -r requirements.txt */
         _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"cmd.exe /k \"%s\" -m pip install -r \"%s\"",
+                   g.cfg.deps_keep_open
+                   ? L"cmd.exe /k \"%s\" -m pip install -r \"%s\""
+                   : L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
                    python, req);
     } else {
         MessageBox(g.hwnd, L"Could not determine how to install dependencies.",

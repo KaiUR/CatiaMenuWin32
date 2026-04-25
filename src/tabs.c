@@ -14,12 +14,8 @@ static int  s_btn_count = 0;
 /* ================================================================== */
 void Tabs_Build(void)
 {
-    TabCtrl_DeleteAllItems(g.hwnd_tab);
-
-    for (int i = 0; i < g.folder_count; i++) {
-        TCITEM ti = { .mask = TCIF_TEXT, .pszText = g.folders[i].display };
-        TabCtrl_InsertItem(g.hwnd_tab, i, &ti);
-    }
+    /* Custom tab bar reads directly from g.folders[] - just repaint */
+    InvalidateRect(g.hwnd_tab, NULL, FALSE);
 }
 
 /* ================================================================== */
@@ -43,7 +39,7 @@ void Tabs_Switch(int idx)
 {
     if (idx < 0 || idx >= g.folder_count) return;
     g.active_tab = idx;
-    TabCtrl_SetCurSel(g.hwnd_tab, idx);
+    InvalidateRect(g.hwnd_tab, NULL, FALSE); /* repaint custom tab bar */
     Tabs_RebuildButtons();
 }
 

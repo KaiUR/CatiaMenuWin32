@@ -151,6 +151,7 @@ typedef struct {
     bool      start_with_windows;
     bool      start_minimized;
     bool      check_updates;       /* check for new app release on startup */
+    bool      deps_keep_open;      /* keep console open after Update Deps */
     ThemeMode theme;
 } Settings;
 
@@ -262,6 +263,7 @@ void Window_Create(HINSTANCE);
 void Window_OnSize(int w, int h);
 void Window_ApplyDarkMode(HWND hwnd);
 void Window_ApplyDarkMenu(HWND hwnd);
+void Window_ShowMenu(void);
 void Window_ApplyAlwaysOnTop(void);
 void Window_AddTrayIcon(void);
 void Window_RemoveTrayIcon(void);
@@ -316,7 +318,6 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis);
 void Paint_ScriptButton(HWND, HDC, bool hot, bool pressed,
                         bool info_hot, const Script *s);
 void Paint_Tooltip(HWND hwnd);
-void Paint_Tab(DRAWITEMSTRUCT *dis);
 LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 LRESULT CALLBACK TipWndProc(HWND, UINT, WPARAM, LPARAM);
 

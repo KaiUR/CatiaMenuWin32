@@ -204,18 +204,21 @@ static int Tip_ComputeHeight(const Script *s)
     int h = 8 + TIP_HEADER_ROWS * TIP_ROW_H;
 
     if (s && s->meta.description[0]) {
-        h += 4; /* separator */
-        /* Measure wrapped description text height */
-        HDC hdc = GetDC(g.hwnd_tip);
-        HFONT of = SelectObject(hdc, g.font_small);
-        RECT dr = { 8, 0, TIP_W - 12, 0 };
-        int text_h = DrawText(hdc, s->meta.description, -1, &dr,
+        h += 6; /* separator + gap */
+        /* Use a memory DC with the exact font to get accurate word-wrap height */
+        HDC screen = GetDC(NULL);
+        HDC mem    = CreateCompatibleDC(screen);
+        HFONT of   = SelectObject(mem, g.font_small);
+        /* Width must match what Paint_Tooltip draws into */
+        RECT dr = { 0, 0, TIP_W - 14, 0 };
+        int text_h = DrawText(mem, s->meta.description, -1, &dr,
                               DT_LEFT | DT_TOP | DT_WORDBREAK | DT_CALCRECT);
-        SelectObject(hdc, of);
-        ReleaseDC(g.hwnd_tip, hdc);
-        h += text_h + 8;
+        SelectObject(mem, of);
+        DeleteDC(mem);
+        ReleaseDC(NULL, screen);
+        h += text_h + 10;
     }
-    h += 8; /* bottom padding */
+    h += 10; /* bottom padding */
     return h;
 }
 
@@ -398,46 +401,59 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
 {
     HDC  hdc = dis->hDC;
     RECT rc  = dis->rcItem;
+    bool sel = (dis->itemState & ODS_SELECTED) != 0;
 
-    bool selected = (dis->itemState & ODS_SELECTED) != 0;
+    /* Slightly expand selected tab so it covers the tab border line */
+    if (sel) rc.bottom += 2;
 
     /* Background */
-    COLORREF bg  = selected ? COL_BTN_NORM() : COL_TOOLBAR();
-    COLORREF bdr = selected ? COL_ACCENT     : COL_DIVIDER();
-
+    COLORREF bg = sel ? COL_BTN_NORM() : COL_TOOLBAR();
     HBRUSH br = CreateSolidBrush(bg);
     FillRect(hdc, &rc, br);
     DeleteObject(br);
 
-    /* Bottom border: selected tab has no bottom line (merges with content) */
+    /* Border: draw on left, top, right - NOT bottom for selected tab */
+    COLORREF bdr = sel ? COL_ACCENT : COL_DIVIDER();
     HPEN pen = CreatePen(PS_SOLID, 1, bdr);
     HPEN op  = SelectObject(hdc, pen);
-    if (!selected) {
-        MoveToEx(hdc, rc.left,  rc.bottom - 1, NULL);
-        LineTo(hdc,   rc.right, rc.bottom - 1);
-    }
-    /* Top accent line for selected tab */
-    if (selected) {
+
+    if (sel) {
+        /* Top accent line (2px) */
         HPEN ap = CreatePen(PS_SOLID, 2, COL_ACCENT);
         SelectObject(hdc, ap);
-        MoveToEx(hdc, rc.left,  rc.top, NULL);
-        LineTo(hdc,   rc.right, rc.top);
+        MoveToEx(hdc, rc.left,      rc.top, NULL);
+        LineTo  (hdc, rc.right,     rc.top);
         SelectObject(hdc, op);
         DeleteObject(ap);
-        op = SelectObject(hdc, pen);
+
+        /* Left and right edges */
+        SelectObject(hdc, pen);
+        MoveToEx(hdc, rc.left,  rc.top,    NULL); LineTo(hdc, rc.left,  rc.bottom);
+        MoveToEx(hdc, rc.right - 1, rc.top, NULL); LineTo(hdc, rc.right - 1, rc.bottom);
+    } else {
+        /* Unselected: full border + bottom line */
+        RECT border = rc;
+        FrameRect(hdc, &border, CreateSolidBrush(bdr));
+        HBRUSH tb = CreateSolidBrush(bdr);
+        FrameRect(hdc, &border, tb);
+        DeleteObject(tb);
     }
+
     SelectObject(hdc, op);
     DeleteObject(pen);
 
-    /* Tab label text */
+    /* Text */
     WCHAR text[MAX_NAME] = {0};
-    TCITEM ti = { .mask = TCIF_TEXT, .pszText = text, .cchTextMax = MAX_NAME - 1 };
+    TCITEM ti = { .mask = TCIF_TEXT, .pszText = text,
+                  .cchTextMax = MAX_NAME - 1 };
     TabCtrl_GetItem(g.hwnd_tab, dis->itemID, &ti);
 
     SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, selected ? COL_ACCENT : COL_TEXT());
-    HFONT of = SelectObject(hdc, selected ? g.font_bold : g.font_ui);
-    DrawText(hdc, text, -1, &rc,
+    SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
+    HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
+    RECT tr = rc;
+    if (sel) tr.bottom -= 2;
+    DrawText(hdc, text, -1, &tr,
              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     SelectObject(hdc, of);
 }

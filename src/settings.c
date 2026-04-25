@@ -26,6 +26,7 @@ void Settings_Load(Settings *s)
     s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",       0, ini) != 0;
     s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0;
     s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
+    s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
     s->always_on_top       = GetPrivateProfileInt(L"Window",  L"AlwaysOnTop",       1, ini) != 0;
     s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    0, ini) != 0;
     s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  0, ini) != 0;
@@ -59,6 +60,7 @@ void Settings_Save(const Settings *s)
     WB(L"Options", L"ShowConsole",       s->show_console);
     WB(L"Options", L"ConsoleKeepOpen",  s->console_keep_open);
     WB(L"Options", L"CheckUpdates",      s->check_updates);
+    WB(L"Options", L"DepsKeepOpen",      s->deps_keep_open);
     WB(L"Window",  L"AlwaysOnTop",       s->always_on_top);
     WB(L"Window",  L"MinimizeToTray",    s->minimize_to_tray);
     WB(L"Window",  L"StartWithWindows",  s->start_with_windows);
@@ -114,6 +116,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console        ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open   ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, s->check_updates       ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
         bool has_tok = (s->github_token[0] != L'\0');
         CheckDlgButton(hwnd, IDC_CHK_TOKEN, has_tok ? BST_CHECKED : BST_UNCHECKED);
@@ -172,7 +175,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->download_before_run = IsDlgButtonChecked(hwnd, IDC_CHK_DOWNLOAD) == BST_CHECKED;
             s->show_console        = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)       == BST_CHECKED;
             s->console_keep_open   = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)     == BST_CHECKED;
-            s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES) == BST_CHECKED;
+            s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES)  == BST_CHECKED;
+            s->deps_keep_open      = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN) == BST_CHECKED;
             Settings_Save(s);
             SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
             EndDialog(hwnd, IDOK);
