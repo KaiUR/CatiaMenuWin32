@@ -1,24 +1,11 @@
 /*
  * meta.c  -  Parse script header into ScriptMeta.
- *
- * Header format:
- *   -------...
- *   Script name:   Rename_Hybrid_Shapes.py
- *   Version:       1.0
- *   Purpose:       Renames multiple hybrid shapes in one go.
- *   Author:        Kai-Uwe Rathjen
- *   Date:          04.03.26
- *   Description:   This script will ask the user...
- *                  continuation line...
- *   -------...
- *
- * meta_loaded is only set true when at least one field is found,
- * so a failed parse (empty file, not yet downloaded) retries next call.
- *
  * CatiaMenuWin32  |  Author: Kai-Uwe Rathjen  |  License: MIT
  */
 
 #include "main.h"
+
+#define DESC_MAX 1023   /* must match ScriptMeta.description buffer - 1 */
 
 static void TrimRight(WCHAR *s)
 {
@@ -28,7 +15,6 @@ static void TrimRight(WCHAR *s)
         s[--n] = L'\0';
 }
 
-/* Strip leading comment/dash/quote chars and whitespace */
 static void StripLeading(WCHAR *s)
 {
     WCHAR *p = s;
@@ -37,7 +23,6 @@ static void StripLeading(WCHAR *s)
     if (p != s) memmove(s, p, (wcslen(p)+1)*sizeof(WCHAR));
 }
 
-/* Match "Key: value" case-insensitively. Returns ptr to value or NULL. */
 static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
 {
     size_t klen = wcslen(key);
@@ -50,21 +35,19 @@ static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
     return (*p) ? p : NULL;
 }
 
-static void AppendDesc(WCHAR *buf, int max, const WCHAR *text)
+static void AppendDesc(WCHAR *buf, const WCHAR *text)
 {
     if (!text || !*text) return;
     int cur = (int)wcslen(buf);
-    if (cur > 0 && cur < max-2) { buf[cur++]=L' '; buf[cur]=L'\0'; }
-    wcsncat(buf, text, max-cur-1);
+    if (cur >= DESC_MAX) return;
+    /* Add a space separator if buffer not empty */
+    if (cur > 0 && cur < DESC_MAX) { buf[cur++]=L' '; buf[cur]=L'\0'; }
+    wcsncat(buf, text, DESC_MAX - cur);
 }
 
-/* ================================================================== */
-/*  Meta_Parse                                                          */
-/* ================================================================== */
 void Meta_Parse(Script *s)
 {
     if (s->meta_loaded) return;
-
     if (!s->local[0]) return;
     if (GetFileAttributes(s->local) == INVALID_FILE_ATTRIBUTES) return;
 
@@ -75,13 +58,13 @@ void Meta_Parse(Script *s)
     ScriptMeta m;
     memset(&m, 0, sizeof(m));
 
-    WCHAR raw[512], line[512];
+    WCHAR raw[1024], line[1024];
     int   lineno    = 0;
     bool  in_header = false;
     bool  in_desc   = false;
     bool  found_any = false;
 
-    while (lineno < 150 && fgetws(raw, 512, f))
+    while (lineno < 200 && fgetws(raw, 1024, f))
     {
         lineno++;
         TrimRight(raw);
@@ -89,7 +72,7 @@ void Meta_Parse(Script *s)
         StripLeading(line);
         TrimRight(line);
 
-        /* Detect dashed separator line in the raw content */
+        /* Detect dashed separator line */
         bool is_dashes = false;
         {
             int dash_count = 0, other = 0;
@@ -102,26 +85,27 @@ void Meta_Parse(Script *s)
 
         if (is_dashes) {
             if (!in_header) { in_header = true; }
-            in_desc = false;
+            else            { in_desc = false; break; } /* second dashes = end */
             continue;
         }
 
         if (!in_header) continue;
-        if (line[0] == L'\0') { in_desc = false; continue; }
 
-        /* Stop at Python code */
-        if (_wcsnicmp(line, L"import ",  7)==0 ||
-            _wcsnicmp(line, L"from ",    5)==0 ||
-            _wcsnicmp(line, L"def ",     4)==0 ||
-            _wcsnicmp(line, L"class ",   6)==0 ||
-            _wcsnicmp(line, L"Change",   6)==0 ||
-            _wcsnicmp(line, L"dependencies",12)==0 ||
-            _wcsnicmp(line, L"requirements",12)==0) break;
+        /* Stop at Python code or known section keywords */
+        if (_wcsnicmp(line, L"import ",      7)==0 ||
+            _wcsnicmp(line, L"from ",        5)==0 ||
+            _wcsnicmp(line, L"def ",         4)==0 ||
+            _wcsnicmp(line, L"class ",       6)==0 ||
+            _wcsnicmp(line, L"Change",       6)==0 ||
+            _wcsnicmp(line, L"dependencies", 12)==0 ||
+            _wcsnicmp(line, L"requirements", 12)==0) break;
+
+        /* Skip blank lines but do NOT stop description continuation */
+        if (line[0] == L'\0') continue;
 
         const WCHAR *val = NULL;
 
         if ((val = MatchKey(line, L"Script name")) != NULL) {
-            /* We already have a formatted name - skip */
             in_desc = false;
 
         } else if ((val = MatchKey(line, L"Version")) != NULL) {
@@ -144,18 +128,24 @@ void Meta_Parse(Script *s)
             if (!m.version[0]) { wcsncpy(m.version, val, 31); found_any = true; }
             in_desc = false;
 
+        } else if ((val = MatchKey(line, L"Release")) != NULL) {
+            /* Skip - not displayed */
+            in_desc = false;
+
         } else if ((val = MatchKey(line, L"Description")) != NULL) {
-            wcsncpy(m.description, val, 255);
+            wcsncpy(m.description, val, DESC_MAX);
             found_any = true; in_desc = true;
 
         } else if (in_desc) {
-            /* Continuation: original line must be indented */
+            /* Continuation line - must be indented in raw form */
             bool indented = (raw[0]==L' '||raw[0]==L'\t'||
                              raw[0]==L'\''||raw[0]==L'"');
-            if (indented && line[0] &&
-                line[0]!=L'['&&line[0]!=L']') {
-                AppendDesc(m.description, 255, line);
-            } else {
+            /* Stop if we hit a new key like "dependencies" or "[" */
+            if (line[0]==L'['||line[0]==L']') { in_desc = false; continue; }
+            if (indented && line[0]) {
+                AppendDesc(m.description, line);
+            } else if (!indented) {
+                /* Unindented non-key line ends description */
                 in_desc = false;
             }
         }
@@ -164,15 +154,11 @@ void Meta_Parse(Script *s)
     fclose(f);
 
     if (found_any) {
-        s->meta = m;
+        s->meta        = m;
         s->meta_loaded = true;
     }
-    /* If nothing found, meta_loaded stays false so we retry next hover */
 }
 
-/* ================================================================== */
-/*  Meta_ParseAll                                                       */
-/* ================================================================== */
 void Meta_ParseAll(void)
 {
     for (int fi = 0; fi < g.folder_count; fi++)

@@ -13,7 +13,7 @@
 #define VERSION_DISPLAY_W VERSION_STRING_W
 #endif
 #ifndef IS_LOCAL_BUILD
-#define IS_LOCAL_BUILD 0
+#define IS_LOCAL_BUILD 1
 #endif
 
 static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,

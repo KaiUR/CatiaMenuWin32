@@ -65,9 +65,11 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
     (void)unused;
 
-    /* Skip update check for local/dev builds */
+    /* Skip update check for local/dev builds.
+       Default to skipping if IS_LOCAL_BUILD not defined in version.h
+       (means CMake hasn't regenerated it yet - treat as local build). */
 #ifndef IS_LOCAL_BUILD
-#define IS_LOCAL_BUILD 0
+#define IS_LOCAL_BUILD 1
 #endif
     if (IS_LOCAL_BUILD) return 0;
 
@@ -89,8 +91,11 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
     if (!ParseLatestTag(buf, tag, 32)) { free(buf); return 1; }
 
     if (IsNewer(tag)) {
-        /* Store and notify main thread */
-        wcsncpy(g.latest_version, tag, 31);
+        /* Strip leading 'v' before storing for display */
+        const WCHAR *display_tag = tag;
+        if (display_tag[0] == L'v' || display_tag[0] == L'V')
+            display_tag++;
+        wcsncpy(g.latest_version, display_tag, 31);
         PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);
     }
 
@@ -107,7 +112,7 @@ void Updater_PromptAndInstall(const WCHAR *latest_tag)
     _snwprintf(msg, 511,
         L"A new version of CatiaMenuWin32 is available!\n\n"
         L"  Current version:  %s\n"
-        L"  Latest version:   %s\n\n"
+        L"  Latest version:   v%s\n\n"
         L"Would you like to open the releases page to download the update?",
         VERSION_STRING_W, latest_tag);
 

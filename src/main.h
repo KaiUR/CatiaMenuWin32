@@ -115,7 +115,7 @@ typedef struct {
     WCHAR author[64];
     WCHAR version[32];
     WCHAR date[32];
-    WCHAR description[512];   /* longer to hold full description */
+    WCHAR description[1024];  /* large enough for multi-line descriptions */
 } ScriptMeta;
 
 typedef struct {
