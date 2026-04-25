@@ -39,10 +39,10 @@ static bool GitHub_VerifyCert(HINTERNET hReq, const WCHAR *expected_host)
         const char *subj = (const char *)ci.lpszSubjectInfo;
         if (strstr(subj, host_a)              ||
             strstr(subj, "github.com")        ||
+            strstr(subj, "github.io")         ||
             strstr(subj, "githubusercontent.com")) {
             ok = true;
         }
-        Util_Log(L"CertCheck subject: %S", subj);
     }
 
     if (!ok) {
@@ -59,14 +59,14 @@ static bool GitHub_VerifyCert(HINTERNET hReq, const WCHAR *expected_host)
     ok = false;
     if (ci.lpszIssuerInfo) {
         const char *issr = (const char *)ci.lpszIssuerInfo;
-        Util_Log(L"CertCheck issuer: %S", issr);
-        if (strstr(issr, "DigiCert")  ||
-            strstr(issr, "Sectigo")   ||
-            strstr(issr, "GlobalSign")) {
+        if (strstr(issr, "DigiCert")   ||
+            strstr(issr, "Sectigo")     ||
+            strstr(issr, "GlobalSign")  ||
+            strstr(issr, "Encrypt")) {  /* Let's Encrypt, ZeroSSL etc */
             ok = true;
         }
         if (!ok)
-            Util_Log(L"CertCheck: unknown CA - blocking");
+            Util_Log(L"CertCheck: unknown CA");
     }
 
     LocalFree(ci.lpszSubjectInfo);

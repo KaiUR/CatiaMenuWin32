@@ -74,6 +74,9 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
     if (IS_LOCAL_BUILD) return 0;
 
 
+    /* Wait for sync thread to finish its API calls first */
+    Sleep(3000);
+
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) return 1;
 
