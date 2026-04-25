@@ -2,10 +2,10 @@ name: MinGW-w64 Release
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
     tags: [ "v*" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 permissions:
   contents: write
@@ -32,9 +32,9 @@ jobs:
     - name: Update Contributors File
       shell: bash
       run: |
-        git fetch origin master
-        git checkout master
-        git pull origin master
+        git fetch origin main
+        git checkout main
+        git pull origin main
 
         echo "# Contributors" > CONTRIBUTORS.md
         echo "" >> CONTRIBUTORS.md
@@ -59,8 +59,8 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-        git checkout -B master origin/master
-        git pull origin master
+        git checkout -B main origin/main
+        git pull origin main
 
         git add build_number.txt CONTRIBUTORS.md
 
@@ -99,7 +99,7 @@ jobs:
           LICENSE.txt \
           --title "CATIA Macro Menu $FULL_VERSION" \
           --generate-notes \
-          --target master
+          --target main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         FULL_VERSION: ${{ env.FULL_VERSION }}
