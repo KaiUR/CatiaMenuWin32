@@ -1,7 +1,6 @@
 # CatiaMenuWin32
 
 A lightweight, native **Win32 API / C** macro launcher for PyCATIA scripts,
-built with the same philosophy as [MineSweeperWin32](https://github.com/KaiUR/MineSweeperWin32)
 — direct Win32 API, no frameworks, pure C11.
 
 ## 🎯 What It Does
@@ -130,7 +129,7 @@ The **Update Deps** button runs `setup/update.bat` from the cached scripts folde
 
 - `build_number.txt` auto-increments on every `cmake` configure (local and CI)
 - CMake reads the latest git tag automatically for local builds — no manual version editing needed
-- CI workflow reads the tag you push (e.g. `v1.1.0`), builds with that version, then appends the build number to create the final release tag (e.g. `v1.1.0.21`)
+- The workflow reads the tag you push (e.g. `v1.1.0`), builds with that version, then appends the build number to create the final release tag (e.g. `v1.1.0.21`)
 - The binary version and release tag always match
 
 ## 🚀 How to Release

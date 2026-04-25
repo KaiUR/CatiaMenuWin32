@@ -19,6 +19,23 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
 {
     (void)hPrev;
 
+    /* ── Single instance check ──────────────────────────────────── */
+    /* If another instance is already running, bring it to the front
+       (or show it from tray) and exit this new instance. */
+    HANDLE hMutex = CreateMutex(NULL, TRUE, L"CatiaMenuWin32_SingleInstance");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        /* Find the existing window and restore it */
+        HWND hExisting = FindWindow(APP_CLASS, NULL);
+        if (hExisting) {
+            /* If hidden (minimized to tray), show it */
+            if (!IsWindowVisible(hExisting))
+                ShowWindow(hExisting, SW_RESTORE);
+            SetForegroundWindow(hExisting);
+        }
+        if (hMutex) CloseHandle(hMutex);
+        return 0;
+    }
+
     INITCOMMONCONTROLSEX icc = {
         .dwSize = sizeof(icc),
         .dwICC  = ICC_TAB_CLASSES | ICC_BAR_CLASSES | ICC_STANDARD_CLASSES

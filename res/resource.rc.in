@@ -95,8 +95,8 @@ BEGIN
 END
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
+FILEVERSION    @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
 FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -109,12 +109,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "Kai-Uwe Rathjen"
             VALUE "FileDescription",  "CatiaMenuWin32 - PyCATIA Script Launcher"
-            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "FileVersion",      "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.@BUILD_NUMBER@"
             VALUE "InternalName",     "CatiaMenuWin32"
-            VALUE "LegalCopyright",   "Copyright 2025 Kai-Uwe Rathjen"
+            VALUE "LegalCopyright",   "Copyright @CURRENT_YEAR@ Kai-Uwe Rathjen"
             VALUE "OriginalFilename", "CatiaMenuWin32.exe"
             VALUE "ProductName",      "CatiaMenuWin32"
-            VALUE "ProductVersion",   "1.0.0.0"
+            VALUE "ProductVersion",   "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.@BUILD_NUMBER@"
         END
     END
     BLOCK "VarFileInfo"

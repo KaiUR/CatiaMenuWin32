@@ -54,8 +54,9 @@ file(WRITE "${CMAKE_SOURCE_DIR}/build_number.txt" "${BUILD_NUMBER}")
 string(TIMESTAMP CURRENT_DATE "%Y-%m-%d")
 string(TIMESTAMP CURRENT_YEAR "%Y")
 
-# --- Generate version.h ---
+# --- Generate version.h and resource.rc ---
 configure_file(res/version.h.in "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
+configure_file(res/resource.rc.in "${CMAKE_CURRENT_BINARY_DIR}/resource.rc" @ONLY)
 
 # --- Executable ---
 add_executable(CatiaMenuWin32 WIN32
@@ -71,13 +72,18 @@ add_executable(CatiaMenuWin32 WIN32
     src/updater.c
     src/settings.c
     src/paint.c
-    res/resource.rc
+    "${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 )
 
 # --- Include Paths ---
 target_include_directories(CatiaMenuWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+# --- RC include path so windres finds app_icon.ico and app.manifest ---
+set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
+    PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/res"
 )
 
 # --- Link Libraries ---
