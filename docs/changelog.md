@@ -4,6 +4,17 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.2.5 — Source management fixes
+
+### Fixed
+- Disabling the main repository and pressing Refresh now immediately clears scripts from the UI
+- Ghost buttons no longer appear on hover after all sources are disabled
+- `g.folder_count` reset at start of sync so disabled sources never persist after refresh
+- Main repo correctly wrapped in `if` blocks in both `Sync_LoadManifest` and `Sync_Thread` — previous `goto` approach skipped over variable declarations causing undefined behaviour
+- Local build number increments by 2 (CI by 1) so local builds are always ahead of the latest release
+
+---
+
 ## v1.2.4 — Stability, documentation, sources improvements
 
 ### Added
