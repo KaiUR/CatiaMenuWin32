@@ -390,7 +390,7 @@ void GitHub_ParseRoot(const char *json)
             char name_a[MAX_NAME] = {0};
             json_str(obj, "name", name_a, sizeof(name_a));
 
-            if (_stricmp(name_a, "setup") == 0) { p = after; continue; }
+            if (_stricmp(name_a, "setup") == 0 || name_a[0] == '.') { p = after; continue; }
 
             ScriptFolder *f = &g.folders[g.folder_count++];
             memset(f, 0, sizeof(*f));

@@ -284,7 +284,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
                 name_a[ni] = '\0';
             }
         }
-        if (!name_a[0] || strcmp(name_a, "setup") == 0) { p = tp; continue; }
+        if (!name_a[0] || strcmp(name_a, "setup") == 0 || name_a[0] == '.') { p = tp; continue; }
 
         /* Get folder contents */
         WCHAR folder_w[MAX_NAME] = {0};
