@@ -44,6 +44,7 @@
 #define IDC_CHK_KEEP_OPEN       410
 #define IDC_CHK_CHECK_UPDATES   411
 #define IDC_CHK_DEPS_KEEP_OPEN  412
+#define IDC_BTN_RESET           420
 #define IDC_BTN_UPDATE_DEPS     506
 
 #define IDC_SCRIPT_BTN_BASE     1000

@@ -116,7 +116,7 @@ void Updater_PromptAndInstall(const WCHAR *latest_tag)
     WCHAR msg[512];
     _snwprintf(msg, 511,
         L"A new version of CatiaMenuWin32 is available!\n\n"
-        L"  Current version:  %s\n"
+        L"  Current version:  v%s\n"
         L"  Latest version:   v%s\n\n"
         L"Would you like to open the releases page to download the update?",
         VERSION_STRING_W, latest_tag);

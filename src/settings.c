@@ -203,6 +203,56 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN),
                 IsDlgButtonChecked(hwnd, IDC_CHK_TOKEN) == BST_CHECKED);
             break;
+        case IDC_BTN_RESET:
+        {
+            int res = MessageBox(hwnd,
+                L"Reset all settings to defaults?\n\n"
+                L"This will clear your Python path, cache folder,\n"
+                L"GitHub token, and all options.\n\n"
+                L"Sources (extra repos and local folders) are not affected.",
+                L"Reset to Defaults",
+                MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+            if (res != IDYES) break;
+
+            /* Apply defaults to current settings struct */
+            Settings *s = &g.cfg;
+            s->python_exe[0]       = L'\0';
+            s->github_token[0]     = L'\0';
+            s->auto_sync           = true;
+            s->download_before_run = false;
+            s->show_console        = false;
+            s->console_keep_open   = true;
+            s->deps_keep_open      = false;
+            s->check_updates       = true;
+            s->always_on_top       = true;
+            s->minimize_to_tray    = false;
+            s->start_with_windows  = false;
+            s->start_minimized     = true;
+            s->theme               = THEME_SYSTEM;
+
+            /* Reset cache dir to default */
+            _snwprintf(s->cache_dir, MAX_APPPATH - 1,
+                       L"%s\\scripts", g.appdata_dir);
+
+            /* Auto-detect python */
+            Runner_FindPython(s->python_exe, MAX_APPPATH);
+
+            /* Reload dialog controls with new defaults */
+            SetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe);
+            SetDlgItemText(hwnd, IDC_EDIT_CACHE,  s->cache_dir);
+            SetDlgItemText(hwnd, IDC_EDIT_TOKEN,  L"");
+            CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_TOKEN,         BST_UNCHECKED);
+            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN),  FALSE);
+            EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), FALSE);
+            break;
+        }
+
         case IDOK:
         {
             Settings *s = &g.cfg;
