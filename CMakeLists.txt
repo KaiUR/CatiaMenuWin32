@@ -6,16 +6,21 @@ if(DEFINED VERSION_OVERRIDE)
     set(APP_VERSION ${VERSION_OVERRIDE})
     set(IS_LOCAL_BUILD 0)
 else()
-    # Try to get the latest semver tag from git
+    # Get the highest version tag (not nearest ancestor - workflow tags
+    # are created on CI commits not on local HEAD)
     find_package(Git QUIET)
     if(Git_FOUND)
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0 --match "v[0-9]*"
+            COMMAND ${GIT_EXECUTABLE} tag --sort=-version:refname --list "v[0-9]*"
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE GIT_LATEST_TAG
+            OUTPUT_VARIABLE GIT_ALL_TAGS
             ERROR_QUIET
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
+        string(REGEX MATCH "v[0-9][^
+
+]*" GIT_LATEST_TAG "${GIT_ALL_TAGS}")
+        string(STRIP "${GIT_LATEST_TAG}" GIT_LATEST_TAG)
     endif()
 
     if(GIT_LATEST_TAG)
