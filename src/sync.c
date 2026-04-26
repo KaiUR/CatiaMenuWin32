@@ -95,6 +95,7 @@ void Sync_LoadManifest(void)
 
     g.folder_count = 0;
 
+    if (g.cfg.main_repo_enabled) {
     WCHAR pattern[MAX_APPPATH];
     _snwprintf(pattern, MAX_APPPATH - 1, L"%s\\*", g.cfg.cache_dir);
 
@@ -155,6 +156,7 @@ void Sync_LoadManifest(void)
 
     } while (FindNextFileW(hFind, &fd));
     FindClose(hFind);
+    } /* end if (main_repo_enabled) */
 
     /* Also scan local dirs so they appear at startup without internet */
     for (int i = 0; i < g.cfg.local_dir_count; i++) {
@@ -459,6 +461,10 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         return 1;
     }
 
+    /* Clear all folders before sync so disabled sources don't linger */
+    g.folder_count = 0;
+
+        if (g.cfg.main_repo_enabled) {
     /* ── Step 1: Fetch root to get current folder list ───────────── */
     PostStatus(L"Connecting to GitHub\u2026");
 
@@ -648,6 +654,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             GitHub_DownloadRaw(gh_files[i], lpath, token);
         }
     }
+
+    } /* end if (main_repo_enabled) */
 
     /* ── Step 6: Sync extra GitHub repos ───────────────────────── */
     {

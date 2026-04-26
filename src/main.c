@@ -512,7 +512,13 @@ static void Handle_SyncDone(SyncResult *sr)
             g.folders[fi].scripts[si].meta_loaded = false;
     Meta_ParseAll();
     Tabs_Build();
-    Tabs_Switch(g.active_tab < g.folder_count ? g.active_tab : 0);
+    if (g.folder_count == 0) {
+        Tabs_DestroyButtons();
+        InvalidateRect(g.hwnd_tab,    NULL, TRUE);
+        InvalidateRect(g.hwnd_scroll, NULL, TRUE);
+    } else {
+        Tabs_Switch(g.active_tab < g.folder_count ? g.active_tab : 0);
+    }
     SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
     free(sr);
     InvalidateRect(g.hwnd, NULL, FALSE);
