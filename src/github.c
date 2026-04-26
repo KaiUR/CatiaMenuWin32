@@ -62,11 +62,11 @@ static bool GitHub_VerifyCert(HINTERNET hReq, const WCHAR *expected_host)
         if (strstr(issr, "DigiCert")   ||
             strstr(issr, "Sectigo")     ||
             strstr(issr, "GlobalSign")  ||
-            strstr(issr, "Encrypt")) {  /* Let's Encrypt, ZeroSSL etc */
+            strstr(issr, "Encrypt")) {
             ok = true;
         }
         if (!ok)
-            Util_Log(L"CertCheck: unknown CA");
+            Util_Log(L"CertCheck: UNKNOWN CA - BLOCKING");
     }
 
     LocalFree(ci.lpszSubjectInfo);
