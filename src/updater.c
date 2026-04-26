@@ -75,15 +75,6 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
     (void)unused;
 
-    /* Skip update check for local/dev builds.
-       Default to skipping if IS_LOCAL_BUILD not defined in version.h
-       (means CMake hasn't regenerated it yet - treat as local build). */
-#ifndef IS_LOCAL_BUILD
-#define IS_LOCAL_BUILD 1
-#endif
-    if (IS_LOCAL_BUILD) return 0;
-
-
     /* Wait for sync thread to finish its API calls first */
     Sleep(3000);
 
@@ -98,6 +89,7 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
     bool ok = GitHub_HttpGet(GITHUB_API_HOST, api_path,
                               g.cfg.github_token[0] ? g.cfg.github_token : NULL,
                               buf, &len);
+
     if (!ok || len == 0) { free(buf); return 1; }
 
     WCHAR tag[32] = {0};
