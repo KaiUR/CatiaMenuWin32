@@ -22,6 +22,14 @@ A lightweight, native Win32/C macro launcher for PyCATIA scripts used with CATIA
 - [Report an Issue](https://github.com/KaiUR/CatiaMenuWin32/issues)
 - [PyCATIA](https://github.com/evereux/pycatia)
 
+## Screenshots
+
+**Dark Mode**
+![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.2.3.32.JPG)
+
+**Light Mode**
+![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.2.3.32.JPG)
+
 ## About
 
 CatiaMenuWin32 connects directly to the [KaiUR/Pycatia_Scripts](https://github.com/KaiUR/Pycatia_Scripts) repository and presents every script as a clickable button. Click a button — the script runs. No CATIA macro editor, no manual path setup, no copy-pasting.
