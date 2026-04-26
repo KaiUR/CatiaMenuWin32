@@ -11,7 +11,7 @@ else()
     find_package(Git QUIET)
     if(Git_FOUND)
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} tag --sort=-version:refname --list "v[0-9]*"
+            COMMAND ${GIT_EXECUTABLE} tag --sort=-creatordate --list "v[0-9]*"
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             OUTPUT_VARIABLE GIT_ALL_TAGS
             ERROR_QUIET
