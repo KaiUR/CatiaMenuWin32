@@ -3,11 +3,24 @@
 A lightweight, native **Win32 API / C** macro launcher for PyCATIA scripts
 — direct Win32 API, no frameworks, pure C11.
 
+## 📚 Documentation
+
+Full documentation is available in the [`docs/`](docs/) folder:
+
+- [User Guide](docs/user-guide.md) — installation, settings, sources, running scripts
+- [Developer Guide](docs/developer-guide.md) — building from source, project structure, releasing
+- [File Reference](docs/file-reference.md) — source files, structs, functions, constants
+- [Changelog](docs/changelog.md) — release history
+
+---
+
 ## 🎯 What It Does
 
 CatiaMenuWin32 connects directly to the [KaiUR/Pycatia_Scripts](https://github.com/KaiUR/Pycatia_Scripts)
 GitHub repository and presents every script as a clickable button. Click a button — the script runs.
 No CATIA macro editor, no manual path setup, no copy-pasting.
+
+Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 COM automation.
 
 ## 📂 Script Tabs
 
@@ -122,6 +135,7 @@ This program will not transfer any information to other networked systems unless
 - **Build system**: CMake 3.16+ / Ninja
 - **Compiler**: MinGW-w64 (GCC 13)
 - **AI Assistance**: Claude (Anthropic) — used to assist with code generation, debugging, and architecture decisions
+- **PyCATIA**: Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 automation
 
 ## 📦 Building from Source
 
@@ -130,6 +144,11 @@ This program will not transfer any information to other networked systems unless
 - [CMake 3.16+](https://cmake.org/)
 - [Ninja](https://ninja-build.org/)
 - Qt Creator (optional, used as IDE)
+
+### Runtime Requirements (for running scripts)
+- **Python 3.9+** — required to execute PyCATIA scripts
+- **[PyCATIA](https://github.com/evereux/pycatia)** — install via `pip install pycatia`
+- **CATIA V5** — must be running for scripts that interact with it
 
 ### Steps
 
