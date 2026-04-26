@@ -14,6 +14,16 @@ Full documentation is available in the [`docs/`](docs/) folder:
 
 ---
 
+## 📸 Screenshots
+
+**Dark Mode**
+![CatiaMenuWin32 Dark Mode](docs/images/Darkmode_ScreenshotV1.2.3.32.JPG)
+
+**Light Mode**
+![CatiaMenuWin32 Light Mode](docs/images/Lightmode_ScreenshotV1.2.3.32.JPG)
+
+---
+
 ## 🎯 What It Does
 
 CatiaMenuWin32 connects directly to the [KaiUR/Pycatia_Scripts](https://github.com/KaiUR/Pycatia_Scripts)
