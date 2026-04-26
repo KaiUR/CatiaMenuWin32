@@ -1,0 +1,9 @@
+title: CatiaMenuWin32
+description: A native Win32 macro launcher for PyCATIA scripts used with CATIA V5
+theme: jekyll-theme-cayman
+show_downloads: true
+google_analytics:
+github:
+  is_project_page: true
+  repository_url: https://github.com/KaiUR/CatiaMenuWin32
+  repository_name: CatiaMenuWin32
