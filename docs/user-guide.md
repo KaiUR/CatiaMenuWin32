@@ -57,6 +57,12 @@ If the sync fails with "Connect to internet to sync", check your internet connec
  Status bar — sync messages and script output
 ```
 
+**Dark Mode**
+![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.2.3.32.JPG)
+
+**Light Mode**
+![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.2.3.32.JPG)
+
 **Toolbar buttons:**
 - **☰ Menu** — access all app functions via dropdown menus
 - **↺ Refresh** — re-sync scripts from all sources
