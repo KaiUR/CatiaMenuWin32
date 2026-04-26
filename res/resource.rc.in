@@ -11,6 +11,7 @@ BEGIN
         MENUITEM "&Refresh + Sync\tF5",   201
         MENUITEM SEPARATOR
         MENUITEM "S&ettings...",          202
+        MENUITEM "S&ources...",           217
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                 203
     END
@@ -93,6 +94,47 @@ BEGIN
     LTEXT "https://github.com/KaiUR/CatiaMenuWin32", -1, 7, 98, 246, 10
     DEFPUSHBUTTON "OK", 1, 105, 122, 50, 14
 END
+
+302 DIALOG 0, 0, 360, 290
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Script Sources"
+FONT 9, "Segoe UI"
+BEGIN
+    AUTOCHECKBOX "Enable built-in KaiUR/Pycatia_Scripts repository", 608, 7, 7, 320, 12
+
+    GROUPBOX "Additional GitHub Repositories", -1, 7, 24, 346, 136
+    CONTROL "", 601, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 36, 280, 114
+    PUSHBUTTON "Add...",        602, 300, 36,  46, 14
+    PUSHBUTTON "Edit...",       603, 300, 54,  46, 14
+    PUSHBUTTON "Enable/Disable",615, 300, 72,  46, 14
+    PUSHBUTTON "Remove",        604, 300, 90,  46, 14
+
+    GROUPBOX "Local Script Folders", -1, 7, 166, 346, 106
+    CONTROL "", 605, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 178, 280, 84
+    PUSHBUTTON "Add...",        606, 300, 178, 46, 14
+    PUSHBUTTON "Enable/Disable",616, 300, 196, 46, 14
+    PUSHBUTTON "Remove",        607, 300, 214, 46, 14
+
+    DEFPUSHBUTTON "OK",     1,  258, 272, 50, 14
+    PUSHBUTTON "Cancel",    2,  312, 272, 44, 14
+END
+
+303 DIALOG 0, 0, 300, 130
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add / Edit Repository"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "GitHub URL:",   -1,   7,  10, 60, 10
+    EDITTEXT 610, 72,  8, 222, 14, ES_AUTOHSCROLL
+    LTEXT "Branch:",       -1,   7,  28, 60, 10
+    EDITTEXT 611, 72, 26, 100, 14, ES_AUTOHSCROLL
+    AUTOCHECKBOX "Use token", 613, 7, 48, 60, 12
+    EDITTEXT 612, 72, 46, 222, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    AUTOCHECKBOX "Enabled",   614, 7, 66, 60, 12
+    DEFPUSHBUTTON "OK",     1, 188, 110, 50, 14
+    PUSHBUTTON "Cancel",    2, 244, 110, 50, 14
+END
+
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION    @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@

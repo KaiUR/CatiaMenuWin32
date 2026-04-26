@@ -68,7 +68,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
         /* Two-line layout: title top half, update badge bottom half */
         SetTextColor(mem, COL_ACCENT);
         SelectObject(mem, g.font_bold);
-        RECT tr = { 370, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = { 365, 0, w - 8, TOOLBAR_H / 2 };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
         WCHAR upd[64];
@@ -79,7 +79,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
         DrawText(mem, upd, -1, &ur, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     } else if (g.syncing) {
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 370, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = { 365, 0, w - 8, TOOLBAR_H / 2 };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
@@ -88,7 +88,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
                  DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     } else {
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 370, 0, w - 8, TOOLBAR_H };
+        RECT tr = { 365, 0, w - 8, TOOLBAR_H };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     }
 
@@ -362,15 +362,26 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             int th = Tip_ComputeHeight(s);
             g.tip_h = th;
 
-            /* Position tooltip */
+            /* Get work area of the monitor the window is on
+               (accounts for taskbar, multi-monitor, maximized state) */
+            MONITORINFO mi; mi.cbSize = sizeof(mi);
+            HMONITOR hmon = MonitorFromWindow(g.hwnd, MONITOR_DEFAULTTONEAREST);
+            GetMonitorInfo(hmon, &mi);
+            RECT wa = mi.rcWork;
+
+            /* Position to right of i button, flip left if no room */
             POINT pt = { rc.right, 0 };
             ClientToScreen(hwnd, &pt);
-            int sw = GetSystemMetrics(SM_CXSCREEN);
-            int sh = GetSystemMetrics(SM_CYSCREEN);
-            int tx = (pt.x + TIP_W > sw) ? pt.x - rc.right - TIP_W : pt.x;
+            int tx = (pt.x + TIP_W > wa.right)
+                     ? pt.x - rc.right - TIP_W
+                     : pt.x;
             int ty = pt.y;
-            /* Keep on screen vertically */
-            if (ty + th > sh) ty = sh - th - 4;
+
+            /* Clamp within work area on all sides */
+            if (ty + th > wa.bottom) ty = wa.bottom - th - 4;
+            if (ty < wa.top)         ty = wa.top + 4;
+            if (tx < wa.left)        tx = wa.left + 4;
+            if (tx + TIP_W > wa.right) tx = wa.right - TIP_W - 4;
 
             SetWindowPos(g.hwnd_tip, HWND_TOPMOST, tx, ty, TIP_W, th,
                          SWP_NOACTIVATE | SWP_SHOWWINDOW);

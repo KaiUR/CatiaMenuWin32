@@ -57,10 +57,11 @@
 /* ------------------------------------------------------------------ */
 /*  Layout                                                              */
 /* ------------------------------------------------------------------ */
-#define WIN_MIN_W        560
+#define WIN_MIN_W        820
 #define WIN_MIN_H        420
 #define TOOLBAR_H        38
 #define TAB_H            26
+#define TAB_ARROW_W      22   /* width of left/right scroll arrows     */
 #define STATUS_H         22
 #define BTN_H            40
 #define BTN_GAP          6
@@ -68,19 +69,21 @@
 #define BTN_MY           10
 #define SCROLL_STEP      40
 #define INFO_BTN_W       28
-#define TIP_W            320    /* tooltip width  */
-#define TIP_ROW_H        18     /* height per metadata row */
-#define TIP_HEADER_ROWS  5      /* Script/Purpose/Author/Version/Date */
+#define TIP_W            320
+#define TIP_ROW_H        18
+#define TIP_HEADER_ROWS  5
 
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
-#define MAX_FOLDERS      32
+#define MAX_FOLDERS      64
 #define MAX_SCRIPTS      128
 #define MAX_NAME         128
 #define MAX_SHA          64
 #define MAX_APPPATH      520
 #define HTTP_BUF_SIZE    (512 * 1024)
+#define MAX_EXTRA_REPOS  8
+#define MAX_LOCAL_DIRS   8
 
 /* ------------------------------------------------------------------ */
 /*  Messages                                                            */
@@ -115,7 +118,7 @@ typedef struct {
     WCHAR author[64];
     WCHAR version[32];
     WCHAR date[32];
-    WCHAR description[1024];  /* large enough for multi-line descriptions */
+    WCHAR description[1024];
 } ScriptMeta;
 
 typedef struct {
@@ -136,6 +139,21 @@ typedef struct {
 } ScriptFolder;
 
 /* ------------------------------------------------------------------ */
+/*  Extra sources                                                       */
+/* ------------------------------------------------------------------ */
+typedef struct {
+    WCHAR url[512];         /* https://github.com/owner/repo          */
+    WCHAR branch[64];       /* branch name, default "main"            */
+    WCHAR token[256];       /* optional PAT                           */
+    bool  enabled;
+} ExtraRepo;
+
+typedef struct {
+    WCHAR path[MAX_APPPATH]; /* local folder path                     */
+    bool  enabled;
+} LocalDir;
+
+/* ------------------------------------------------------------------ */
 /*  Settings                                                            */
 /* ------------------------------------------------------------------ */
 typedef struct {
@@ -145,18 +163,24 @@ typedef struct {
     bool      auto_sync;
     bool      download_before_run;
     bool      show_console;
-    bool      console_keep_open;   /* pause after script so user sees output */
+    bool      console_keep_open;
+    bool      deps_keep_open;
     bool      always_on_top;
     bool      minimize_to_tray;
     bool      start_with_windows;
     bool      start_minimized;
-    bool      check_updates;       /* check for new app release on startup */
-    bool      deps_keep_open;      /* keep console open after Update Deps */
+    bool      check_updates;
     ThemeMode theme;
+    /* Sources */
+    bool      main_repo_enabled;
+    ExtraRepo extra_repos[MAX_EXTRA_REPOS];
+    int       extra_repo_count;
+    LocalDir  local_dirs[MAX_LOCAL_DIRS];
+    int       local_dir_count;
 } Settings;
 
 /* ------------------------------------------------------------------ */
-/*  Colours  (dark/light pairs)                                        */
+/*  Colours                                                             */
 /* ------------------------------------------------------------------ */
 #define COL_BG_DARK        RGB(28,  28,  35)
 #define COL_BG_LIGHT       RGB(240, 240, 245)
@@ -193,11 +217,11 @@ typedef struct {
     HWND   hwnd_scroll;
     HWND   hwnd_status;
     HWND   hwnd_tip;
-    HICON  hicon_tray;
 
     ScriptFolder folders[MAX_FOLDERS];
     int      folder_count;
     int      active_tab;
+    int      tab_offset;     /* first visible tab index (scroll)      */
     Settings cfg;
     bool     dark_mode;
 
@@ -214,10 +238,10 @@ typedef struct {
     bool   syncing;
     int    hot_btn;
     int    tip_btn;
-    int    tip_h;           /* current computed tooltip height */
+    int    tip_h;
     WCHAR  last_run_path[MAX_APPPATH];
     WCHAR  appdata_dir[MAX_APPPATH];
-    WCHAR  latest_version[32];   /* latest release tag from GitHub */
+    WCHAR  latest_version[32];
     int    scroll_y;
     int    scroll_max;
     bool   tray_icon_added;
@@ -263,11 +287,11 @@ void Window_Create(HINSTANCE);
 void Window_OnSize(int w, int h);
 void Window_ApplyDarkMode(HWND hwnd);
 void Window_ApplyDarkMenu(HWND hwnd);
-void Window_ShowMenu(void);
 void Window_ApplyAlwaysOnTop(void);
 void Window_AddTrayIcon(void);
 void Window_RemoveTrayIcon(void);
 void Window_ShowTrayMenu(void);
+void Window_ShowMenu(void);
 void Window_ApplyThemeToChildren(HWND hwnd);
 
 /* tabs.c */
@@ -284,14 +308,18 @@ void GitHub_ParseRoot(const char *json);
 void GitHub_ParseFolder(const char *json, int fi);
 bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                         const WCHAR *token);
+bool GitHub_DownloadRawFull(const WCHAR *host, const WCHAR *path,
+                             const WCHAR *local_path, const WCHAR *token);
 bool GitHub_ComputeFileSHA1(const WCHAR *local_path, WCHAR *sha_out, int max);
 bool GitHub_VerifyScriptSHA(const Script *s);
+bool GitHub_ParseOwnerRepo(const WCHAR *url, WCHAR *owner, WCHAR *repo);
 
 /* sync.c */
 DWORD WINAPI Sync_Thread(LPVOID);
 void  Sync_LoadManifest(void);
 void  Sync_SaveManifest(void);
 bool  Sync_GetLocalSHA(const WCHAR *gh_path, WCHAR *sha_out);
+void  Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count);
 
 /* meta.c */
 void Meta_Parse(Script *s);
@@ -301,7 +329,6 @@ void Meta_ParseAll(void);
 bool Runner_Run(int fi, int si);
 bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
-DWORD WINAPI Runner_Thread(LPVOID);
 
 /* updater.c */
 DWORD WINAPI Updater_CheckThread(LPVOID);
@@ -314,6 +341,9 @@ void Settings_ApplyAutorun(bool enable, bool minimized);
 INT_PTR CALLBACK SettingsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
 
+/* sources.c */
+INT_PTR CALLBACK SourcesDlgProc(HWND, UINT, WPARAM, LPARAM);
+
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);
 void Paint_ToolbarButton(DRAWITEMSTRUCT *dis);
@@ -321,7 +351,6 @@ void Paint_ScriptButton(HWND, HDC, bool hot, bool pressed,
                         bool info_hot, const Script *s);
 void Paint_Tooltip(HWND hwnd);
 LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
-LRESULT CALLBACK TipWndProc(HWND, UINT, WPARAM, LPARAM);
 
 /* ------------------------------------------------------------------ */
 /*  Inline helpers                                                      */
@@ -337,7 +366,6 @@ static inline void Util_SnakeToTitle(WCHAR *s) {
     }
 }
 static inline void Util_Log(const WCHAR *fmt, ...) {
-    /* Debug log - writes to debug output, harmless in release */
     WCHAR buf[512];
     va_list va; va_start(va, fmt);
     _vsnwprintf(buf, 511, fmt, va); va_end(va);
@@ -345,7 +373,6 @@ static inline void Util_Log(const WCHAR *fmt, ...) {
     OutputDebugStringW(buf);
     OutputDebugStringW(L"\n");
 }
-
 static inline void PostStatus(const WCHAR *fmt, ...) {
     WCHAR *buf = (WCHAR *)malloc(256 * sizeof(WCHAR));
     if (!buf) return;

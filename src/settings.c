@@ -27,6 +27,28 @@ void Settings_Load(Settings *s)
     s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0;
     s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
     s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
+    s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0;
+
+    /* Extra repos */
+    s->extra_repo_count = GetPrivateProfileInt(L"Sources", L"ExtraRepoCount", 0, ini);
+    if (s->extra_repo_count > MAX_EXTRA_REPOS) s->extra_repo_count = MAX_EXTRA_REPOS;
+    for (int i = 0; i < s->extra_repo_count; i++) {
+        WCHAR key[32];
+        _snwprintf(key, 31, L"Repo%dUrl",     i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].url,    511, ini);
+        _snwprintf(key, 31, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
+        _snwprintf(key, 31, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
+        _snwprintf(key, 31, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+        if (!s->extra_repos[i].branch[0]) wcscpy(s->extra_repos[i].branch, L"main");
+    }
+
+    /* Local dirs */
+    s->local_dir_count = GetPrivateProfileInt(L"Sources", L"LocalDirCount", 0, ini);
+    if (s->local_dir_count > MAX_LOCAL_DIRS) s->local_dir_count = MAX_LOCAL_DIRS;
+    for (int i = 0; i < s->local_dir_count; i++) {
+        WCHAR key[32];
+        _snwprintf(key, 31, L"Local%dPath",    i); GetPrivateProfileString(L"Sources", key, L"", s->local_dirs[i].path, MAX_APPPATH-1, ini);
+        _snwprintf(key, 31, L"Local%dEnabled", i); s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+    }
     s->always_on_top       = GetPrivateProfileInt(L"Window",  L"AlwaysOnTop",       1, ini) != 0;
     s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    0, ini) != 0;
     s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  0, ini) != 0;
@@ -61,6 +83,25 @@ void Settings_Save(const Settings *s)
     WB(L"Options", L"ConsoleKeepOpen",  s->console_keep_open);
     WB(L"Options", L"CheckUpdates",      s->check_updates);
     WB(L"Options", L"DepsKeepOpen",      s->deps_keep_open);
+
+    /* Sources */
+    WB(L"Sources", L"MainRepoEnabled", s->main_repo_enabled);
+    _snwprintf(tmp, 7, L"%d", s->extra_repo_count);
+    WritePrivateProfileString(L"Sources", L"ExtraRepoCount", tmp, ini);
+    for (int i = 0; i < s->extra_repo_count; i++) {
+        WCHAR key[32];
+        _snwprintf(key, 31, L"Repo%dUrl",     i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].url,    ini);
+        _snwprintf(key, 31, L"Repo%dBranch",  i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].branch, ini);
+        _snwprintf(key, 31, L"Repo%dToken",   i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].token,  ini);
+        _snwprintf(key, 31, L"Repo%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].enabled ? L"1" : L"0", ini);
+    }
+    _snwprintf(tmp, 7, L"%d", s->local_dir_count);
+    WritePrivateProfileString(L"Sources", L"LocalDirCount", tmp, ini);
+    for (int i = 0; i < s->local_dir_count; i++) {
+        WCHAR key[32];
+        _snwprintf(key, 31, L"Local%dPath",    i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].path, ini);
+        _snwprintf(key, 31, L"Local%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].enabled ? L"1" : L"0", ini);
+    }
     WB(L"Window",  L"AlwaysOnTop",       s->always_on_top);
     WB(L"Window",  L"MinimizeToTray",    s->minimize_to_tray);
     WB(L"Window",  L"StartWithWindows",  s->start_with_windows);

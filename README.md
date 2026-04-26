@@ -41,6 +41,61 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Dark / Light / System theme** | Follows Windows theme by default; toggle via Menu → View → Theme |
 | **Auto-versioning** | CMake increments `build_number.txt` on every configure; CI appends it to the release tag |
 
+## 📁 Script Sources
+
+CatiaMenuWin32 can load scripts from multiple sources simultaneously — the built-in repository, additional GitHub repositories, and local folders on your machine. Open **Menu → File → Sources...** to manage them.
+
+### Built-in Repository
+
+The `KaiUR/Pycatia_Scripts` repository is always the primary source. It can be disabled in the Sources dialog if you only want to use your own scripts.
+
+### Additional GitHub Repositories
+
+Add any public (or private, with a token) GitHub repository that follows the same folder structure:
+- Subfolders of the repo root become tabs
+- `.py` files inside subfolders become script buttons
+- If two repositories have a subfolder with the same name, their scripts are merged into one tab
+- Each repo can have its own branch and optional Personal Access Token
+- All connections go through the same certificate validation and SHA verification as the built-in repo
+
+**To add a repository:**
+1. Open **Menu → File → Sources...**
+2. Click **Add...** under "Additional GitHub Repositories"
+3. Enter the full GitHub URL: `https://github.com/owner/repo`
+4. Enter the branch name (defaults to `main`)
+5. Optionally add a Personal Access Token for private repos or higher rate limits
+6. Click OK
+
+### Local Script Folders
+
+Add a folder on your local machine. The folder structure mirrors the GitHub repo structure:
+- Subfolders of the selected folder become tabs
+- `.py` files inside subfolders become script buttons
+- Local scripts are not downloaded or SHA-checked — they run directly from disk
+- If a local subfolder has the same name as a tab from GitHub, the scripts are merged
+
+**To add a local folder:**
+1. Open **Menu → File → Sources...**
+2. Click **Add...** under "Local Script Folders"
+3. Browse to your folder
+4. Click OK
+
+**Example folder structure:**
+```
+My_Scripts/
+├── Any_Document_Scripts/
+│   ├── my_custom_script.py
+│   └── another_script.py
+└── Part_Document_Scripts/
+    └── part_tool.py
+```
+
+This would add "My Custom Script" and "Another Script" to the "Any Document Scripts" tab alongside the built-in scripts.
+
+### Tab Scrolling
+
+When more tabs exist than can fit in the window width, left (◄) and right (►) arrow buttons appear at the edges of the tab bar. You can also scroll through tabs by hovering over the tab bar and using the **mouse wheel**.
+
 ## 🔒 Security
 
 All communication with GitHub is secured at two levels:

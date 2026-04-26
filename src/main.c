@@ -378,6 +378,18 @@ static void Handle_Command(WPARAM wp)
                   g.hwnd, SettingsDlgProc);
         break;
 
+    case IDM_SOURCES:
+        if (DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_SOURCES),
+                  g.hwnd, SourcesDlgProc) == IDOK) {
+            /* Re-sync with new sources */
+            if (!g.syncing) {
+                g.syncing = true;
+                HANDLE hT = CreateThread(NULL, 0, Sync_Thread, NULL, 0, NULL);
+                if (hT) CloseHandle(hT);
+            }
+        }
+        break;
+
     case IDM_ALWAYS_ON_TOP:
         g.cfg.always_on_top = !g.cfg.always_on_top;
         Window_ApplyAlwaysOnTop();

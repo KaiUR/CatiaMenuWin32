@@ -53,3 +53,25 @@
 #define TRAY_ID                 1
 
 #endif
+
+/* Sources dialog */
+#define IDM_SOURCES             217
+#define IDD_SOURCES             302
+#define IDC_LST_REPOS           601
+#define IDC_BTN_REPO_ADD        602
+#define IDC_BTN_REPO_EDIT       603
+#define IDC_BTN_REPO_REMOVE     604
+#define IDC_LST_LOCAL           605
+#define IDC_BTN_LOCAL_ADD       606
+#define IDC_BTN_LOCAL_REMOVE    607
+#define IDC_CHK_MAIN_REPO       608
+
+/* Repo edit dialog */
+#define IDD_REPO_EDIT           303
+#define IDC_EDIT_REPO_URL       610
+#define IDC_EDIT_REPO_BRANCH    611
+#define IDC_EDIT_REPO_TOKEN     612
+#define IDC_CHK_REPO_TOKEN      613
+#define IDC_CHK_REPO_ENABLED    614
+#define IDC_BTN_REPO_TOGGLE     615
+#define IDC_BTN_LOCAL_TOGGLE    616

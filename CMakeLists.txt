@@ -25,7 +25,7 @@ else()
         string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" APP_VERSION "${GIT_VERSION}")
     endif()
 
-    if(NOT APP_VERSION)
+    if(NOT APP_VERSION OR APP_VERSION STREQUAL "")
         set(APP_VERSION "1.0.0")
     endif()
 
@@ -33,6 +33,14 @@ else()
 endif()
 
 message(STATUS "App version: ${APP_VERSION}  (local build: ${IS_LOCAL_BUILD})")
+
+# Ensure patch version is never empty (configure_file fails on empty @VAR@)
+if(NOT PROJECT_VERSION_PATCH)
+    set(PROJECT_VERSION_PATCH "0")
+endif()
+if(NOT PROJECT_VERSION_TWEAK)
+    set(PROJECT_VERSION_TWEAK "0")
+endif()
 
 project(CatiaMenuWin32 VERSION ${APP_VERSION} LANGUAGES C RC)
 
@@ -71,6 +79,7 @@ add_executable(CatiaMenuWin32 WIN32
     src/meta.c
     src/updater.c
     src/settings.c
+    src/sources.c
     src/paint.c
     "${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 )

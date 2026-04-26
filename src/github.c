@@ -285,6 +285,65 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
 }
 
 /* ================================================================== */
+/*  GitHub_ParseOwnerRepo                                               */
+/*  Extracts owner and repo from https://github.com/owner/repo         */
+/* ================================================================== */
+bool GitHub_ParseOwnerRepo(const WCHAR *url, WCHAR *owner, WCHAR *repo)
+{
+    owner[0] = repo[0] = L'\0';
+    /* Find "github.com/" */
+    const WCHAR *p = wcsstr(url, L"github.com/");
+    if (!p) return false;
+    p += wcslen(L"github.com/");
+    /* owner is up to next '/' */
+    const WCHAR *slash = wcschr(p, L'/');
+    if (!slash) return false;
+    int olen = (int)(slash - p);
+    if (olen <= 0 || olen >= MAX_NAME) return false;
+    wcsncpy(owner, p, olen);
+    owner[olen] = L'\0';
+    /* repo is after slash, up to next '/' or end */
+    p = slash + 1;
+    const WCHAR *end = wcschr(p, L'/');
+    int rlen = end ? (int)(end - p) : (int)wcslen(p);
+    if (rlen <= 0 || rlen >= MAX_NAME) return false;
+    wcsncpy(repo, p, rlen);
+    repo[rlen] = L'\0';
+    return true;
+}
+
+/* ================================================================== */
+/*  GitHub_DownloadRawFull                                              */
+/*  Download from a specific host/path (for extra repos)               */
+/* ================================================================== */
+bool GitHub_DownloadRawFull(const WCHAR *host, const WCHAR *path,
+                             const WCHAR *local_path, const WCHAR *token)
+{
+    char *buf = (char *)malloc(HTTP_BUF_SIZE);
+    if (!buf) return false;
+
+    DWORD len = 0;
+    bool  ok  = GitHub_HttpGet(host, path, token, buf, &len);
+    if (ok && len > 0) {
+        WCHAR dir[MAX_APPPATH];
+        wcsncpy(dir, local_path, MAX_APPPATH - 1);
+        PathRemoveFileSpec(dir);
+        SHCreateDirectoryEx(NULL, dir, NULL);
+
+        HANDLE hf = CreateFile(local_path, GENERIC_WRITE, 0, NULL,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hf != INVALID_HANDLE_VALUE) {
+            DWORD written = 0;
+            WriteFile(hf, buf, len, &written, NULL);
+            CloseHandle(hf);
+            ok = (written == len);
+        } else ok = false;
+    }
+    free(buf);
+    return ok;
+}
+
+/* ================================================================== */
 /*  Minimal JSON helpers                                                */
 /* ================================================================== */
 static const char *json_str(const char *p, const char *key,
