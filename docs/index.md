@@ -9,6 +9,7 @@ A lightweight, native Win32/C macro launcher for PyCATIA scripts used with CATIA
 
 ## Documentation
 
+- [Full Overview](about)
 - [User Guide](user-guide) — installation, settings, sources, running scripts
 - [Developer Guide](developer-guide) — building from source, project structure, releasing
 - [File Reference](file-reference) — source files, structs, functions, constants
