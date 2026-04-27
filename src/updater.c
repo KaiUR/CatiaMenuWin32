@@ -125,7 +125,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Download latest release exe and replace self */
     WCHAR url[512];
     _snwprintf(url, 511,
-        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/%s/CatiaMenuWin32.exe",
+        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
         latest_tag);
 
     /* Download to temp file */
