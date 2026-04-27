@@ -69,9 +69,18 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* Load scripts from local cache immediately so tabs show before
        sync completes and when there is no internet connection */
     Sync_LoadManifest();
+    Prefs_Load();
+    Prefs_ApplyToFolders();
+    Tabs_BuildFavourites();
     if (g.folder_count > 0) {
         Tabs_Build();
         Tabs_Switch(0);
+    }
+
+    /* Start auto-refresh timer if configured */
+    if (g.cfg.refresh_interval > 0) {
+        SetTimer(g.hwnd, TIMER_AUTO_REFRESH,
+                 g.cfg.refresh_interval * 3600 * 1000, NULL);
     }
 
     if (g.cfg.auto_sync) {
@@ -194,6 +203,17 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg)
     {
     case WM_KEYDOWN:
+        /* Ctrl+Tab / Ctrl+Shift+Tab to switch tabs */
+        if (GetKeyState(VK_CONTROL) & 0x8000) {
+            if (wp == VK_TAB) {
+                bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+                int next = g.active_tab + (shift ? -1 : 1);
+                if (next < 0) next = g.folder_count - 1;
+                if (next >= g.folder_count) next = 0;
+                Tabs_Switch(next);
+                return 0;
+            }
+        }
         if (wp == VK_F5) { SendMessage(hwnd, WM_COMMAND, IDM_REFRESH, 0); return 0; }
         if (wp == VK_F9) { SendMessage(hwnd, WM_COMMAND, IDM_RUN_LAST, 0); return 0; }
         break;
@@ -229,6 +249,14 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
 
     /* System colour/theme change */
+    case WM_TIMER:
+        if (wp == TIMER_AUTO_REFRESH && !g.syncing) {
+            g.syncing = true;
+            HANDLE hT = CreateThread(NULL, 0, Sync_Thread, NULL, 0, NULL);
+            if (hT) CloseHandle(hT);
+        }
+        break;
+
     case WM_SETTINGCHANGE:
         if (g.cfg.theme == THEME_SYSTEM) {
             App_ResolveTheme();
@@ -241,6 +269,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         break;
 
     case WM_COMMAND:
+        if (LOWORD(wp) == IDC_SEARCH && HIWORD(wp) == EN_CHANGE) {
+            GetWindowText(g.hwnd_search, g.filter_text, MAX_NAME - 1);
+            Tabs_ApplyFilter();
+            return 0;
+        }
         Handle_Command(wp);
         return 0;
 
@@ -306,7 +339,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
     case WM_UPDATE_AVAIL:
         InvalidateRect(hwnd, NULL, FALSE);  /* repaint toolbar to show badge */
-        Updater_PromptAndInstall(g.latest_version);
+        if (wp == 1)
+            Updater_AutoUpdate(g.latest_version);
+        else
+            Updater_PromptAndInstall(g.latest_version);
         return 0;
 
     case WM_STATUS_SET:
@@ -468,6 +504,41 @@ apply_theme:
             L"https://github.com/KaiUR/CatiaMenuWin32", NULL, NULL, SW_SHOW);
         break;
 
+    case IDM_OPEN_EXE_FOLDER:
+        Window_OpenExeFolder();
+        break;
+
+    case IDM_HIDDEN_SCRIPTS:
+        DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_HIDDEN_SCRIPTS),
+                  g.hwnd, HiddenScriptsDlgProc);
+        Tabs_RebuildButtons();
+        break;
+
+    case IDM_SORT_DEFAULT:
+        g.cfg.sort_mode = SORT_ORDER;
+        Settings_Save(&g.cfg);
+        Tabs_RebuildButtons();
+        break;
+    case IDM_SORT_ALPHA:
+        g.cfg.sort_mode = SORT_ALPHA;
+        Settings_Save(&g.cfg);
+        Tabs_ApplySort(g.active_tab);
+        Tabs_RebuildButtons();
+        break;
+    case IDM_SORT_DATE:
+        g.cfg.sort_mode = SORT_DATE;
+        Settings_Save(&g.cfg);
+        Tabs_ApplySort(g.active_tab);
+        Tabs_RebuildButtons();
+        break;
+    case IDM_SORT_MOST_USED:
+        g.cfg.sort_mode = SORT_MOST_USED;
+        Settings_Save(&g.cfg);
+        Tabs_ApplySort(g.active_tab);
+        Tabs_RebuildButtons();
+        break;
+
+
     case IDM_GITHUB_SCRIPTS:
         ShellExecute(NULL, L"open",
             L"https://github.com/KaiUR/Pycatia_Scripts", NULL, NULL, SW_SHOW);
@@ -511,6 +582,8 @@ static void Handle_SyncDone(SyncResult *sr)
         for (int si = 0; si < g.folders[fi].count; si++)
             g.folders[fi].scripts[si].meta_loaded = false;
     Meta_ParseAll();
+    Prefs_ApplyToFolders();
+    Tabs_BuildFavourites();
     Tabs_Build();
     if (g.folder_count == 0) {
         Tabs_DestroyButtons();

@@ -53,6 +53,12 @@ static void Repos_Populate(HWND hList)
         ListView_InsertItem(hList, &lvi);
         ListView_SetItemText(hList, i, 1, r->branch[0] ? r->branch : L"main");
         ListView_SetItemText(hList, i, 2, r->enabled ? L"Yes" : L"No");
+        WCHAR *health_str = r->health == HEALTH_OK    ? L"OK"
+                          : r->health == HEALTH_ERROR ? L"Error"
+                          :                             L"Unknown";
+        ListView_SetItemText(hList, i, 3, health_str);
+        ListView_SetItemText(hList, i, 4,
+            r->last_sync[0] ? r->last_sync : L"Never");
     }
 }
 
@@ -169,6 +175,10 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         ListView_InsertColumn(hRepos, 1, &lvc);
         lvc.pszText = L"Enabled";        lvc.cx = 46;
         ListView_InsertColumn(hRepos, 2, &lvc);
+        lvc.pszText = L"Health";         lvc.cx = 60;
+        ListView_InsertColumn(hRepos, 3, &lvc);
+        lvc.pszText = L"Last Sync";      lvc.cx = 100;
+        ListView_InsertColumn(hRepos, 4, &lvc);
 
         lvc.pszText = L"Local Folder Path"; lvc.cx = 220;
         ListView_InsertColumn(hLocals, 0, &lvc);
@@ -177,6 +187,13 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
 
         CheckDlgButton(hwnd, IDC_CHK_MAIN_REPO,
             g.cfg.main_repo_enabled ? BST_CHECKED : BST_UNCHECKED);
+        /* Show main repo health inline */
+        WCHAR *mh = g.main_repo_health == HEALTH_OK    ? L"Health: OK"
+                  : g.main_repo_health == HEALTH_ERROR ? L"Health: Error"
+                  :                                      L"Health: Unknown";
+        SetDlgItemText(hwnd, IDC_MAIN_REPO_HEALTH, mh);
+        if (g.main_repo_last_sync[0])
+            SetWindowText(hwnd, L"Script Sources");
 
         Repos_Populate(hRepos);
         Locals_Populate(hLocals);

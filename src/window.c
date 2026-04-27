@@ -15,6 +15,14 @@ void Window_ApplyDarkMode(HWND hwnd)
     DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
 }
 
+void Window_OpenExeFolder(void)
+{
+    WCHAR exe_path[MAX_APPPATH] = {0};
+    GetModuleFileNameW(NULL, exe_path, MAX_APPPATH - 1);
+    PathRemoveFileSpec(exe_path);
+    ShellExecute(NULL, L"open", exe_path, NULL, NULL, SW_SHOW);
+}
+
 void Window_ApplyThemeToChildren(HWND hwnd)
 {
     SetWindowTheme(g.hwnd_status, L"", L"");
@@ -47,7 +55,10 @@ void Window_ShowMenu(void)
     AppendMenu(hFile, MF_STRING,    IDM_REFRESH,  L"Refresh + Sync\tF5");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenu(hFile, MF_STRING,    IDM_SETTINGS, L"Settings...");
-    AppendMenu(hFile, MF_STRING,    IDM_SOURCES,  L"Sources...");
+    AppendMenu(hFile, MF_STRING,    IDM_SOURCES,          L"Sources...");
+    AppendMenu(hFile, MF_STRING,    IDM_HIDDEN_SCRIPTS,   L"Manage Hidden Scripts...");
+    AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hFile, MF_STRING,    IDM_OPEN_EXE_FOLDER,  L"Open Executable Folder");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenu(hFile, MF_STRING,    IDM_EXIT,     L"Exit");
 
@@ -63,6 +74,13 @@ void Window_ShowMenu(void)
     AppendMenu(hView, MF_STRING,    IDM_ALWAYS_ON_TOP, L"Always on Top");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hTheme, L"Theme");
+    AppendMenu(hView, MF_SEPARATOR, 0, NULL);
+    HMENU hSort = CreatePopupMenu();
+    AppendMenu(hSort, MF_STRING, IDM_SORT_DEFAULT,   L"Default Order");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_ALPHA,     L"Alphabetical");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_DATE,      L"By Date");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_MOST_USED, L"Most Used");
+    AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort,     L"Sort Scripts");
 
     AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY,   L"Minimize to Tray");
     AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
@@ -515,13 +533,31 @@ void Window_Create(HINSTANCE hInst)
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 
+    /* Search/filter box - full client width, positioned below toolbar */
+    {
+        RECT cr; GetClientRect(g.hwnd, &cr);
+        int cw = cr.right;
+        g.hwnd_search = CreateWindowEx(WS_EX_CLIENTEDGE, L"EDIT", L"",
+            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+            4, TOOLBAR_H + 2, cw - 8, SEARCH_H - 4, g.hwnd,
+            (HMENU)(UINT_PTR)IDC_SEARCH, hInst, NULL);
+    }
+    SendMessage(g.hwnd_search, EM_SETCUEBANNER, 0,
+                (LPARAM)L"  Filter scripts...");
+    SendMessage(g.hwnd_search, WM_SETFONT, (WPARAM)g.font_ui, TRUE);
+
     g.hwnd_tab = CreateWindow(L"CMW32TabBar", NULL,
         WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS,
-        0, TOOLBAR_H, ww, TAB_H,
+        0, TOOLBAR_H + SEARCH_H, ww, TAB_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
 
-    int ct = TOOLBAR_H + TAB_H;
+    int ct = TOOLBAR_H + SEARCH_H + TAB_H;
     int ch = wh - ct - STATUS_H;
+
+    /* Search box spans full width */
+    if (g.hwnd_search)
+        SetWindowPos(g.hwnd_search, NULL, 4, TOOLBAR_H + 2, ww - 8, SEARCH_H - 4,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
     g.hwnd_scroll = CreateWindowEx(0, L"CMW32ScrollPanel", NULL,
         WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_CLIPCHILDREN,
         0, ct, ww, ch,
@@ -541,16 +577,22 @@ void Window_Create(HINSTANCE hInst)
 
 void Window_OnSize(int w, int h)
 {
-    int ct = TOOLBAR_H + TAB_H;
-    int ch = h - ct - STATUS_H;
+    int tab_y    = TOOLBAR_H + SEARCH_H;
+    int ct       = tab_y + TAB_H;
+    int ch       = h - ct - STATUS_H;
     if (ch < 0) ch = 0;
 
-    SetWindowPos(g.hwnd_tab,    NULL, 0, TOOLBAR_H, w, TAB_H,
-                 SWP_NOZORDER|SWP_NOACTIVATE);
-    SetWindowPos(g.hwnd_scroll, NULL, 0, ct, w, ch,
-                 SWP_NOZORDER|SWP_NOACTIVATE);
+    /* Search box - full client width with small margin */
+    if (g.hwnd_search)
+        SetWindowPos(g.hwnd_search, NULL, 4, TOOLBAR_H + 2, w - 8, SEARCH_H - 4,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+
+    SetWindowPos(g.hwnd_tab,    NULL, 0, tab_y,     w, TAB_H,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(g.hwnd_scroll, NULL, 0, ct,        w, ch,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
     SetWindowPos(g.hwnd_status, NULL, 0, h-STATUS_H, w, STATUS_H,
-                 SWP_NOZORDER|SWP_NOACTIVATE);
+                 SWP_NOZORDER | SWP_NOACTIVATE);
 
     Tabs_RebuildButtons();
     InvalidateRect(g.hwnd, NULL, FALSE);

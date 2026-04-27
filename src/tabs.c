@@ -12,6 +12,70 @@ static int  s_btn_count = 0;
 /* ================================================================== */
 /*  Tabs_Build  -  rebuild tab bar from g.folders[]                    */
 /* ================================================================== */
+/* ================================================================== */
+/*  Tabs_ApplyFilter                                                    */
+/*  Hides/shows script buttons based on g.filter_text.                 */
+/* ================================================================== */
+void Tabs_ApplyFilter(void)
+{
+    if (g.active_tab < 0 || g.active_tab >= g.folder_count) return;
+    ScriptFolder *f = &g.folders[g.active_tab];
+    bool has_filter = g.filter_text[0] != L'\0';
+
+    for (int si = 0; si < f->count; si++) {
+        Script *s = &f->scripts[si];
+        if (s->is_hidden) continue;
+        HWND hBtn = GetDlgItem(g.hwnd_scroll,
+                               IDC_SCRIPT_BTN_BASE + si);
+        if (!hBtn) continue;
+
+        bool visible = true;
+        if (has_filter) {
+            /* Case-insensitive search in name and purpose */
+            WCHAR name_lower[MAX_NAME]    = {0};
+            WCHAR purpose_lower[128]      = {0};
+            WCHAR filter_lower[MAX_NAME]  = {0};
+            wcsncpy(name_lower,    s->name,          MAX_NAME - 1);
+            wcsncpy(purpose_lower, s->meta.purpose,  127);
+            wcsncpy(filter_lower,  g.filter_text,    MAX_NAME - 1);
+            /* Convert to lowercase */
+            for (WCHAR *p = name_lower;    *p; p++) *p = towlower(*p);
+            for (WCHAR *p = purpose_lower; *p; p++) *p = towlower(*p);
+            for (WCHAR *p = filter_lower;  *p; p++) *p = towlower(*p);
+            visible = wcsstr(name_lower, filter_lower) != NULL ||
+                      wcsstr(purpose_lower, filter_lower) != NULL;
+        }
+        ShowWindow(hBtn, visible ? SW_SHOW : SW_HIDE);
+    }
+    /* Scroll panel needs repaint */
+    InvalidateRect(g.hwnd_scroll, NULL, FALSE);
+}
+
+/* ================================================================== */
+/*  Tabs_ApplySort                                                      */
+/* ================================================================== */
+static int cmp_alpha(const void *a, const void *b) {
+    return _wcsicmp(((Script*)a)->name, ((Script*)b)->name);
+}
+static int cmp_date(const void *a, const void *b) {
+    return wcscmp(((Script*)b)->meta.date, ((Script*)a)->meta.date);
+}
+static int cmp_runs(const void *a, const void *b) {
+    return ((Script*)b)->run_count - ((Script*)a)->run_count;
+}
+
+void Tabs_ApplySort(int fi)
+{
+    if (fi < 0 || fi >= g.folder_count) return;
+    ScriptFolder *f = &g.folders[fi];
+    switch (g.cfg.sort_mode) {
+    case SORT_ALPHA:     qsort(f->scripts, f->count, sizeof(Script), cmp_alpha); break;
+    case SORT_DATE:      qsort(f->scripts, f->count, sizeof(Script), cmp_date);  break;
+    case SORT_MOST_USED: qsort(f->scripts, f->count, sizeof(Script), cmp_runs);  break;
+    default: break;
+    }
+}
+
 void Tabs_Build(void)
 {
     /* Custom tab bar reads directly from g.folders[] - just repaint */
@@ -73,6 +137,7 @@ void Tabs_RebuildButtons(void)
     }
 
     for (int i = 0; i < f->count; i++) {
+        if (f->scripts[i].is_hidden) continue;  /* skip hidden */
         int id = IDC_SCRIPT_BTN_BASE + i;
 
         HWND hb = CreateWindow(

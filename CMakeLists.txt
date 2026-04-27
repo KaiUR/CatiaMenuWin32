@@ -91,6 +91,7 @@ add_executable(CatiaMenuWin32 WIN32
     src/updater.c
     src/settings.c
     src/sources.c
+    src/prefs.c
     src/paint.c
     "${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 )

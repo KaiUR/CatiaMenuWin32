@@ -66,6 +66,7 @@
 #define IDC_BTN_LOCAL_ADD       606
 #define IDC_BTN_LOCAL_REMOVE    607
 #define IDC_CHK_MAIN_REPO       608
+#define IDC_MAIN_REPO_HEALTH    620
 
 /* Repo edit dialog */
 #define IDD_REPO_EDIT           303
@@ -76,3 +77,59 @@
 #define IDC_CHK_REPO_ENABLED    614
 #define IDC_BTN_REPO_TOGGLE     615
 #define IDC_BTN_LOCAL_TOGGLE    616
+
+/* Sort menu */
+#define IDM_SORT_DEFAULT    218
+#define IDM_SORT_ALPHA      219
+#define IDM_SORT_DATE       220
+#define IDM_SORT_MOST_USED  221
+
+/* View menu additions */
+#define IDM_OPEN_EXE_FOLDER 222
+#define IDM_HIDDEN_SCRIPTS  223
+
+/* Script context menu */
+#define IDM_SCRIPT_DETAILS  230
+#define IDM_SCRIPT_FAVOURITE 231
+#define IDM_SCRIPT_HIDE     232
+#define IDM_SCRIPT_NOTE     233
+#define IDM_SCRIPT_RUN_ARGS 234
+
+/* Script details dialog */
+#define IDD_SCRIPT_DETAILS  304
+#define IDC_DETAIL_NAME     701
+#define IDC_DETAIL_PURPOSE  702
+#define IDC_DETAIL_AUTHOR   703
+#define IDC_DETAIL_VERSION  704
+#define IDC_DETAIL_DATE     705
+#define IDC_DETAIL_CODE     706
+#define IDC_DETAIL_RELEASE  707
+#define IDC_DETAIL_DESC     708
+#define IDC_DETAIL_REQS     709
+#define IDC_DETAIL_NOTE     710
+#define IDC_DETAIL_PATH     711
+#define IDC_CHK_FAVOURITE   712
+#define IDC_CHK_HIDDEN      713
+
+/* Run with args dialog */
+#define IDD_RUN_ARGS        305
+#define IDC_EDIT_RUN_ARGS   720
+
+/* Script note dialog */
+#define IDD_SCRIPT_NOTE     306
+#define IDC_EDIT_NOTE       721
+
+/* Hidden scripts dialog */
+#define IDD_HIDDEN_SCRIPTS  307
+#define IDC_LST_HIDDEN      730
+#define IDC_BTN_UNHIDE      731
+#define IDC_BTN_UNHIDE_ALL  732
+
+/* Search box */
+#define IDC_SEARCH          800
+
+/* Auto-update setting */
+#define IDC_CHK_AUTO_UPDATE 413
+
+/* Refresh interval */
+#define IDC_EDIT_REFRESH_INTERVAL 414

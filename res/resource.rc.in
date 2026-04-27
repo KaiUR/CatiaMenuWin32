@@ -46,7 +46,7 @@ BEGIN
     END
 END
 
-300 DIALOG 0, 0, 340, 278
+300 DIALOG 0, 0, 340, 318
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Settings"
 FONT 9, "Segoe UI"
@@ -61,23 +61,27 @@ BEGIN
     EDITTEXT 403, 46, 65, 234, 14, ES_AUTOHSCROLL | ES_READONLY
     PUSHBUTTON "Browse...", 404, 284, 64, 44, 16
 
-    GROUPBOX "Sync && Updates", -1, 7, 97, 326, 56
-    AUTOCHECKBOX "Sync scripts automatically on startup", 409, 14, 112, 220, 12
-    AUTOCHECKBOX "Always download latest script before running", 405, 14, 128, 220, 12
-    AUTOCHECKBOX "Check for app updates on startup", 411, 14, 144, 220, 12
+    GROUPBOX "Sync && Updates", -1, 7, 97, 326, 94
+    AUTOCHECKBOX "Sync scripts automatically on startup",       409, 14, 112, 220, 12
+    AUTOCHECKBOX "Always download latest script before running",405, 14, 126, 220, 12
+    AUTOCHECKBOX "Check for app updates on startup",            411, 14, 140, 180, 12
+    AUTOCHECKBOX "Auto-install updates",                        413, 14, 154, 140, 12
+    LTEXT "Auto-refresh every", -1, 14, 170, 80, 10
+    EDITTEXT 414, 98, 168, 30, 14, ES_NUMBER
+    LTEXT "hours (0 = off)", -1, 132, 170, 70, 10
 
-    GROUPBOX "Console Options", -1, 7, 158, 326, 56
-    AUTOCHECKBOX "Show Python console window when running", 406, 14, 173, 220, 12
-    AUTOCHECKBOX "Keep console open after script finishes (to see errors)", 410, 24, 188, 296, 12
-    AUTOCHECKBOX "Keep Update Deps console open until closed", 412, 14, 204, 296, 12
+    GROUPBOX "Console Options", -1, 7, 196, 326, 56
+    AUTOCHECKBOX "Show Python console window when running",              406, 14, 211, 220, 12
+    AUTOCHECKBOX "Keep console open after script finishes (to see errors)", 410, 24, 225, 296, 12
+    AUTOCHECKBOX "Keep Update Deps console open until closed",           412, 14, 241, 296, 12
 
-    GROUPBOX "GitHub Token (optional - higher API rate limit)", -1, 7, 219, 326, 36
-    AUTOCHECKBOX "Use token", 407, 14, 234, 60, 12
-    EDITTEXT 408, 78, 232, 236, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    GROUPBOX "GitHub Token (optional - higher API rate limit)", -1, 7, 257, 326, 36
+    AUTOCHECKBOX "Use token", 407, 14, 272, 60, 12
+    EDITTEXT 408, 78, 270, 236, 14, ES_PASSWORD | ES_AUTOHSCROLL
 
-    PUSHBUTTON "Reset to Defaults", 420, 7, 258, 90, 16
-    DEFPUSHBUTTON "OK", 1, 224, 258, 58, 16
-    PUSHBUTTON "Cancel", 2, 288, 258, 50, 16
+    PUSHBUTTON "Reset to Defaults", 420, 7, 298, 90, 16
+    DEFPUSHBUTTON "OK", 1, 224, 298, 58, 16
+    PUSHBUTTON "Cancel", 2, 288, 298, 50, 16
 END
 
 301 DIALOG 0, 0, 260, 145
@@ -96,28 +100,29 @@ BEGIN
     DEFPUSHBUTTON "OK", 1, 105, 122, 50, 14
 END
 
-302 DIALOG 0, 0, 360, 290
+302 DIALOG 0, 0, 420, 290
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Script Sources"
 FONT 9, "Segoe UI"
 BEGIN
-    AUTOCHECKBOX "Enable built-in KaiUR/Pycatia_Scripts repository", 608, 7, 7, 320, 12
+    AUTOCHECKBOX "Enable built-in KaiUR/Pycatia_Scripts repository", 608, 7, 7, 280, 12
+    LTEXT "", 620, 292, 9, 120, 10
 
-    GROUPBOX "Additional GitHub Repositories", -1, 7, 24, 346, 136
-    CONTROL "", 601, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 36, 280, 114
-    PUSHBUTTON "Add...",        602, 300, 36,  46, 14
-    PUSHBUTTON "Edit...",       603, 300, 54,  46, 14
-    PUSHBUTTON "Enable/Disable",615, 300, 72,  46, 14
-    PUSHBUTTON "Remove",        604, 300, 90,  46, 14
+    GROUPBOX "Additional GitHub Repositories", -1, 7, 24, 406, 136
+    CONTROL "", 601, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 36, 340, 114
+    PUSHBUTTON "Add...",        602, 360, 36,  46, 14
+    PUSHBUTTON "Edit...",       603, 360, 54,  46, 14
+    PUSHBUTTON "Enable/Disable",615, 360, 72,  46, 14
+    PUSHBUTTON "Remove",        604, 360, 90,  46, 14
 
-    GROUPBOX "Local Script Folders", -1, 7, 166, 346, 106
-    CONTROL "", 605, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 178, 280, 84
-    PUSHBUTTON "Add...",        606, 300, 178, 46, 14
-    PUSHBUTTON "Enable/Disable",616, 300, 196, 46, 14
-    PUSHBUTTON "Remove",        607, 300, 214, 46, 14
+    GROUPBOX "Local Script Folders", -1, 7, 166, 406, 106
+    CONTROL "", 605, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 14, 178, 340, 84
+    PUSHBUTTON "Add...",        606, 360, 178, 46, 14
+    PUSHBUTTON "Enable/Disable",616, 360, 196, 46, 14
+    PUSHBUTTON "Remove",        607, 360, 214, 46, 14
 
-    DEFPUSHBUTTON "OK",     1,  258, 272, 50, 14
-    PUSHBUTTON "Cancel",    2,  312, 272, 44, 14
+    DEFPUSHBUTTON "OK",     1,  318, 272, 50, 14
+    PUSHBUTTON "Cancel",    2,  372, 272, 44, 14
 END
 
 303 DIALOG 0, 0, 300, 130
@@ -134,6 +139,86 @@ BEGIN
     AUTOCHECKBOX "Enabled",   614, 7, 66, 60, 12
     DEFPUSHBUTTON "OK",     1, 188, 110, 50, 14
     PUSHBUTTON "Cancel",    2, 244, 110, 50, 14
+END
+
+
+304 DIALOG 0, 0, 340, 310
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Script Details"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Name:",        -1,   7,   8, 60, 10
+    EDITTEXT 701,          72,   6, 262, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Purpose:",     -1,   7,  26, 60, 10
+    EDITTEXT 702,          72,  24, 262, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Author:",      -1,   7,  44, 60, 10
+    EDITTEXT 703,          72,  42, 120, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Version:",     -1, 200,  44, 40, 10
+    EDITTEXT 704,         244,  42,  90, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Date:",        -1,   7,  62, 60, 10
+    EDITTEXT 705,          72,  60, 120, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Code:",        -1,   7,  80, 60, 10
+    EDITTEXT 706,          72,  78, 262, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Release:",     -1,   7,  98, 60, 10
+    EDITTEXT 707,          72,  96, 120, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    LTEXT "Description:", -1,   7, 116, 60, 10
+    EDITTEXT 708,          72, 114, 262, 50, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+
+    LTEXT "Requirements:", -1,  7, 170, 60, 10
+    EDITTEXT 709,           72, 168, 262, 36, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+
+    LTEXT "Local path:",  -1,   7, 210, 60, 10
+    EDITTEXT 711,          72, 208, 262, 14, ES_AUTOHSCROLL | ES_READONLY
+
+    GROUPBOX "User",      -1,   7, 228, 326, 52
+    LTEXT "Note:",        -1,  14, 242, 40, 10
+    EDITTEXT 710,          58, 240, 268, 14, ES_AUTOHSCROLL
+    AUTOCHECKBOX "Favourite", 712, 14, 260, 70, 12
+    AUTOCHECKBOX "Hidden",    713, 90, 260, 60, 12
+
+    DEFPUSHBUTTON "OK",     1, 234, 290, 50, 14
+    PUSHBUTTON    "Cancel", 2, 290, 290, 50, 14
+END
+
+305 DIALOG 0, 0, 300, 80
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Run with Arguments"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Arguments:", -1, 7, 12, 55, 10
+    EDITTEXT 720, 66, 10, 227, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON "Run",    1, 194, 58, 50, 14
+    PUSHBUTTON    "Cancel", 2, 248, 58, 50, 14
+END
+
+306 DIALOG 0, 0, 300, 90
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Script Note"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Note:", -1, 7, 10, 40, 10
+    EDITTEXT 721, 7, 22, 286, 36, ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL
+    DEFPUSHBUTTON "OK",     1, 194, 70, 50, 14
+    PUSHBUTTON    "Cancel", 2, 248, 70, 50, 14
+END
+
+307 DIALOG 0, 0, 340, 200
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Hidden Scripts"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Scripts listed below are hidden. Select one and click Unhide to restore it.", -1, 7, 7, 326, 18
+    CONTROL "", 730, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 7, 28, 326, 138
+    PUSHBUTTON "Unhide",      731, 7,   176, 60, 14
+    PUSHBUTTON "Unhide All",  732, 74,  176, 60, 14
+    DEFPUSHBUTTON "Close",    2,   284, 176, 50, 14
 END
 
 

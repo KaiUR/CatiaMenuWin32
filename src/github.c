@@ -442,11 +442,15 @@ void GitHub_ParseFolder(const char *json, int fi)
             MultiByteToWideChar(CP_UTF8, 0, path_a, -1, s->gh_path, MAX_APPPATH);
             MultiByteToWideChar(CP_UTF8, 0, sha_a,  -1, s->sha,     MAX_SHA);
 
-            _snwprintf(s->local, MAX_APPPATH - 1, L"%s\\%s\\%s",
-                       g.cfg.cache_dir, g.folders[fi].name, s->name);
+            /* Strip .py from display name before building local path */
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
-            wcscat(s->local, L".py");
+
+            /* Build local path from original filename (still has .py) */
+            WCHAR fname_w[MAX_NAME] = {0};
+            MultiByteToWideChar(CP_UTF8, 0, name_a, -1, fname_w, MAX_NAME);
+            _snwprintf(s->local, MAX_APPPATH - 1, L"%s\\%s\\%s",
+                       g.cfg.cache_dir, g.folders[fi].name, fname_w);
         }
         p = after;
     }

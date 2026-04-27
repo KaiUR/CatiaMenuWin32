@@ -41,7 +41,10 @@ static bool IsNewer(const WCHAR *remote_tag)
     ParseVersion(r, rv);
     ParseVersion(VERSION_STRING_W, lv);
 
-    for (int i = 0; i < 4; i++) {
+    /* Only compare major.minor.patch (first 3 parts).
+       Build number (4th part) is ignored - a local build with a higher
+       build number than the latest release should not prompt for update. */
+    for (int i = 0; i < 3; i++) {
         if (rv[i] > lv[i]) return true;
         if (rv[i] < lv[i]) return false;
     }
@@ -101,7 +104,13 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
         if (display_tag[0] == L'v' || display_tag[0] == L'V')
             display_tag++;
         wcsncpy(g.latest_version, display_tag, 31);
-        PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);
+
+        if (g.cfg.auto_update) {
+            /* Auto-update: download and install on main thread */
+            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0);  /* wParam=1 means auto */
+        } else {
+            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);
+        }
     }
 
     free(buf);
@@ -111,6 +120,75 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 /* ================================================================== */
 /*  Updater_PromptAndInstall                                            */
 /* ================================================================== */
+void Updater_AutoUpdate(const WCHAR *latest_tag)
+{
+    /* Download latest release exe and replace self */
+    WCHAR url[512];
+    _snwprintf(url, 511,
+        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/%s/CatiaMenuWin32.exe",
+        latest_tag);
+
+    /* Download to temp file */
+    WCHAR temp_path[MAX_APPPATH];
+    GetTempPath(MAX_APPPATH - 1, temp_path);
+    wcscat(temp_path, L"CatiaMenuWin32_update.exe");
+
+    int res = MessageBox(g.hwnd,
+        L"A new version is available. Download and install automatically?\n\n"
+        L"The application will restart after the update.",
+        L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
+
+    if (res != IDYES) {
+        Updater_PromptAndInstall(latest_tag);
+        return;
+    }
+
+    PostStatus(L"Downloading update %s...", latest_tag);
+
+    /* Use URLDownloadToFile for simplicity */
+    typedef HRESULT (WINAPI *URLDownloadToFileW_t)(LPUNKNOWN, LPCWSTR, LPCWSTR, DWORD, LPBINDSTATUSCALLBACK);
+    HMODULE hUrl = LoadLibrary(L"urlmon.dll");
+    if (!hUrl) { Updater_PromptAndInstall(latest_tag); return; }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+    URLDownloadToFileW_t fn = (URLDownloadToFileW_t)GetProcAddress(hUrl, "URLDownloadToFileW");
+#pragma GCC diagnostic pop
+    if (!fn) { FreeLibrary(hUrl); Updater_PromptAndInstall(latest_tag); return; }
+
+    HRESULT hr = fn(NULL, url, temp_path, 0, NULL);
+    FreeLibrary(hUrl);
+
+    if (FAILED(hr) || GetFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES) {
+        MessageBox(g.hwnd, L"Download failed. Opening releases page instead.",
+                   L"Update", MB_ICONWARNING | MB_OK);
+        Updater_PromptAndInstall(latest_tag);
+        return;
+    }
+
+    /* Get current exe path */
+    WCHAR exe_path[MAX_APPPATH] = {0};
+    GetModuleFileNameW(NULL, exe_path, MAX_APPPATH - 1);
+
+    /* Write a small batch script to replace the exe and restart */
+    WCHAR bat_path[MAX_APPPATH];
+    GetTempPath(MAX_APPPATH - 1, bat_path);
+    wcscat(bat_path, L"CatiaMenuWin32_update.bat");
+
+    FILE *f = _wfopen(bat_path, L"w");
+    if (!f) { Updater_PromptAndInstall(latest_tag); return; }
+    fwprintf(f, L"@echo off\n");
+    fwprintf(f, L"timeout /t 2 /nobreak >nul\n");
+    fwprintf(f, L"copy /y \"%s\" \"%s\"\n", temp_path, exe_path);
+    fwprintf(f, L"start \"\" \"%s\"\n", exe_path);
+    fwprintf(f, L"del \"%s\"\n", temp_path);
+    fwprintf(f, L"del %%%%~f0\n");
+    fclose(f);
+
+    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
+    PostMessage(g.hwnd, WM_CLOSE, 0, 0);
+}
+
 void Updater_PromptAndInstall(const WCHAR *latest_tag)
 {
     WCHAR msg[512];

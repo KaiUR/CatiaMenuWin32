@@ -46,6 +46,7 @@
 #define APP_APPDATA_DIR  L"CatiaMenuWin32"
 #define SETTINGS_FILE    L"settings.ini"
 #define MANIFEST_FILE    L"manifest.ini"
+#define PREFS_FILE       L"prefs.ini"
 #define GITHUB_OWNER     L"KaiUR"
 #define GITHUB_REPO      L"Pycatia_Scripts"
 #define GITHUB_BRANCH    L"main"
@@ -61,7 +62,7 @@
 #define WIN_MIN_H        420
 #define TOOLBAR_H        38
 #define TAB_H            26
-#define TAB_ARROW_W      22   /* width of left/right scroll arrows     */
+#define TAB_ARROW_W      22
 #define STATUS_H         22
 #define BTN_H            40
 #define BTN_GAP          6
@@ -69,21 +70,26 @@
 #define BTN_MY           10
 #define SCROLL_STEP      40
 #define INFO_BTN_W       28
+#define STAR_BTN_W       28   /* width of favourite star badge          */
 #define TIP_W            320
 #define TIP_ROW_H        18
 #define TIP_HEADER_ROWS  5
+#define SEARCH_H         26   /* height of search/filter box            */
 
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
-#define MAX_FOLDERS      64
-#define MAX_SCRIPTS      128
-#define MAX_NAME         128
-#define MAX_SHA          64
-#define MAX_APPPATH      520
-#define HTTP_BUF_SIZE    (512 * 1024)
-#define MAX_EXTRA_REPOS  8
-#define MAX_LOCAL_DIRS   8
+#define MAX_FOLDERS       64
+#define MAX_SCRIPTS       128
+#define MAX_NAME          128
+#define MAX_SHA           64
+#define MAX_APPPATH       520
+#define HTTP_BUF_SIZE     (512 * 1024)
+#define MAX_EXTRA_REPOS   8
+#define MAX_LOCAL_DIRS    8
+#define MAX_FAVOURITES    256
+#define MAX_HIDDEN        256
+#define MAX_NOTE_LEN      512
 
 /* ------------------------------------------------------------------ */
 /*  Messages                                                            */
@@ -92,7 +98,19 @@
 #define WM_STATUS_SET      (WM_USER + 2)
 #define WM_TRAYICON        (WM_USER + 10)
 #define WM_UPDATE_AVAIL    (WM_USER + 11)
+#define WM_AUTO_REFRESH    (WM_USER + 12)
 #define TRAY_ID            1
+#define TIMER_AUTO_REFRESH 1001
+
+/* ------------------------------------------------------------------ */
+/*  Sort mode                                                           */
+/* ------------------------------------------------------------------ */
+typedef enum {
+    SORT_ORDER    = 0,  /* order from GitHub API / disk                */
+    SORT_ALPHA    = 1,  /* alphabetical A-Z                            */
+    SORT_DATE     = 2,  /* by script header Date: field                */
+    SORT_MOST_USED = 3  /* by run count descending                     */
+} SortMode;
 
 /* ------------------------------------------------------------------ */
 /*  Theme mode                                                          */
@@ -111,6 +129,11 @@ typedef struct {
 } SyncResult;
 
 /* ------------------------------------------------------------------ */
+/*  Source health                                                       */
+/* ------------------------------------------------------------------ */
+typedef enum { HEALTH_UNKNOWN=0, HEALTH_OK=1, HEALTH_ERROR=2 } SourceHealth;
+
+/* ------------------------------------------------------------------ */
 /*  Script metadata                                                     */
 /* ------------------------------------------------------------------ */
 typedef struct {
@@ -119,6 +142,9 @@ typedef struct {
     WCHAR version[32];
     WCHAR date[32];
     WCHAR description[1024];
+    WCHAR code[64];        /* e.g. "Python3.10.4, Pycatia 0.8.3"       */
+    WCHAR release[32];     /* e.g. "V5R32"                              */
+    WCHAR requirements[512];
 } ScriptMeta;
 
 typedef struct {
@@ -128,6 +154,10 @@ typedef struct {
     WCHAR      local[MAX_APPPATH];
     ScriptMeta meta;
     bool       meta_loaded;
+    bool       is_favourite;
+    bool       is_hidden;
+    int        run_count;
+    WCHAR      note[MAX_NOTE_LEN];
 } Script;
 
 typedef struct {
@@ -136,21 +166,26 @@ typedef struct {
     Script scripts[MAX_SCRIPTS];
     int    count;
     bool   loaded;
+    SortMode sort_mode;
 } ScriptFolder;
 
 /* ------------------------------------------------------------------ */
 /*  Extra sources                                                       */
 /* ------------------------------------------------------------------ */
 typedef struct {
-    WCHAR url[512];         /* https://github.com/owner/repo          */
-    WCHAR branch[64];       /* branch name, default "main"            */
-    WCHAR token[256];       /* optional PAT                           */
-    bool  enabled;
+    WCHAR        url[512];
+    WCHAR        branch[64];
+    WCHAR        token[256];
+    bool         enabled;
+    SourceHealth health;
+    WCHAR        last_sync[32];  /* timestamp string                   */
 } ExtraRepo;
 
 typedef struct {
-    WCHAR path[MAX_APPPATH]; /* local folder path                     */
-    bool  enabled;
+    WCHAR        path[MAX_APPPATH];
+    bool         enabled;
+    SourceHealth health;
+    WCHAR        last_sync[32];
 } LocalDir;
 
 /* ------------------------------------------------------------------ */
@@ -170,13 +205,17 @@ typedef struct {
     bool      start_with_windows;
     bool      start_minimized;
     bool      check_updates;
+    bool      auto_update;       /* auto-download and install updates   */
     ThemeMode theme;
+    int       refresh_interval;  /* hours, 0 = disabled, default 6     */
     /* Sources */
     bool      main_repo_enabled;
     ExtraRepo extra_repos[MAX_EXTRA_REPOS];
     int       extra_repo_count;
     LocalDir  local_dirs[MAX_LOCAL_DIRS];
     int       local_dir_count;
+    /* Sort */
+    SortMode  sort_mode;         /* global sort mode                    */
 } Settings;
 
 /* ------------------------------------------------------------------ */
@@ -198,6 +237,7 @@ typedef struct {
 #define COL_ACCENT_DIM     RGB(48,  92, 160)
 #define COL_SUCCESS        RGB(80, 200, 120)
 #define COL_WARN           RGB(240, 190,  60)
+#define COL_STAR           RGB(255, 200,  60)   /* favourite star      */
 #define COL_TEXT_DARK      RGB(210, 215, 240)
 #define COL_TEXT_LIGHT     RGB(30,  30,  40)
 #define COL_SUBTEXT_DARK   RGB(110, 116, 148)
@@ -217,11 +257,13 @@ typedef struct {
     HWND   hwnd_scroll;
     HWND   hwnd_status;
     HWND   hwnd_tip;
+    HWND   hwnd_search;   /* search/filter edit box                    */
+    HWND   hwnd_details;  /* script details panel                      */
 
     ScriptFolder folders[MAX_FOLDERS];
     int      folder_count;
     int      active_tab;
-    int      tab_offset;     /* first visible tab index (scroll)      */
+    int      tab_offset;
     Settings cfg;
     bool     dark_mode;
 
@@ -245,6 +287,18 @@ typedef struct {
     int    scroll_y;
     int    scroll_max;
     bool   tray_icon_added;
+
+    /* Filter */
+    WCHAR  filter_text[MAX_NAME]; /* current search/filter string       */
+
+    /* Details panel */
+    int    details_script_fi;    /* folder index of shown script        */
+    int    details_script_si;    /* script index of shown script        */
+    bool   details_visible;
+
+    /* Source health */
+    SourceHealth main_repo_health;
+    WCHAR        main_repo_last_sync[32];
 } AppState;
 
 extern AppState g;
@@ -293,12 +347,15 @@ void Window_RemoveTrayIcon(void);
 void Window_ShowTrayMenu(void);
 void Window_ShowMenu(void);
 void Window_ApplyThemeToChildren(HWND hwnd);
+void Window_OpenExeFolder(void);
 
 /* tabs.c */
 void Tabs_Build(void);
 void Tabs_Switch(int idx);
 void Tabs_RebuildButtons(void);
 void Tabs_DestroyButtons(void);
+void Tabs_ApplyFilter(void);
+void Tabs_ApplySort(int fi);
 LRESULT CALLBACK ScrollPanelProc(HWND, UINT, WPARAM, LPARAM);
 
 /* github.c */
@@ -327,12 +384,14 @@ void Meta_ParseAll(void);
 
 /* runner.c */
 bool Runner_Run(int fi, int si);
+bool Runner_RunWithArgs(int fi, int si, const WCHAR *args);
 bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
 
 /* updater.c */
 DWORD WINAPI Updater_CheckThread(LPVOID);
 void  Updater_PromptAndInstall(const WCHAR *latest_tag);
+void  Updater_AutoUpdate(const WCHAR *latest_tag);
 
 /* settings.c */
 void Settings_Load(Settings *s);
@@ -343,6 +402,24 @@ INT_PTR CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
 
 /* sources.c */
 INT_PTR CALLBACK SourcesDlgProc(HWND, UINT, WPARAM, LPARAM);
+
+/* prefs.c */
+void Prefs_Load(void);
+void Prefs_Save(void);
+bool Prefs_IsFavourite(const WCHAR *gh_path);
+void Prefs_SetFavourite(const WCHAR *gh_path, bool fav);
+bool Prefs_IsHidden(const WCHAR *gh_path);
+void Prefs_SetHidden(const WCHAR *gh_path, bool hidden);
+int  Prefs_GetRunCount(const WCHAR *gh_path);
+void Prefs_IncrementRunCount(const WCHAR *gh_path);
+void Prefs_GetNote(const WCHAR *gh_path, WCHAR *note, int max);
+void Prefs_SetNote(const WCHAR *gh_path, const WCHAR *note);
+void Prefs_ApplyToFolders(void);
+void Tabs_BuildFavourites(void);
+INT_PTR CALLBACK ScriptDetailsDlgProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK RunWithArgsDlgProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK ScriptNoteDlgProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK HiddenScriptsDlgProc(HWND, UINT, WPARAM, LPARAM);
 
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);

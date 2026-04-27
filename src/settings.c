@@ -27,6 +27,9 @@ void Settings_Load(Settings *s)
     s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0;
     s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
     s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
+    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         0, ini) != 0;
+    s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
+    s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
     s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0;
 
     /* Extra repos */
@@ -83,6 +86,11 @@ void Settings_Save(const Settings *s)
     WB(L"Options", L"ConsoleKeepOpen",  s->console_keep_open);
     WB(L"Options", L"CheckUpdates",      s->check_updates);
     WB(L"Options", L"DepsKeepOpen",      s->deps_keep_open);
+    WB(L"Options", L"AutoUpdate",         s->auto_update);
+    _snwprintf(tmp, 7, L"%d", s->refresh_interval);
+    WritePrivateProfileString(L"Options", L"RefreshInterval", tmp, ini);
+    _snwprintf(tmp, 7, L"%d", (int)s->sort_mode);
+    WritePrivateProfileString(L"Options", L"SortMode", tmp, ini);
 
     /* Sources */
     WB(L"Sources", L"MainRepoEnabled", s->main_repo_enabled);
@@ -157,6 +165,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console        ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open   ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, s->check_updates       ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,    s->auto_update          ? BST_CHECKED : BST_UNCHECKED);
+
+        WCHAR ri[8];
+        _snwprintf(ri, 7, L"%d", s->refresh_interval);
+        SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri);
         CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
         bool has_tok = (s->github_token[0] != L'\0');
@@ -267,6 +280,12 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->show_console        = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)       == BST_CHECKED;
             s->console_keep_open   = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)     == BST_CHECKED;
             s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES)  == BST_CHECKED;
+            s->auto_update         = IsDlgButtonChecked(hwnd, IDC_CHK_AUTO_UPDATE)     == BST_CHECKED;
+            WCHAR ri_buf[8] = {0};
+            GetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri_buf, 7);
+            s->refresh_interval = _wtoi(ri_buf);
+            if (s->refresh_interval < 0)  s->refresh_interval = 0;
+            if (s->refresh_interval > 168) s->refresh_interval = 168;
             s->deps_keep_open      = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN) == BST_CHECKED;
             Settings_Save(s);
             SHCreateDirectoryEx(NULL, s->cache_dir, NULL);

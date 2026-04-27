@@ -409,7 +409,78 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
     case WM_NCDESTROY:
         RemoveWindowSubclass(hwnd, BtnSubclassProc, uid);
         break;
+
+    case WM_RBUTTONUP:
+    {
+        int fi = g.active_tab;
+        int si = (int)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+        if (fi < 0 || fi >= g.folder_count) break;
+        if (si < 0 || si >= g.folders[fi].count) break;
+        Script *s = &g.folders[fi].scripts[si];
+
+        HMENU hm = CreatePopupMenu();
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_DETAILS,
+                   L"Script Details...");
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_RUN_ARGS,
+                   L"Run with Arguments...");
+        AppendMenu(hm, MF_SEPARATOR, 0, NULL);
+
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_FAVOURITE,
+                   s->is_favourite ? L"Remove from Favourites" : L"\u2605 Add to Favourites");
+        AppendMenu(hm, MF_SEPARATOR, 0, NULL);
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_NOTE,
+                   s->note[0] ? L"Edit Note..." : L"Add Note...");
+        AppendMenu(hm, MF_SEPARATOR, 0, NULL);
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_HIDE, L"Hide Script");
+
+        POINT pt; GetCursorPos(&pt);
+        int cmd = TrackPopupMenu(hm, TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                                  pt.x, pt.y, 0, g.hwnd, NULL);
+        DestroyMenu(hm);
+
+        switch (cmd) {
+        case IDM_SCRIPT_DETAILS:
+            if (DialogBoxParam(GetModuleHandle(NULL),
+                    MAKEINTRESOURCE(IDD_SCRIPT_DETAILS),
+                    g.hwnd, ScriptDetailsDlgProc, (LPARAM)s) == IDOK) {
+                Tabs_BuildFavourites();
+                Tabs_Build();
+                Tabs_RebuildButtons();
+            }
+            break;
+        case IDM_SCRIPT_RUN_ARGS:
+        {
+            if (DialogBoxParam(GetModuleHandle(NULL),
+                    MAKEINTRESOURCE(IDD_RUN_ARGS),
+                    g.hwnd, RunWithArgsDlgProc, (LPARAM)s) == IDOK) {
+                /* Get args from a static buffer set by the dialog */
+                Runner_Run(fi, si);
+            }
+            break;
+        }
+        case IDM_SCRIPT_FAVOURITE:
+            s->is_favourite = !s->is_favourite;
+            Prefs_SetFavourite(s->gh_path, s->is_favourite);
+            Tabs_BuildFavourites();
+            Tabs_Build();
+            InvalidateRect(hwnd, NULL, FALSE);
+            break;
+        case IDM_SCRIPT_NOTE:
+            DialogBoxParam(GetModuleHandle(NULL),
+                MAKEINTRESOURCE(IDD_SCRIPT_NOTE),
+                g.hwnd, ScriptNoteDlgProc, (LPARAM)s);
+            break;
+        case IDM_SCRIPT_HIDE:
+            s->is_hidden = true;
+            Prefs_SetHidden(s->gh_path, true);
+            Tabs_RebuildButtons();
+            break;
+
+        }
+        return 0;
     }
+
+    } /* end switch */
     return DefSubclassProc(hwnd, msg, wp, lp);
 }
 

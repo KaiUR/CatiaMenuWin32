@@ -178,6 +178,8 @@ bool Runner_Run(int fi, int si)
     }
 
     wcsncpy(g.last_run_path, s->gh_path, MAX_APPPATH - 1);
+    Prefs_IncrementRunCount(s->gh_path);
+    s->run_count++;
     PostStatus(L"Running: %s", s->name);
 
     RunArg *ra = (RunArg *)malloc(sizeof(RunArg));
@@ -225,6 +227,47 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
+}
+
+bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
+{
+    if (fi < 0 || fi >= g.folder_count) return false;
+    if (si < 0 || si >= g.folders[fi].count) return false;
+    Script *s = &g.folders[fi].scripts[si];
+
+    WCHAR python[MAX_APPPATH] = {0};
+    if (!Runner_FindPython(python, MAX_APPPATH)) return false;
+
+    WCHAR cmd[MAX_APPPATH * 2];
+    if (g.cfg.show_console && g.cfg.console_keep_open) {
+        _snwprintf(cmd, MAX_APPPATH*2-1,
+                   L"cmd.exe /k \"\\\"%s\\\" \\\"%s\\\" %s\"",
+                   python, s->local, args ? args : L"");
+    } else if (g.cfg.show_console) {
+        _snwprintf(cmd, MAX_APPPATH*2-1,
+                   L"cmd.exe /c \"%s\" \"%s\" %s",
+                   python, s->local, args ? args : L"");
+    } else {
+        _snwprintf(cmd, MAX_APPPATH*2-1,
+                   L"\"%s\" \"%s\" %s",
+                   python, s->local, args ? args : L"");
+    }
+
+    STARTUPINFOW si2; PROCESS_INFORMATION pi;
+    ZeroMemory(&si2, sizeof(si2)); si2.cb = sizeof(si2);
+    DWORD flags = g.cfg.show_console ? CREATE_NEW_CONSOLE : 0;
+
+    if (!CreateProcessW(NULL, cmd, NULL, NULL, FALSE,
+                        flags, NULL, NULL, &si2, &pi))
+        return false;
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    Prefs_IncrementRunCount(s->gh_path);
+    s->run_count++;
+    wcsncpy(g.last_run_path, s->gh_path, MAX_APPPATH - 1);
+    PostStatus(L"Running: %s (with args)", s->name);
+    return true;
 }
 
 void Runner_UpdateDeps(void)

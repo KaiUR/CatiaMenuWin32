@@ -249,6 +249,13 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_path, tok, buf, &len)) {
         PostStatus(L"Sources: failed to reach %s/%s", owner, reponame);
+        /* Mark health as error */
+        for (int i = 0; i < g.cfg.extra_repo_count; i++) {
+            if (wcscmp(g.cfg.extra_repos[i].url, repo->url) == 0) {
+                g.cfg.extra_repos[i].health = HEALTH_ERROR;
+                break;
+            }
+        }
         return;
     }
 
@@ -344,11 +351,13 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             MultiByteToWideChar(CP_UTF8, 0, fname, -1, s->name,    MAX_NAME);
             MultiByteToWideChar(CP_UTF8, 0, fpath, -1, s->gh_path, MAX_APPPATH);
             MultiByteToWideChar(CP_UTF8, 0, fsha,  -1, s->sha,     MAX_SHA);
-            _snwprintf(s->local, MAX_APPPATH-1, L"%s\\%s", cache_sub,
-                       s->name);
+            /* Build local path from original filename (includes .py),
+               then strip .py from display name */
+            WCHAR fname_w[MAX_NAME] = {0};
+            MultiByteToWideChar(CP_UTF8, 0, fname, -1, fname_w, MAX_NAME);
+            _snwprintf(s->local, MAX_APPPATH-1, L"%s\\%s", cache_sub, fname_w);
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
-            wcscat(s->local, L".py");
 
             /* Download if changed */
             WCHAR existing_sha[MAX_SHA] = {0};
@@ -367,6 +376,18 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
 
         Sync_MergeFolder(folder_w, scripts, script_count);
         p = tp;
+    }
+
+    /* Mark health as OK and record sync time */
+    for (int i = 0; i < g.cfg.extra_repo_count; i++) {
+        if (wcscmp(g.cfg.extra_repos[i].url, repo->url) == 0) {
+            g.cfg.extra_repos[i].health = HEALTH_OK;
+            SYSTEMTIME st; GetLocalTime(&st);
+            _snwprintf(g.cfg.extra_repos[i].last_sync, 31,
+                       L"%02d/%02d/%04d %02d:%02d",
+                       st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute);
+            break;
+        }
     }
 }
 
@@ -475,6 +496,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
+        if (g.cfg.main_repo_enabled) g.main_repo_health = HEALTH_ERROR;
         sr->status = SR_NO_INTERNET;
         if (g.folder_count > 0) {
             _snwprintf(sr->message, 255,
@@ -699,6 +721,15 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
     /* ── Step 8: Persist updated manifest ───────────────────────── */
     Sync_SaveManifest();
+
+    /* Update source health for main repo */
+    if (g.cfg.main_repo_enabled) {
+        g.main_repo_health = HEALTH_OK;
+        SYSTEMTIME st; GetLocalTime(&st);
+        _snwprintf(g.main_repo_last_sync, 31,
+                   L"%02d/%02d/%04d %02d:%02d",
+                   st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute);
+    }
 
     /* ── Step 6: Build human-readable result message ────────────── */
     if (sr->status == SR_OK) {

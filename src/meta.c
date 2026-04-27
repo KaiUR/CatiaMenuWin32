@@ -91,19 +91,18 @@ void Meta_Parse(Script *s)
 
         if (!in_header) continue;
 
-        /* Stop at Python code or known section keywords */
+        /* Stop at Python code */
         if (_wcsnicmp(line, L"import ",      7)==0 ||
             _wcsnicmp(line, L"from ",        5)==0 ||
             _wcsnicmp(line, L"def ",         4)==0 ||
             _wcsnicmp(line, L"class ",       6)==0 ||
-            _wcsnicmp(line, L"Change",       6)==0 ||
-            _wcsnicmp(line, L"dependencies", 12)==0 ||
-            _wcsnicmp(line, L"requirements", 12)==0) break;
+            _wcsnicmp(line, L"Change",       6)==0) break;
 
-        /* Skip blank lines but do NOT stop description continuation */
+        /* Skip blank lines */
         if (line[0] == L'\0') continue;
 
         const WCHAR *val = NULL;
+        bool in_reqs = false;  /* local flag for this line */
 
         if ((val = MatchKey(line, L"Script name")) != NULL) {
             in_desc = false;
@@ -125,28 +124,53 @@ void Meta_Parse(Script *s)
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Code")) != NULL) {
-            if (!m.version[0]) { wcsncpy(m.version, val, 31); found_any = true; }
-            in_desc = false;
+            wcsncpy(m.code, val, 63);
+            found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Release")) != NULL) {
-            /* Skip - not displayed */
-            in_desc = false;
+            wcsncpy(m.release, val, 31);
+            found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Description")) != NULL) {
             wcsncpy(m.description, val, DESC_MAX);
-            found_any = true; in_desc = true;
+            found_any = true; in_desc = true; in_reqs = false;
+
+        } else if (_wcsnicmp(line, L"requirements", 12) == 0) {
+            /* requirements: may have content on same line or next lines */
+            val = MatchKey(line, L"requirements");
+            if (val) wcsncpy(m.requirements, val, 511);
+            found_any = true; in_desc = false; in_reqs = true;
+            (void)in_reqs; /* suppress unused warning - used as state below */
+            /* Switch from desc mode to reqs mode */
+            /* We reuse in_desc=false and handle continuation below */
+
+        } else if (_wcsnicmp(line, L"dependencies", 12) == 0) {
+            in_desc = false;
+            /* Skip dependencies block */
 
         } else if (in_desc) {
-            /* Continuation line - must be indented in raw form */
+            /* Description continuation line */
             bool indented = (raw[0]==L' '||raw[0]==L'\t'||
                              raw[0]==L'\''||raw[0]==L'"');
-            /* Stop if we hit a new key like "dependencies" or "[" */
             if (line[0]==L'['||line[0]==L']') { in_desc = false; continue; }
             if (indented && line[0]) {
                 AppendDesc(m.description, line);
             } else if (!indented) {
-                /* Unindented non-key line ends description */
                 in_desc = false;
+            }
+        } else if (m.requirements[0] && !in_desc) {
+            /* Requirements continuation — collect indented lines */
+            bool indented = (raw[0]==L' '||raw[0]==L'\t');
+            if (indented && line[0] &&
+                line[0] != L'[' && line[0] != L']') {
+                /* Append to requirements */
+                int cur = (int)wcslen(m.requirements);
+                if (cur < 508) {
+                    m.requirements[cur++] = L'\r';
+                    m.requirements[cur++] = L'\n';
+                    m.requirements[cur]   = L'\0';
+                    wcsncat(m.requirements, line, 511 - cur);
+                }
             }
         }
     }
