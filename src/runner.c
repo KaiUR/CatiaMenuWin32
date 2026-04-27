@@ -203,19 +203,25 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
                            const WCHAR *work_dir, bool keep_open)
 {
     WCHAR cmd[MAX_APPPATH * 2];
-    _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-               keep_open
-               ? L"cmd.exe /k \"%s\" -m pip install -r \"%s\""
-               : L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
-               python, req);
+    if (keep_open) {
+        /* cmd /k requires the inner command wrapped in extra quotes */
+        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
+                   L"cmd.exe /k \"\"%s\" -m pip install -r \"%s\"\"",
+                   python, req);
+    } else {
+        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
+                   L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
+                   python, req);
+    }
 
     STARTUPINFOW si; PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si)); si.cb = sizeof(si);
 
     if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE,
                        CREATE_NEW_CONSOLE, NULL, work_dir, &si, &pi)) {
-        /* Wait for this install to finish before starting the next */
-        WaitForSingleObject(pi.hProcess, INFINITE);
+        if (!keep_open) {
+            WaitForSingleObject(pi.hProcess, INFINITE);
+        }
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
@@ -245,6 +251,7 @@ void Runner_UpdateDeps(void)
                    g.cfg.cache_dir);
         WCHAR work_dir[MAX_APPPATH];
         _snwprintf(work_dir, MAX_APPPATH - 1, L"%s\\setup", g.cfg.cache_dir);
+        SHCreateDirectoryEx(NULL, work_dir, NULL);
 
         /* Download if missing */
         if (GetFileAttributes(req) == INVALID_FILE_ATTRIBUTES) {

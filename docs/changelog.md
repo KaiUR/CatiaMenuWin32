@@ -4,6 +4,19 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.2.6 — Update Deps fix, Google Search Console
+
+### Added
+- GitHub Pages site at `https://kaiur.github.io/CatiaMenuWin32`
+- `sitemap.xml` submitted to Google Search Console for indexing
+- `index.md`, `about.md`, `_config.yml` added to `docs/` for Pages
+
+### Fixed
+- Update Deps button no longer crashes — `cmd.exe /k` now correctly wraps the inner command in double quotes when paths contain spaces
+- `cmd.exe /c` quoting also corrected for consistency
+
+---
+
 ## v1.2.5 — Source management fixes
 
 ### Fixed
