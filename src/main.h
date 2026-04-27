@@ -343,6 +343,7 @@ void Tabs_Switch(int idx);
 void Tabs_RebuildButtons(void);
 void Tabs_DestroyButtons(void);
 void Tabs_ApplyFilter(void);
+bool Tabs_ScriptMatchesFilter(const Script *s);
 void Tabs_ApplySort(int fi);
 LRESULT CALLBACK ScrollPanelProc(HWND, UINT, WPARAM, LPARAM);
 
