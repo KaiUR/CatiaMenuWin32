@@ -55,6 +55,15 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Certificate validation** | Every HTTPS connection validates the server certificate subject and issuer — blocks MITM attacks |
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
 | **Single instance** | Only one instance runs at a time — launching a second brings the existing window to the front |
+| **Favourites tab** | Right-click any script to favourite it; a ⭐ Favourites tab appears automatically |
+| **Search/filter** | Real-time filter bar filters scripts by name or purpose |
+| **Script details** | Right-click → Script Details shows all header fields, notes, favourite/hidden controls |
+| **Hide scripts** | Right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts |
+| **Sort scripts** | Sort by Default, Alphabetical, By Date, or Most Used |
+| **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments |
+| **Script notes** | Per-script user notes stored locally in `prefs.ini` |
+| **Auto-refresh** | Background sync every N hours (default 6); configurable in Settings |
+| **Auto-update** | Optionally download and install new versions automatically |
 | **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
 | **System Tray** | Minimize to tray; restore with double-click |

@@ -66,7 +66,6 @@
 #define IDC_BTN_LOCAL_ADD       606
 #define IDC_BTN_LOCAL_REMOVE    607
 #define IDC_CHK_MAIN_REPO       608
-#define IDC_MAIN_REPO_HEALTH    620
 
 /* Repo edit dialog */
 #define IDD_REPO_EDIT           303

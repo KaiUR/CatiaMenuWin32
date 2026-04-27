@@ -249,13 +249,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_path, tok, buf, &len)) {
         PostStatus(L"Sources: failed to reach %s/%s", owner, reponame);
-        /* Mark health as error */
-        for (int i = 0; i < g.cfg.extra_repo_count; i++) {
-            if (wcscmp(g.cfg.extra_repos[i].url, repo->url) == 0) {
-                g.cfg.extra_repos[i].health = HEALTH_ERROR;
-                break;
-            }
-        }
+
         return;
     }
 
@@ -378,17 +372,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         p = tp;
     }
 
-    /* Mark health as OK and record sync time */
-    for (int i = 0; i < g.cfg.extra_repo_count; i++) {
-        if (wcscmp(g.cfg.extra_repos[i].url, repo->url) == 0) {
-            g.cfg.extra_repos[i].health = HEALTH_OK;
-            SYSTEMTIME st; GetLocalTime(&st);
-            _snwprintf(g.cfg.extra_repos[i].last_sync, 31,
-                       L"%02d/%02d/%04d %02d:%02d",
-                       st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute);
-            break;
-        }
-    }
+
 }
 
 /* ================================================================== */
@@ -496,7 +480,6 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
-        if (g.cfg.main_repo_enabled) g.main_repo_health = HEALTH_ERROR;
         sr->status = SR_NO_INTERNET;
         if (g.folder_count > 0) {
             _snwprintf(sr->message, 255,
@@ -722,14 +705,6 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     /* ── Step 8: Persist updated manifest ───────────────────────── */
     Sync_SaveManifest();
 
-    /* Update source health for main repo */
-    if (g.cfg.main_repo_enabled) {
-        g.main_repo_health = HEALTH_OK;
-        SYSTEMTIME st; GetLocalTime(&st);
-        _snwprintf(g.main_repo_last_sync, 31,
-                   L"%02d/%02d/%04d %02d:%02d",
-                   st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute);
-    }
 
     /* ── Step 6: Build human-readable result message ────────────── */
     if (sr->status == SR_OK) {

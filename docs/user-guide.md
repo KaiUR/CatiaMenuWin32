@@ -313,6 +313,83 @@ The `setup/` folder is never shown as a tab.
 
 ---
 
+## ⭐ Favourites
+
+Right-click any script button and select **Add to Favourites** to add it to a dedicated **⭐ Favourites** tab at the top of the tab bar. The tab only appears when you have at least one favourite and disappears automatically when all favourites are removed.
+
+Favourites are stored in `%APPDATA%\CatiaMenuWin32\prefs.ini` and persist across restarts and syncs.
+
+---
+
+## 🔍 Search / Filter
+
+A filter bar sits below the toolbar. Type any text to instantly filter the scripts in the current tab by name or purpose. Clear the box to show all scripts again.
+
+---
+
+## 📋 Script Details
+
+Right-click any script button and select **Script Details...** to open a full details dialog showing:
+
+- Script name, purpose, author, version, date
+- Code environment and CATIA release
+- Full description and requirements
+- Local cache path
+- Your personal note
+- Favourite and Hidden toggles
+
+Changes to the note, favourite, and hidden state are saved when you click OK.
+
+---
+
+## 🙈 Hiding Scripts
+
+Right-click any script → **Hide Script** removes it from view. Hidden scripts are not deleted — they remain in the cache and will not reappear after a sync.
+
+To restore hidden scripts: **☰ Menu → File → Manage Hidden Scripts** — select a script and click **Unhide**, or click **Unhide All**.
+
+---
+
+## 📝 Script Notes
+
+Right-click any script → **Add Note...** (or **Edit Note...**) to attach a personal note to a script. Notes are visible in the Script Details dialog and stored in `prefs.ini`.
+
+---
+
+## ▶️ Run with Arguments
+
+Right-click any script → **Run with Arguments...** to pass custom command line arguments when running the script.
+
+---
+
+## 🔢 Sorting Scripts
+
+**☰ Menu → View → Sort Scripts** offers four sort modes:
+
+| Mode | Description |
+|------|-------------|
+| Default Order | Order from GitHub API or disk |
+| Alphabetical | A–Z by script name |
+| By Date | Most recent scripts first (from script header Date field) |
+| Most Used | Scripts you run most often appear first |
+
+The sort mode is saved in Settings and applied to all tabs.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `F5` | Refresh + Sync |
+| `F9` | Run last script |
+| `Ctrl+Tab` | Next tab |
+| `Ctrl+Shift+Tab` | Previous tab |
+
+---
+
+---
+
 ## Troubleshooting
 
 ### "Connect to internet to sync"
@@ -333,6 +410,10 @@ The `setup/` folder is never shown as a tab.
 - Local builds pick up the latest release tag via git
 - Pull the latest tags with `git fetch --tags` and rebuild
 - The local build number will be one higher than the release and no prompt will appear
+
+### A script has disappeared
+- It may have been hidden — check **☰ Menu → File → Manage Hidden Scripts**
+- If using a filter, clear the search box
 
 ### Scripts don't appear after adding a source
 - Click **↺ Refresh** to trigger a sync with the new source

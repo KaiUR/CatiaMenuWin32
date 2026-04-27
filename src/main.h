@@ -129,11 +129,6 @@ typedef struct {
 } SyncResult;
 
 /* ------------------------------------------------------------------ */
-/*  Source health                                                       */
-/* ------------------------------------------------------------------ */
-typedef enum { HEALTH_UNKNOWN=0, HEALTH_OK=1, HEALTH_ERROR=2 } SourceHealth;
-
-/* ------------------------------------------------------------------ */
 /*  Script metadata                                                     */
 /* ------------------------------------------------------------------ */
 typedef struct {
@@ -177,15 +172,11 @@ typedef struct {
     WCHAR        branch[64];
     WCHAR        token[256];
     bool         enabled;
-    SourceHealth health;
-    WCHAR        last_sync[32];  /* timestamp string                   */
 } ExtraRepo;
 
 typedef struct {
     WCHAR        path[MAX_APPPATH];
     bool         enabled;
-    SourceHealth health;
-    WCHAR        last_sync[32];
 } LocalDir;
 
 /* ------------------------------------------------------------------ */
@@ -296,9 +287,6 @@ typedef struct {
     int    details_script_si;    /* script index of shown script        */
     bool   details_visible;
 
-    /* Source health */
-    SourceHealth main_repo_health;
-    WCHAR        main_repo_last_sync[32];
 } AppState;
 
 extern AppState g;

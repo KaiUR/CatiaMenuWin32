@@ -133,6 +133,20 @@ Header format expected (see [Writing Your Own Scripts](user-guide.md#writing-you
 
 Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library for CATIA V5 COM automation.
 
+### `prefs.c`
+User preferences persistence and script management dialogs.
+
+- `Prefs_IsFavourite` / `Prefs_SetFavourite` — read/write favourite state to `prefs.ini`
+- `Prefs_IsHidden` / `Prefs_SetHidden` — read/write hidden state
+- `Prefs_GetRunCount` / `Prefs_IncrementRunCount` — track script run counts for Most Used sort
+- `Prefs_GetNote` / `Prefs_SetNote` — per-script user notes
+- `Prefs_ApplyToFolders` — stamps all scripts with their prefs after every sync
+- `Tabs_BuildFavourites` — builds a `⭐ Favourites` tab at index 0 when any scripts are favourited; removes existing tab first to prevent duplicates
+- `ScriptDetailsDlgProc` — full script details dialog with all header fields, note, favourite/hidden toggles
+- `RunWithArgsDlgProc` — dialog to enter command line arguments before running
+- `ScriptNoteDlgProc` — quick note edit dialog
+- `HiddenScriptsDlgProc` — manage hidden scripts with Unhide and Unhide All
+
 ### `sources.c`
 Sources dialog for managing extra repos and local folders.
 
