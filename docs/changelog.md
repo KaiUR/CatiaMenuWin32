@@ -4,6 +4,15 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.1 — Search fix, update prompt fix
+
+### Fixed
+- Search/filter now rebuilds button list instead of hiding buttons — no more gaps between results
+- IGES and other all-caps script names now match correctly in search (case-insensitive via `towlower`)
+- Local builds no longer trigger the update prompt — `git fetch --tags` + `git pull` picks up latest tag correctly
+
+---
+
 ## v1.3.0 — Script management, search, sorting, favourites, details
 
 ### Added

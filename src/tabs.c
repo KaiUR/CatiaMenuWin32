@@ -18,37 +18,29 @@ static int  s_btn_count = 0;
 /* ================================================================== */
 void Tabs_ApplyFilter(void)
 {
-    if (g.active_tab < 0 || g.active_tab >= g.folder_count) return;
-    ScriptFolder *f = &g.folders[g.active_tab];
-    bool has_filter = g.filter_text[0] != L'\0';
+    /* Rebuild buttons showing only matching ones — no gaps */
+    Tabs_RebuildButtons();
+}
 
-    for (int si = 0; si < f->count; si++) {
-        Script *s = &f->scripts[si];
-        if (s->is_hidden) continue;
-        HWND hBtn = GetDlgItem(g.hwnd_scroll,
-                               IDC_SCRIPT_BTN_BASE + si);
-        if (!hBtn) continue;
+/* Internal: check if a script matches the current filter */
+bool Tabs_ScriptMatchesFilter(const Script *s)
+{
+    if (g.filter_text[0] == L'\0') return true;
 
-        bool visible = true;
-        if (has_filter) {
-            /* Case-insensitive search in name and purpose */
-            WCHAR name_lower[MAX_NAME]    = {0};
-            WCHAR purpose_lower[128]      = {0};
-            WCHAR filter_lower[MAX_NAME]  = {0};
-            wcsncpy(name_lower,    s->name,          MAX_NAME - 1);
-            wcsncpy(purpose_lower, s->meta.purpose,  127);
-            wcsncpy(filter_lower,  g.filter_text,    MAX_NAME - 1);
-            /* Convert to lowercase */
-            for (WCHAR *p = name_lower;    *p; p++) *p = towlower(*p);
-            for (WCHAR *p = purpose_lower; *p; p++) *p = towlower(*p);
-            for (WCHAR *p = filter_lower;  *p; p++) *p = towlower(*p);
-            visible = wcsstr(name_lower, filter_lower) != NULL ||
-                      wcsstr(purpose_lower, filter_lower) != NULL;
-        }
-        ShowWindow(hBtn, visible ? SW_SHOW : SW_HIDE);
-    }
-    /* Scroll panel needs repaint */
-    InvalidateRect(g.hwnd_scroll, NULL, FALSE);
+    WCHAR name_lower[MAX_NAME]   = {0};
+    WCHAR purp_lower[128]        = {0};
+    WCHAR filt_lower[MAX_NAME]   = {0};
+
+    wcsncpy(name_lower, s->name,         MAX_NAME - 1);
+    wcsncpy(purp_lower, s->meta.purpose, 127);
+    wcsncpy(filt_lower, g.filter_text,   MAX_NAME - 1);
+
+    for (WCHAR *p = name_lower; *p; p++) *p = towlower(*p);
+    for (WCHAR *p = purp_lower; *p; p++) *p = towlower(*p);
+    for (WCHAR *p = filt_lower; *p; p++) *p = towlower(*p);
+
+    return wcsstr(name_lower, filt_lower) != NULL ||
+           wcsstr(purp_lower, filt_lower) != NULL;
 }
 
 /* ================================================================== */
@@ -138,6 +130,7 @@ void Tabs_RebuildButtons(void)
 
     for (int i = 0; i < f->count; i++) {
         if (f->scripts[i].is_hidden) continue;  /* skip hidden */
+        if (!Tabs_ScriptMatchesFilter(&f->scripts[i])) continue; /* skip filtered */
         int id = IDC_SCRIPT_BTN_BASE + i;
 
         HWND hb = CreateWindow(
