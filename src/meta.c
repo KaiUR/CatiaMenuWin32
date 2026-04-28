@@ -20,7 +20,7 @@ static void StripLeading(WCHAR *s)
     WCHAR *p = s;
     while (*p==L' '||*p==L'\t'||*p==L'#'||
            *p==L'\''||*p==L'"'||*p==L'-') p++;
-    if (p != s) memmove(s, p, (wcslen(p)+1)*sizeof(WCHAR));
+    if (p != s) memmove_s(s, (wcslen(p, p, (wcslen(p)+1)*sizeof(WCHAR));
 }
 
 static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
@@ -56,7 +56,7 @@ void Meta_Parse(Script *s)
     if (!f) return;
 
     ScriptMeta m;
-    memset(&m, 0, sizeof(m));
+    ZeroMemory(&m, sizeof(m));
 
     WCHAR raw[1024], line[1024];
     int   lineno    = 0;
@@ -85,7 +85,7 @@ void Meta_Parse(Script *s)
 
         if (is_dashes) {
             if (!in_header) { in_header = true; }
-            else            { in_desc = false; break; } /* second dashes = end */
+            else            { break; } /* second dashes = end of header */
             continue;
         }
 
@@ -104,7 +104,8 @@ void Meta_Parse(Script *s)
         const WCHAR *val = NULL;
         bool in_reqs = false;  /* local flag for this line */
 
-        if ((val = MatchKey(line, L"Script name")) != NULL) {
+        if (MatchKey(line, L"Script name") != NULL) {
+            /* Script name not displayed — just stop description mode */
             in_desc = false;
 
         } else if ((val = MatchKey(line, L"Version")) != NULL) {

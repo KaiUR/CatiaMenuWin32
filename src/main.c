@@ -141,8 +141,7 @@ void App_BuildAppDataPath(void)
 {
     WCHAR appdata[MAX_APPPATH] = {0};
     SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appdata);
-    _snwprintf(g.appdata_dir, MAX_APPPATH - 1,
-               L"%s\\%s", appdata, APP_APPDATA_DIR);
+    _snwprintf_s(g.appdata_dir, MAX_APPPATH , _TRUNCATE, L"%s\\%s", appdata, APP_APPDATA_DIR);
     SHCreateDirectoryEx(NULL, g.appdata_dir, NULL);
 }
 

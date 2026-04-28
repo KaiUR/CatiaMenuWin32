@@ -85,8 +85,7 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
     if (!buf) return 1;
 
     WCHAR api_path[256];
-    _snwprintf(api_path, 255,
-               L"/repos/%s/CatiaMenuWin32/releases/latest", GITHUB_OWNER);
+    _snwprintf_s(api_path, 255, _TRUNCATE, L"/repos/%s/CatiaMenuWin32/releases/latest", GITHUB_OWNER);
 
     DWORD len = 0;
     bool ok = GitHub_HttpGet(GITHUB_API_HOST, api_path,
@@ -124,8 +123,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 {
     /* Download latest release exe and replace self */
     WCHAR url[512];
-    _snwprintf(url, 511,
-        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/%s/CatiaMenuWin32.exe",
+    _snwprintf_s(url, 511, _TRUNCATE, L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
         latest_tag);
 
     /* Download to temp file */
@@ -192,8 +190,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 void Updater_PromptAndInstall(const WCHAR *latest_tag)
 {
     WCHAR msg[512];
-    _snwprintf(msg, 511,
-        L"A new version of CatiaMenuWin32 is available!\n\n"
+    _snwprintf_s(msg, 511, _TRUNCATE, L"A new version of CatiaMenuWin32 is available!\n\n"
         L"  Current version:  v%s\n"
         L"  Latest version:   v%s\n\n"
         L"Would you like to open the releases page to download the update?",
@@ -205,8 +202,7 @@ void Updater_PromptAndInstall(const WCHAR *latest_tag)
     if (res == IDYES) {
         /* Open the releases page in the browser */
         WCHAR url[256];
-        _snwprintf(url, 255,
-                   L"https://github.com/%s/CatiaMenuWin32/releases/latest",
+        _snwprintf_s(url, 255, _TRUNCATE, L"https://github.com/%s/CatiaMenuWin32/releases/latest",
                    GITHUB_OWNER);
         ShellExecute(NULL, L"open", url, NULL, NULL, SW_SHOW);
     }

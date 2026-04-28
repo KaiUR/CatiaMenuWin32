@@ -33,7 +33,7 @@
 /* Full path to manifest.ini */
 static void ManifestPath(WCHAR *out, int max)
 {
-    _snwprintf(out, max - 1, L"%s\\%s", g.appdata_dir, MANIFEST_FILE);
+    _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, MANIFEST_FILE);
 }
 
 /*
@@ -97,7 +97,7 @@ void Sync_LoadManifest(void)
 
     if (g.cfg.main_repo_enabled) {
     WCHAR pattern[MAX_APPPATH];
-    _snwprintf(pattern, MAX_APPPATH - 1, L"%s\\*", g.cfg.cache_dir);
+    _snwprintf_s(pattern, MAX_APPPATH, _TRUNCATE, L"%s\\*", g.cfg.cache_dir);
 
     WIN32_FIND_DATAW fd;
     HANDLE hFind = FindFirstFileW(pattern, &fd);
@@ -111,14 +111,14 @@ void Sync_LoadManifest(void)
         if (g.folder_count >= MAX_FOLDERS)        break;
 
         ScriptFolder *f = &g.folders[g.folder_count++];
-        memset(f, 0, sizeof(*f));
+        ZeroMemory(f, sizeof(*f));
         wcsncpy(f->name, fd.cFileName, MAX_NAME - 1);
         wcscpy(f->display, f->name);
         Util_SnakeToTitle(f->display);
 
         /* Scan .py files inside this folder */
         WCHAR sub[MAX_APPPATH];
-        _snwprintf(sub, MAX_APPPATH - 1, L"%s\\%s\\*.py",
+        _snwprintf_s(sub, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\*.py",
                    g.cfg.cache_dir, f->name);
 
         WIN32_FIND_DATAW sf;
@@ -130,15 +130,13 @@ void Sync_LoadManifest(void)
             if (f->count >= MAX_SCRIPTS) break;
 
             Script *s = &f->scripts[f->count++];
-            memset(s, 0, sizeof(*s));
+            ZeroMemory(s, sizeof(*s));
 
             /* gh_path: FolderName/filename.py */
-            _snwprintf(s->gh_path, MAX_APPPATH - 1,
-                       L"%s/%s", f->name, sf.cFileName);
+            _snwprintf_s(s->gh_path, MAX_APPPATH, _TRUNCATE, L"%s/%s", f->name, sf.cFileName);
 
             /* local path */
-            _snwprintf(s->local, MAX_APPPATH - 1,
-                       L"%s\\%s\\%s",
+            _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\%s",
                        g.cfg.cache_dir, f->name, sf.cFileName);
 
             /* display name: strip .py and format */
@@ -213,7 +211,7 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
     /* New folder */
     if (g.folder_count >= MAX_FOLDERS) return;
     ScriptFolder *f = &g.folders[g.folder_count++];
-    memset(f, 0, sizeof(*f));
+    ZeroMemory(f, sizeof(*f));
     wcsncpy(f->name, folder_name, MAX_NAME - 1);
     wcscpy(f->display, f->name);
     Util_SnakeToTitle(f->display);
@@ -243,7 +241,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
 
     /* Get root contents */
     WCHAR api_path[MAX_APPPATH];
-    _snwprintf(api_path, MAX_APPPATH-1, L"/repos/%s/%s/contents/",
+    _snwprintf_s(api_path, MAX_APPPATH, _TRUNCATE, L"/repos/%s/%s/contents/",
                owner, reponame);
 
     DWORD len = 0;
@@ -294,8 +292,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         MultiByteToWideChar(CP_UTF8, 0, name_a, -1, folder_w, MAX_NAME);
 
         WCHAR folder_api[MAX_APPPATH];
-        _snwprintf(folder_api, MAX_APPPATH-1,
-                   L"/repos/%s/%s/contents/%s", owner, reponame, folder_w);
+        _snwprintf_s(folder_api, MAX_APPPATH, _TRUNCATE, L"/repos/%s/%s/contents/%s", owner, reponame, folder_w);
 
         DWORD flen = 0;
         if (!GitHub_HttpGet(GITHUB_API_HOST, folder_api, tok, buf, &flen))
@@ -305,7 +302,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         Script scripts[MAX_SCRIPTS];
         int    script_count = 0;
         WCHAR  cache_sub[MAX_APPPATH];
-        _snwprintf(cache_sub, MAX_APPPATH-1, L"%s\\%s_%s\\%s",
+        _snwprintf_s(cache_sub, MAX_APPPATH, _TRUNCATE, L"%s\\%s_%s\\%s",
                    g.cfg.cache_dir, owner, reponame, folder_w);
         SHCreateDirectoryEx(NULL, cache_sub, NULL);
 
@@ -341,7 +338,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
                 if(*fsp=='"'){fsp++; int i=0; while(*fsp&&*fsp!='"'&&i<MAX_SHA-1) fsha[i++]=*fsp++; fsha[i]=0;}}
 
             Script *s = &scripts[script_count++];
-            memset(s, 0, sizeof(*s));
+            ZeroMemory(s, sizeof(*s));
             MultiByteToWideChar(CP_UTF8, 0, fname, -1, s->name,    MAX_NAME);
             MultiByteToWideChar(CP_UTF8, 0, fpath, -1, s->gh_path, MAX_APPPATH);
             MultiByteToWideChar(CP_UTF8, 0, fsha,  -1, s->sha,     MAX_SHA);
@@ -349,7 +346,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
                then strip .py from display name */
             WCHAR fname_w[MAX_NAME] = {0};
             MultiByteToWideChar(CP_UTF8, 0, fname, -1, fname_w, MAX_NAME);
-            _snwprintf(s->local, MAX_APPPATH-1, L"%s\\%s", cache_sub, fname_w);
+            _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s", cache_sub, fname_w);
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
 
@@ -359,8 +356,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             if (wcscmp(existing_sha, s->sha) != 0 || 
                 GetFileAttributes(s->local) == INVALID_FILE_ATTRIBUTES) {
                 WCHAR raw_path[MAX_APPPATH];
-                _snwprintf(raw_path, MAX_APPPATH-1,
-                           L"/%s/%s/%s/%s", owner, reponame, branch, s->gh_path);
+                _snwprintf_s(raw_path, MAX_APPPATH, _TRUNCATE, L"/%s/%s/%s/%s", owner, reponame, branch, s->gh_path);
                 GitHub_DownloadRawFull(GITHUB_RAW_HOST, raw_path,
                                        s->local, tok);
             }
@@ -382,7 +378,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
 static void Sync_LocalDir(const LocalDir *dir)
 {
     WCHAR pattern[MAX_APPPATH];
-    _snwprintf(pattern, MAX_APPPATH-1, L"%s\\*", dir->path);
+    _snwprintf_s(pattern, MAX_APPPATH, _TRUNCATE, L"%s\\*", dir->path);
 
     WIN32_FIND_DATAW fd;
     HANDLE h = FindFirstFileW(pattern, &fd);
@@ -396,7 +392,7 @@ static void Sync_LocalDir(const LocalDir *dir)
 
         /* Scan .py files in subfolder */
         WCHAR sub[MAX_APPPATH];
-        _snwprintf(sub, MAX_APPPATH-1, L"%s\\%s\\*.py",
+        _snwprintf_s(sub, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\*.py",
                    dir->path, fd.cFileName);
 
         Script scripts[MAX_SCRIPTS];
@@ -409,9 +405,9 @@ static void Sync_LocalDir(const LocalDir *dir)
             if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
             if (count >= MAX_SCRIPTS) break;
             Script *s = &scripts[count++];
-            memset(s, 0, sizeof(*s));
+            ZeroMemory(s, sizeof(*s));
             /* Local scripts have no gh_path or sha */
-            _snwprintf(s->local, MAX_APPPATH-1, L"%s\\%s\\%s",
+            _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\%s",
                        dir->path, fd.cFileName, sf.cFileName);
             wcsncpy(s->name, sf.cFileName, MAX_NAME-1);
             Util_StripExt(s->name);
@@ -429,16 +425,16 @@ static void Sync_LocalDir(const LocalDir *dir)
 
     /* Check for a setup/requirements.txt in this local dir */
     WCHAR req[MAX_APPPATH];
-    _snwprintf(req, MAX_APPPATH - 1, L"%s\\setup\\requirements.txt", dir->path);
+    _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\requirements.txt", dir->path);
     if (GetFileAttributes(req) != INVALID_FILE_ATTRIBUTES) {
         /* Store path so Runner_UpdateDeps can find it.
            We reuse the cache_dir setup folder concept - just copy the path
            into the setup subfolder of cache so runner finds it automatically. */
         WCHAR dest_dir[MAX_APPPATH];
-        _snwprintf(dest_dir, MAX_APPPATH - 1, L"%s\\setup", g.cfg.cache_dir);
+        _snwprintf_s(dest_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup", g.cfg.cache_dir);
         SHCreateDirectoryEx(NULL, dest_dir, NULL);
         WCHAR dest[MAX_APPPATH];
-        _snwprintf(dest, MAX_APPPATH - 1, L"%s\\requirements.txt", dest_dir);
+        _snwprintf_s(dest, MAX_APPPATH, _TRUNCATE, L"%s\\requirements.txt", dest_dir);
         /* Only copy if newer or missing */
         if (GetFileAttributes(dest) == INVALID_FILE_ATTRIBUTES)
             CopyFile(req, dest, FALSE);
@@ -474,16 +470,14 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     PostStatus(L"Connecting to GitHub\u2026");
 
     WCHAR api_root[MAX_APPPATH];
-    _snwprintf(api_root, MAX_APPPATH - 1,
-               L"/repos/%s/%s/contents/",
+    _snwprintf_s(api_root, MAX_APPPATH, _TRUNCATE, L"/repos/%s/%s/contents/",
                GITHUB_OWNER, GITHUB_REPO);
 
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
         sr->status = SR_NO_INTERNET;
         if (g.folder_count > 0) {
-            _snwprintf(sr->message, 255,
-                       L"Showing %d cached folder(s). Connect to internet to sync.",
+            _snwprintf_s(sr->message, 255, _TRUNCATE, L"Showing %d cached folder(s). Connect to internet to sync.",
                        g.folder_count);
         } else {
             wcscpy(sr->message,
@@ -528,11 +522,11 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             sr->folders_removed++;
             /* Delete the folder's cache directory */
             WCHAR cache_dir[MAX_APPPATH];
-            _snwprintf(cache_dir, MAX_APPPATH - 1, L"%s\\%s",
+            _snwprintf_s(cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\%s",
                        g.cfg.cache_dir, old_names[oi]);
             /* Simple recursive delete via SHFileOperation */
             WCHAR del_from[MAX_APPPATH + 2];
-            _snwprintf(del_from, MAX_APPPATH + 1, L"%s\\", cache_dir);
+            _snwprintf_s(del_from, MAX_APPPATH + 1, _TRUNCATE, L"%s\\", cache_dir);
             del_from[wcslen(del_from) + 1] = L'\0';  /* double-NUL */
             SHFILEOPSTRUCT fo = {
                 .wFunc  = FO_DELETE,
@@ -548,13 +542,12 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         ScriptFolder *f = &g.folders[fi];
 
         WCHAR status_msg[128];
-        _snwprintf(status_msg, 127, L"Checking %s\u2026", f->display);
+        _snwprintf_s(status_msg, 127, _TRUNCATE, L"Checking %s\u2026", f->display);
         PostStatus(L"%s", status_msg);
 
         /* Fetch folder contents from API */
         WCHAR api_folder[MAX_APPPATH];
-        _snwprintf(api_folder, MAX_APPPATH - 1,
-                   L"/repos/%s/%s/contents/%s",
+        _snwprintf_s(api_folder, MAX_APPPATH, _TRUNCATE, L"/repos/%s/%s/contents/%s",
                    GITHUB_OWNER, GITHUB_REPO, f->name);
 
         len = 0;
@@ -576,7 +569,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
         /* Ensure cache folder exists */
         WCHAR folder_cache[MAX_APPPATH];
-        _snwprintf(folder_cache, MAX_APPPATH - 1, L"%s\\%s",
+        _snwprintf_s(folder_cache, MAX_APPPATH, _TRUNCATE, L"%s\\%s",
                    g.cfg.cache_dir, f->name);
         SHCreateDirectoryEx(NULL, folder_cache, NULL);
 
@@ -622,7 +615,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             if (!have_local || sha_changed || file_missing) {
                 WCHAR dl_msg[128];
                 const WCHAR *fname = wcsrchr(s->gh_path, L'/');
-                _snwprintf(dl_msg, 127, L"Downloading %s\u2026",
+                _snwprintf_s(dl_msg, 127, _TRUNCATE, L"Downloading %s\u2026",
                            fname ? fname + 1 : s->gh_path);
                 PostStatus(L"%s", dl_msg);
 
@@ -638,8 +631,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     /* Step 5: Download setup files */
     {
         WCHAR setup_dir[MAX_APPPATH];
-        _snwprintf(setup_dir, MAX_APPPATH - 1,
-                   L"%s" L"\\" L"setup", g.cfg.cache_dir);
+        _snwprintf_s(setup_dir, MAX_APPPATH, _TRUNCATE, L"%s" L"\\" L"setup", g.cfg.cache_dir);
         setup_dir[MAX_APPPATH - 1] = L'\0';
         SHCreateDirectoryEx(NULL, setup_dir, NULL);
 
@@ -653,8 +645,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         };
         for (int i = 0; gh_files[i]; i++) {
             WCHAR lpath[MAX_APPPATH];
-            _snwprintf(lpath, MAX_APPPATH - 1,
-                       L"%s" L"\\" L"%s", setup_dir, local_names[i]);
+            _snwprintf_s(lpath, MAX_APPPATH, _TRUNCATE, L"%s" L"\\" L"%s", setup_dir, local_names[i]);
             lpath[MAX_APPPATH - 1] = L'\0';
             GitHub_DownloadRaw(gh_files[i], lpath, token);
         }
@@ -675,18 +666,17 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 WCHAR owner[MAX_NAME]={0}, reponame[MAX_NAME]={0};
                 if (GitHub_ParseOwnerRepo(xr->url, owner, reponame)) {
                     WCHAR sub[MAX_APPPATH];
-                    _snwprintf(sub, MAX_APPPATH-1, L"%s\\setup\\%s_%s",
+                    _snwprintf_s(sub, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s",
                                g.cfg.cache_dir, owner, reponame);
                     SHCreateDirectoryEx(NULL, sub, NULL);
                     WCHAR req[MAX_APPPATH];
-                    _snwprintf(req, MAX_APPPATH-1, L"%s\\requirements.txt", sub);
+                    _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\requirements.txt", sub);
                     if (GetFileAttributes(req) == INVALID_FILE_ATTRIBUTES) {
                         const WCHAR *tok = xr->token[0] ? xr->token
                                          : (g.cfg.github_token[0] ? g.cfg.github_token : NULL);
                         const WCHAR *branch = xr->branch[0] ? xr->branch : L"main";
                         WCHAR raw_path[MAX_APPPATH];
-                        _snwprintf(raw_path, MAX_APPPATH-1,
-                                   L"/%s/%s/%s/setup/requirements.txt",
+                        _snwprintf_s(raw_path, MAX_APPPATH, _TRUNCATE, L"/%s/%s/%s/setup/requirements.txt",
                                    owner, reponame, branch);
                         GitHub_DownloadRawFull(GITHUB_RAW_HOST, raw_path, req, tok);
                     }
@@ -713,8 +703,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             && sr->scripts_removed == 0) {
             wcscpy(sr->message, L"All scripts are up to date.");
         } else {
-            _snwprintf(sr->message, 255,
-                L"Sync complete. "
+            _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync complete. "
                 L"+%d/-%d folders, "
                 L"+%d/-%d scripts, "
                 L"%d updated.",
@@ -723,8 +712,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 sr->scripts_updated);
         }
     } else if (sr->status == SR_PARTIAL) {
-        _snwprintf(sr->message, 255,
-                   L"Sync partial \u2013 some downloads failed. "
+        _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync partial \u2013 some downloads failed. "
                    L"%d updated.", sr->scripts_updated);
     }
 

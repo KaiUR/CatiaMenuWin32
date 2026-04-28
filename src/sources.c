@@ -14,7 +14,7 @@
 static void DeleteFolderRecursive(const WCHAR *path)
 {
     WCHAR pattern[MAX_APPPATH];
-    _snwprintf(pattern, MAX_APPPATH - 1, L"%s\\*", path);
+    _snwprintf_s(pattern, MAX_APPPATH, _TRUNCATE, L"%s\\*", path);
 
     WIN32_FIND_DATAW fd;
     HANDLE h = FindFirstFileW(pattern, &fd);
@@ -25,7 +25,7 @@ static void DeleteFolderRecursive(const WCHAR *path)
             wcscmp(fd.cFileName, L"..") == 0) continue;
 
         WCHAR full[MAX_APPPATH];
-        _snwprintf(full, MAX_APPPATH - 1, L"%s\\%s", path, fd.cFileName);
+        _snwprintf_s(full, MAX_APPPATH, _TRUNCATE, L"%s\\%s", path, fd.cFileName);
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             DeleteFolderRecursive(full);
@@ -253,15 +253,13 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             /* Build confirmation message */
             WCHAR msg[512];
             if (has_cache) {
-                _snwprintf(msg, 511,
-                    L"Remove repository:\n%s\n\n"
+                _snwprintf_s(msg, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
                     L"Delete cached scripts and requirements from:\n"
                     L"%s\\%s_%s\n\n"
                     L"This cannot be undone.",
                     repo->url, g.cfg.cache_dir, owner, reponame);
             } else {
-                _snwprintf(msg, 511,
-                    L"Remove repository:\n%s\n\n"
+                _snwprintf_s(msg, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
                     L"No cached files found to delete.",
                     repo->url);
             }
@@ -273,19 +271,17 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             /* Delete cached scripts folder: cache_dir\owner_reponame\ */
             if (has_cache) {
                 WCHAR scripts_dir[MAX_APPPATH];
-                _snwprintf(scripts_dir, MAX_APPPATH - 1, L"%s\\%s_%s",
+                _snwprintf_s(scripts_dir, MAX_APPPATH, _TRUNCATE, L"%s\\%s_%s",
                            g.cfg.cache_dir, owner, reponame);
                 DeleteFolderRecursive(scripts_dir);
 
                 /* Delete cached requirements.txt */
                 WCHAR req[MAX_APPPATH];
-                _snwprintf(req, MAX_APPPATH - 1,
-                           L"%s\\setup\\%s_%s\\requirements.txt",
+                _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s\\requirements.txt",
                            g.cfg.cache_dir, owner, reponame);
                 DeleteFileW(req);
                 WCHAR req_dir[MAX_APPPATH];
-                _snwprintf(req_dir, MAX_APPPATH - 1,
-                           L"%s\\setup\\%s_%s",
+                _snwprintf_s(req_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s",
                            g.cfg.cache_dir, owner, reponame);
                 RemoveDirectoryW(req_dir);
             }
