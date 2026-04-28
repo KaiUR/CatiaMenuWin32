@@ -20,7 +20,7 @@ static void StripLeading(WCHAR *s)
     WCHAR *p = s;
     while (*p==L' '||*p==L'\t'||*p==L'#'||
            *p==L'\''||*p==L'"'||*p==L'-') p++;
-    if (p != s) memmove_s(s, (wcslen(p, p, (wcslen(p)+1)*sizeof(WCHAR));
+    if (p != s) memmove_s(s, (wcslen(p)+1)*sizeof(WCHAR), p, (wcslen(p)+1)*sizeof(WCHAR));
 }
 
 static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
@@ -134,7 +134,7 @@ void Meta_Parse(Script *s)
 
         } else if ((val = MatchKey(line, L"Description")) != NULL) {
             wcsncpy(m.description, val, DESC_MAX);
-            found_any = true; in_desc = true; in_reqs = false;
+            found_any = true; in_desc = true;
 
         } else if (_wcsnicmp(line, L"requirements", 12) == 0) {
             /* requirements: may have content on same line or next lines */

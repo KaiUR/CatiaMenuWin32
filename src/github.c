@@ -186,7 +186,7 @@ bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
 
     /* Build the git blob header: "blob <size>\0" */
     char header[64];
-    int  header_len = snprintf(header, sizeof(header), "blob %lu", (unsigned long)file_size);
+    int  header_len = _snprintf_s(header, sizeof(header), _TRUNCATE, "blob %lu", (unsigned long)file_size);
     /* header_len does NOT include the NUL - but the NUL IS part of the hash input */
 
     /* Hash = SHA1(header + NUL + file_content) */
@@ -349,7 +349,7 @@ static const char *json_str(const char *p, const char *key,
                              char *out, int max)
 {
     char needle[MAX_NAME];
-    snprintf(needle, sizeof(needle), "\"%s\"", key);
+    _snprintf_s(needle, sizeof(needle), _TRUNCATE, "\"%s\"", key);
 
     p = strstr(p, needle);
     if (!p) return NULL;
