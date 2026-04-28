@@ -4,7 +4,7 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.3 — In-app help window
+## v1.3.2 — New machine tooltip fix, default settings, In-app help window
 
 ### Added
 - **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window
@@ -13,10 +13,6 @@ All notable changes to CatiaMenuWin32 are documented here.
 - Topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
 - Single instance — pressing F1 again brings the existing window to the front
 - New `src/help.c` added to project
-
----
-
-## v1.3.2 — New machine tooltip fix, default settings
 
 ### Changed
 - Default settings changed: **Start with Windows** on, **Minimize to Tray** on, **Start Minimized** off
