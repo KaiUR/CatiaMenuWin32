@@ -389,6 +389,9 @@ void Settings_ApplyAutorun(bool enable, bool minimized);
 INT_PTR CALLBACK SettingsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
 
+/* help.c */
+void Help_Show(void);
+
 /* sources.c */
 INT_PTR CALLBACK SourcesDlgProc(HWND, UINT, WPARAM, LPARAM);
 

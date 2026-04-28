@@ -133,6 +133,15 @@ Header format expected (see [Writing Your Own Scripts](user-guide.md#writing-you
 
 Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library for CATIA V5 COM automation.
 
+### `help.c`
+In-app help window implementation.
+
+- `Help_Show()` — opens the help window (or brings it to front if already open); called from F1 and Menu → Help → Help Contents
+- `HelpDlgProc` — modeless dialog proc; manages TreeView + RichEdit layout, resizing, and topic switching
+- `Help_GetRTF` — returns RTF-formatted content string for each of the 11 help topics
+- `Help_TopicLabel` — returns the display name for each topic
+- `Help_LoadTopic` — streams RTF content into the RichEdit control via `EM_STREAMIN`
+
 ### `prefs.c`
 User preferences persistence and script management dialogs.
 
