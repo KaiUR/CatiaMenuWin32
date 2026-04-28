@@ -150,7 +150,10 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
     URLDownloadToFileW_t fn = (URLDownloadToFileW_t)GetProcAddress(hUrl, "URLDownloadToFileW");
+#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
     if (!fn) { FreeLibrary(hUrl); Updater_PromptAndInstall(latest_tag); return; }
 

@@ -138,3 +138,5 @@
 #define IDD_HELP            308
 #define IDC_HELP_TREE       840
 #define IDC_HELP_RICHEDIT   841
+#define IDC_HELP_SEARCH     842
+#define IDI_HELP_ICON       102

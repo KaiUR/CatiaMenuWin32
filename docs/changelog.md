@@ -4,14 +4,12 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.2 — New machine tooltip fix, default settings, In-app help window
+## v1.3.2 — New machine tooltip fix, default settings, in-app help
 
 ### Added
-- **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window
-- TreeView table of contents on the left with 11 topics
-- RichEdit panel on the right showing formatted topic content
-- Topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
-- Single instance — pressing F1 again brings the existing window to the front
+- **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window with TreeView contents and RichEdit topic display
+- 11 topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
+- Single instance — `F1` when already open brings window to front
 - New `src/help.c` added to project
 
 ### Changed
