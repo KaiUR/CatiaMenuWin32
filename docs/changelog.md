@@ -4,13 +4,29 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.2 — New machine tooltip fix, default settings, in-app help
+## v1.3.3 — In-app help, bounds-checking functions
 
 ### Added
-- **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window with TreeView contents and RichEdit topic display
-- 11 topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
+- **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window
+- TreeView table of contents with 11 topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
+- RichEdit panel with formatted topic content
 - Single instance — `F1` when already open brings window to front
+- Help icon embedded as resource (`res/help_icon.ico`)
 - New `src/help.c` added to project
+
+### Changed
+- Replaced all `_snwprintf` with `_snwprintf_s` using `_TRUNCATE` across all source files
+- Replaced `memset` with `ZeroMemory` throughout
+- Replaced `memmove` with `memmove_s` in `meta.c`
+- Replaced `snprintf` with `_snprintf_s` in `github.c`
+
+### Fixed
+- Fixed two static analysis warnings in `meta.c` — dead code and unused variable
+- Suppressed unavoidable `GetProcAddress` cast warning with `#pragma GCC diagnostic`
+
+---
+
+## v1.3.2 — New machine tooltip fix, default settings
 
 ### Changed
 - Default settings changed: **Start with Windows** on, **Minimize to Tray** on, **Start Minimized** off
@@ -18,8 +34,6 @@ All notable changes to CatiaMenuWin32 are documented here.
 ### Fixed
 - Tooltips and Script Details blank on first launch on a new machine — meta retries after sync downloads files
 - Auto-update download URL fixed — missing `v` prefix caused download failure
-- Search filter rebuilds button list — no gaps between filtered results
-- All-caps script names (e.g. IGES) now match correctly in search
 
 ---
 
@@ -27,8 +41,9 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ### Fixed
 - Search/filter now rebuilds button list instead of hiding buttons — no more gaps between results
-- IGES and other all-caps script names now match correctly in search (case-insensitive via `towlower`)
-- Local builds no longer trigger the update prompt — `git fetch --tags` + `git pull` picks up latest tag correctly
+- All-caps script names (e.g. IGES) now match correctly in search (case-insensitive via `towlower`)
+- Local builds no longer trigger the update prompt
+- GitHub Pages homepage improved
 
 ---
 
@@ -36,180 +51,158 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ### Added
 - **Search/filter box** — real-time filter bar below toolbar; filters by script name and purpose
-- **Favourites tab** — right-click any script → Add to Favourites; a ⭐ Favourites tab appears automatically; disappears when no favourites remain; persisted across sessions
-- **Script details dialog** — right-click any script → Script Details; shows all header fields: Name, Purpose, Author, Version, Date, Code, Release, Description, Requirements, local path, note, favourite and hidden toggles
-- **Hide scripts** — right-click → Hide Script removes it from view; hidden scripts persist across syncs; restore via Menu → File → Manage Hidden Scripts
-- **Script notes** — right-click → Add/Edit Note; per-script user notes stored in `prefs.ini`
-- **Run with Arguments** — right-click → Run with Arguments; pass custom command line arguments to any script
+- **Favourites tab** — right-click any script → Add to Favourites; tab appears/disappears automatically; persisted across sessions
+- **Script details dialog** — right-click → Script Details; shows all header fields, note, favourite/hidden toggles
+- **Hide scripts** — right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts
+- **Script notes** — right-click → Add/Edit Note; stored in `prefs.ini`
+- **Run with Arguments** — right-click → Run with Arguments
 - **Script sorting** — Menu → View → Sort Scripts: Default, Alphabetical, By Date, Most Used
-- **Most Used sort** — run count tracked per script in `prefs.ini`; scripts sorted by run count descending
+- **Most Used sort** — run count tracked per script in `prefs.ini`
 - **Keyboard shortcuts** — `Ctrl+Tab` / `Ctrl+Shift+Tab` to cycle through tabs
-- **Open Executable Folder** — Menu → File → Open Executable Folder; opens the folder containing the `.exe` in Explorer
-- **Auto-refresh interval** — sync automatically every N hours in the background; default 6 hours; set to 0 to disable; configurable in Settings
-- **Auto-update** — when a newer version is detected, option to download and install automatically; falls back to manual if download fails
-- **Prefs system** — new `prefs.ini` in AppData stores favourites, hidden scripts, notes, run counts
-- **Double `.py` fix** — scripts were being cached as `scriptname.py.py`; now correctly cached as `scriptname.py`
-- **Requirements field** — script details now shows full Requirements section from script header, preserving line breaks
-- **Code and Release fields** — now correctly parsed and displayed in script details
+- **Open Executable Folder** — Menu → File → Open Executable Folder
+- **Auto-refresh interval** — background sync every N hours; default 6 hours; configurable in Settings
+- **Auto-update** — download and install new versions automatically; falls back to manual if download fails
+- **Prefs system** — new `prefs.ini` stores favourites, hidden scripts, notes, run counts
+- **Double `.py` fix** — scripts were cached as `scriptname.py.py`; now correctly `scriptname.py`
+- `Code`, `Release`, and multi-line `requirements:` fields now correctly parsed and displayed
 
 ### Fixed
-- Double `.py` extension bug in both `GitHub_ParseFolder` and `Sync_ExtraRepo`
-- `meta.c` now correctly parses `Code:`, `Release:`, and `requirements:` (multi-line) fields
-- `requirements:` continuation lines preserved with correct line breaks in details dialog
-- `Tabs_BuildFavourites` now removes existing Favourites tab before rebuilding — no duplicate tabs
+- `Tabs_BuildFavourites` removes existing tab before rebuilding — no duplicate tabs
 - Settings dialog layout — Auto-install updates no longer overlaps Console Options group
 - Sources dialog widened so all columns visible
 - `cmd.exe /k` quoting fixed in `Runner_RunWithArgs`
-- `Updater_AutoUpdate` string literal and quoting issues fixed
 
 ---
 
-## v1.2.6 — Update Deps fix, GitHub Pages, Search Console
+## v1.2.6 — Update Deps fix, GitHub Pages
 
 ### Added
 - GitHub Pages site at `https://kaiur.github.io/CatiaMenuWin32`
-- `sitemap.xml` submitted to Google Search Console for indexing
+- `sitemap.xml` submitted to Google Search Console
+- `.github` and dot-folders now skipped — never appear as tabs
 
 ### Fixed
 - Update Deps crash — `cmd.exe /k` requires inner command wrapped in extra quotes when paths contain spaces
 
 ---
 
-## v1.2.5 — Source management fixes
+## v1.2.5 — Disable main repo fix
 
 ### Fixed
-- Disabling main repository and pressing Refresh now immediately clears scripts from the UI
+- Disabling the main repository and pressing Refresh now immediately clears scripts from the UI
 - Ghost buttons no longer appear on hover after all sources are disabled
 - `g.folder_count` reset at start of sync so disabled sources never persist after refresh
-- Main repo correctly wrapped in `if` blocks in both `Sync_LoadManifest` and `Sync_Thread`
-- Local build number increments by 2 so local builds are always ahead of the latest release
 
 ---
 
-## v1.2.4 — Stability, documentation, sources improvements
+## v1.2.4 — Documentation, reset to defaults, single instance
 
 ### Added
 - Full `docs/` folder — user guide, developer guide, file reference, changelog
 - Screenshots in README and user guide
 - `CONTRIBUTING.md` and `SECURITY.md` for both repos
 - **Reset to Defaults** button in Settings dialog
-- PyCATIA and Python 3.9+ requirements documented throughout
-- Script header format documented in user guide
-- Local build number increments by 2
+- Single instance enforcement — second launch restores existing window
 
 ### Fixed
-- Update checker `IS_LOCAL_BUILD` guard removed
+- Update checker `IS_LOCAL_BUILD` guard removed — all builds now check for updates
 - Local version detection switched to `git tag --sort=-creatordate`
 - Update dialog shows `v` prefix consistently
 - Toolbar "Update Deps" renamed to "Deps"
-- Tab natural width — no ellipsis truncation
-- Tab scroll arrows correct
 - Tooltip positioning fixed for maximised/multi-monitor
 - Sources dialog null pointer dereference fixed
 - Sync no longer clears cached tabs on no-internet
 
 ---
 
-## v1.2.3 — Update checker fix, version info, single instance
+## v1.2.3 — Certificate validation, SHA verification
 
 ### Added
-- Single instance enforcement
-- `.exe` file properties populated via `resource.rc.in`
-- Dual GitHub links under Help
-
-### Fixed
-- Update checker version comparison — manual digit parser replaces `swscanf`
-- Original GitHub link pointed to wrong repo
-
----
-
-## v1.2.2 — Certificate validation, SHA verification
-
-### Added
-- Certificate pinning — validates server cert subject and issuer on every HTTPS request
-- SHA verification — every script verified against GitHub blob SHA before execution
+- **Certificate pinning** — every HTTPS request validates server cert subject and issuer
+- **SHA verification** — every script verified against GitHub blob SHA before execution
 
 ### Fixed
 - Raw CDN certificate — added `github.io` to allowed subjects, Let's Encrypt to allowed issuers
 
 ---
 
-## v1.2.1 — Sources, scrollable tabs, offline cache
+## v1.2.2 — Sources, scrollable tabs
 
 ### Added
-- Script Sources dialog — extra GitHub repos and local folders
-- Scrollable tab bar — natural text width, ◄ ► arrows, mouse wheel
+- **Script Sources dialog** — manage additional GitHub repositories and local script folders
+- Extra GitHub repos sync with same cert validation and SHA verification
+- Local script folders — subfolders become tabs, scripts run from disk
+- **Enable/Disable** toggle for each source
+- **Scrollable tab bar** — natural text width, ◄ ► arrows, mouse wheel scrolling
 - Default window width 820px
-- `setup/` and dot-folders never become tabs
-- Update Deps runs per source sequentially
+- `setup/` folder never becomes a tab
 
 ### Fixed
 - Sync no longer clears cached tabs on no-internet
-- `update.bat` removed — always use pip directly
+- Tab text no longer truncated with ellipsis
 
 ---
 
-## v1.2.0 — Offline cache
+## v1.2.1 — Update checker fix, version info
 
 ### Added
-- `Sync_LoadManifest` — scripts load from disk immediately on startup
+- `.exe` file properties populated via `resource.rc.in`
+- Dual GitHub menu links — View App and View Scripts
 
 ### Fixed
-- Handle_SyncDone skips tab rebuild on no-internet if cached data exists
+- Update checker version comparison — manual digit parser replaces `swscanf`
+- `IS_LOCAL_BUILD` guard removed
 
 ---
 
-## v1.1.4 — Dark mode, tooltip, custom tab bar
+## v1.2.0 — Dark mode, tooltip, custom tab bar
 
 ### Added
-- Custom `CMW32TabBar` replaces native tab control
-- Tooltip height auto-sized
+- Custom `CMW32TabBar` replaces native `WC_TABCONTROL` — full dark/light mode control
+- Tooltip auto-sizes to description length
+- Dark popup menus
 - `deps_keep_open` setting
 
+### Fixed
+- Tab labels readable in both dark and light mode
+- Tooltip description no longer cut off
+- Status bar and toolbar buttons correctly themed
+
 ---
 
-## v1.1.3 — Settings, autorun, theme
+## v1.1.0 — Always on Top, tray, theme, autorun
 
 ### Added
-- Always on Top, Minimize to Tray, Start with Windows
+- Always on Top toggle
+- Minimize to Tray — hide to system tray on minimize/close
+- Start with Windows — registry autorun
+- Start Minimized option
 - Dark / Light / System theme toggle
-- Custom `CMW32StatusBar`
-- Hamburger menu
-
----
-
-## v1.1.2 — GitHub token, console options
-
-### Added
-- GitHub PAT support
+- Custom `CMW32StatusBar` — owner-drawn, dark mode aware
+- Hamburger `☰ Menu` button replaces native menu bar
+- Check for updates on startup setting
+- GitHub PAT support — raises rate limit from 60 to 5000 req/hr
 - Show console / Keep console open options
 
----
-
-## v1.1.1 — Script metadata tooltip
-
-### Added
-- Script info tooltip with Purpose, Author, Version, Date, Description
-- `i` badge on script buttons
-
----
-
-## v1.1.0 — Sync, delta download, manifest
-
-### Added
-- Live GitHub sync via API
-- SHA-based delta sync
-- `manifest.ini` for efficient sync
+### Fixed
+- Always on Top applied correctly after `ShowWindow`
+- Theme reapplied on `WM_SHOWWINDOW` when restoring from tray
+- Script descriptions no longer cut off
 
 ---
 
 ## v1.0.0 — Initial release
 
 ### Features
-- Native Win32/C, no frameworks
-- Scripts from `KaiUR/Pycatia_Scripts` as clickable buttons
+- Native Win32/C application — no frameworks
+- Live sync from `KaiUR/Pycatia_Scripts` via GitHub API
+- Script buttons organised by folder into tabs
+- Script metadata tooltip (Purpose, Author, Version, Date, Description)
+- SHA-based delta sync — only downloads changed files
+- Offline cache — scripts load immediately from disk on startup
 - Python auto-detection
-- AppData settings
-- Auto-versioning
-- GitHub Actions CI/CD
-- Dark mode
+- AppData settings (`settings.ini` and `manifest.ini`)
+- Auto-versioning via CMake + `build_number.txt`
+- GitHub Actions CI/CD — tag push → automatic release
+- Dark mode via `DwmSetWindowAttribute`
+- Custom GDI rendering — double-buffered throughout
