@@ -238,9 +238,9 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->deps_keep_open      = false;
             s->check_updates       = true;
             s->always_on_top       = true;
-            s->minimize_to_tray    = false;
-            s->start_with_windows  = false;
-            s->start_minimized     = true;
+            s->minimize_to_tray    = true;
+            s->start_with_windows  = true;
+            s->start_minimized     = false;
             s->theme               = THEME_SYSTEM;
 
             /* Reset cache dir to default */

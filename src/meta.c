@@ -181,6 +181,9 @@ void Meta_Parse(Script *s)
         s->meta        = m;
         s->meta_loaded = true;
     }
+    /* If found_any is false (file missing or no header found),
+       leave meta_loaded=false so Meta_Parse retries next hover
+       after the sync thread has downloaded the file. */
 }
 
 void Meta_ParseAll(void)
