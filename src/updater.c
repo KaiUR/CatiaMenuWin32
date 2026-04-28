@@ -123,8 +123,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 {
     /* Download latest release exe and replace self */
     WCHAR url[512];
-    _snwprintf(url, 511,
-        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
+    _snwprintf_s(url, 511, _TRUNCATE, L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
         latest_tag);
 
     /* Download to temp file */
@@ -177,14 +176,22 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     GetTempPath(MAX_APPPATH - 1, bat_path);
     wcscat(bat_path, L"CatiaMenuWin32_update.bat");
 
-    FILE *f = _wfopen(bat_path, L"w");
+    /* Convert paths to narrow for batch file writing */
+    char temp_path_a[MAX_APPPATH] = {0};
+    char exe_path_a[MAX_APPPATH]  = {0};
+    char bat_path_a[MAX_APPPATH]  = {0};
+    WideCharToMultiByte(CP_ACP, 0, temp_path, -1, temp_path_a, MAX_APPPATH-1, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, exe_path,  -1, exe_path_a,  MAX_APPPATH-1, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, bat_path,  -1, bat_path_a,  MAX_APPPATH-1, NULL, NULL);
+
+    FILE *f = fopen(bat_path_a, "w");
     if (!f) { Updater_PromptAndInstall(latest_tag); return; }
-    fwprintf(f, L"@echo off\n");
-    fwprintf(f, L"timeout /t 2 /nobreak >nul\n");
-    fwprintf(f, L"copy /y \"%s\" \"%s\"\n", temp_path, exe_path);
-    fwprintf(f, L"start \"\" \"%s\"\n", exe_path);
-    fwprintf(f, L"del \"%s\"\n", temp_path);
-    fwprintf(f, L"del %%%%~f0\n");
+    fprintf(f, "@echo off\n");
+    fprintf(f, "timeout /t 2 /nobreak >nul\n");
+    fprintf(f, "copy /y \"%s\" \"%s\"\n", temp_path_a, exe_path_a);
+    fprintf(f, "start \"\" \"%s\"\n", exe_path_a);
+    fprintf(f, "del \"%s\"\n", temp_path_a);
+    fprintf(f, "del \"%%~f0\"\n");
     fclose(f);
 
     ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
