@@ -141,8 +141,7 @@ void App_BuildAppDataPath(void)
 {
     WCHAR appdata[MAX_APPPATH] = {0};
     SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appdata);
-    _snwprintf(g.appdata_dir, MAX_APPPATH - 1,
-               L"%s\\%s", appdata, APP_APPDATA_DIR);
+    _snwprintf_s(g.appdata_dir, MAX_APPPATH , _TRUNCATE, L"%s\\%s", appdata, APP_APPDATA_DIR);
     SHCreateDirectoryEx(NULL, g.appdata_dir, NULL);
 }
 
@@ -203,6 +202,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg)
     {
     case WM_KEYDOWN:
+        /* F1 opens help */
+        if (wp == VK_F1) { Help_Show(); return 0; }
         /* Ctrl+Tab / Ctrl+Shift+Tab to switch tabs */
         if (GetKeyState(VK_CONTROL) & 0x8000) {
             if (wp == VK_TAB) {
@@ -542,6 +543,10 @@ apply_theme:
     case IDM_GITHUB_SCRIPTS:
         ShellExecute(NULL, L"open",
             L"https://github.com/KaiUR/Pycatia_Scripts", NULL, NULL, SW_SHOW);
+        break;
+
+    case IDM_HELP_CONTENTS:
+        Help_Show();
         break;
 
     case IDM_ABOUT:

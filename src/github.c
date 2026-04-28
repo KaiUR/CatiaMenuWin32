@@ -114,7 +114,7 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
 
     if (token && token[0]) {
         WCHAR auth[300];
-        _snwprintf(auth, 299, L"Authorization: token %s\r\n", token);
+        _snwprintf_s(auth, 299, _TRUNCATE, L"Authorization: token %s\r\n", token);
         HttpAddRequestHeaders(hReq, auth, (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
     }
 
@@ -186,7 +186,7 @@ bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
 
     /* Build the git blob header: "blob <size>\0" */
     char header[64];
-    int  header_len = snprintf(header, sizeof(header), "blob %lu", (unsigned long)file_size);
+    int  header_len = _snprintf_s(header, sizeof(header), _TRUNCATE, "blob %lu", (unsigned long)file_size);
     /* header_len does NOT include the NUL - but the NUL IS part of the hash input */
 
     /* Hash = SHA1(header + NUL + file_content) */
@@ -211,7 +211,7 @@ bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
                 /* Convert to hex string */
                 WCHAR *p = sha_out;
                 for (int i = 0; i < 20 && p < sha_out + sha_max - 2; i++) {
-                    _snwprintf(p, 3, L"%02x", hash[i]);
+                    _snwprintf_s(p, 3, _TRUNCATE, L"%02x", hash[i]);
                     p += 2;
                 }
                 *p = L'\0';
@@ -253,8 +253,7 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                         const WCHAR *token)
 {
     WCHAR raw_url[MAX_APPPATH * 2];
-    _snwprintf(raw_url, MAX_APPPATH * 2 - 1,
-               L"/%s/%s/%s/%s",
+    _snwprintf_s(raw_url, MAX_APPPATH * 2 - 1, _TRUNCATE, L"/%s/%s/%s/%s",
                GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, gh_path);
 
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
@@ -350,7 +349,7 @@ static const char *json_str(const char *p, const char *key,
                              char *out, int max)
 {
     char needle[MAX_NAME];
-    snprintf(needle, sizeof(needle), "\"%s\"", key);
+    _snprintf_s(needle, sizeof(needle), _TRUNCATE, "\"%s\"", key);
 
     p = strstr(p, needle);
     if (!p) return NULL;
@@ -393,7 +392,7 @@ void GitHub_ParseRoot(const char *json)
             if (_stricmp(name_a, "setup") == 0 || name_a[0] == '.') { p = after; continue; }
 
             ScriptFolder *f = &g.folders[g.folder_count++];
-            memset(f, 0, sizeof(*f));
+            ZeroMemory(f, sizeof(*f));
 
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, f->name, MAX_NAME);
             wcscpy(f->display, f->name);
@@ -436,7 +435,7 @@ void GitHub_ParseFolder(const char *json, int fi)
             }
 
             Script *s = &f->scripts[f->count++];
-            memset(s, 0, sizeof(*s));
+            ZeroMemory(s, sizeof(*s));
 
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, s->name,    MAX_NAME);
             MultiByteToWideChar(CP_UTF8, 0, path_a, -1, s->gh_path, MAX_APPPATH);
@@ -449,7 +448,7 @@ void GitHub_ParseFolder(const char *json, int fi)
             /* Build local path from original filename (still has .py) */
             WCHAR fname_w[MAX_NAME] = {0};
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, fname_w, MAX_NAME);
-            _snwprintf(s->local, MAX_APPPATH - 1, L"%s\\%s\\%s",
+            _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\%s",
                        g.cfg.cache_dir, g.folders[fi].name, fname_w);
         }
         p = after;

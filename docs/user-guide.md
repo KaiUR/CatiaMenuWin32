@@ -377,10 +377,19 @@ The sort mode is saved in Settings and applied to all tabs.
 
 ---
 
+## ❓ In-App Help
+
+Press **F1** or go to **☰ Menu → Help → Help Contents** to open the built-in help window.
+
+The help window has a table of contents on the left and formatted topic content on the right. Click any topic to navigate to it. The window is resizable and stays open while you work.
+
+---
+
 ## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
+| `F1` | Open Help |
 | `F5` | Refresh + Sync |
 | `F9` | Run last script |
 | `Ctrl+Tab` | Next tab |

@@ -58,7 +58,7 @@ static void Runner_BuildLocalPath(int fi, int si, WCHAR *out, int max)
     const WCHAR *gh    = g.folders[fi].scripts[si].gh_path;
     const WCHAR *sep   = wcsrchr(gh, L'/');
     const WCHAR *fname = sep ? sep + 1 : gh;
-    _snwprintf(out, max - 1, L"%s\\%s\\%s",
+    _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s\\%s",
                g.cfg.cache_dir, g.folders[fi].name, fname);
     out[max - 1] = L'\0';
 }
@@ -78,12 +78,10 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
 
     if (ra->show_console && ra->keep_open) {
         /* Wrap in cmd.exe /k so the window stays open after script ends */
-        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"cmd.exe /k \"\"%s\" \"%s\"\"",
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /k \"\"%s\" \"%s\"\"",
                    ra->python, ra->script);
     } else {
-        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"\"%s\" \"%s\"", ra->python, ra->script);
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"\"%s\" \"%s\"", ra->python, ra->script);
     }
     cmd[MAX_APPPATH * 2 - 1] = L'\0';
 
@@ -207,12 +205,10 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
     WCHAR cmd[MAX_APPPATH * 2];
     if (keep_open) {
         /* cmd /k requires the inner command wrapped in extra quotes */
-        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"cmd.exe /k \"\"%s\" -m pip install -r \"%s\"\"",
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /k \"\"%s\" -m pip install -r \"%s\"\"",
                    python, req);
     } else {
-        _snwprintf(cmd, MAX_APPPATH * 2 - 1,
-                   L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
                    python, req);
     }
 
@@ -240,16 +236,13 @@ bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
 
     WCHAR cmd[MAX_APPPATH * 2];
     if (g.cfg.show_console && g.cfg.console_keep_open) {
-        _snwprintf(cmd, MAX_APPPATH*2-1,
-                   L"cmd.exe /k \"\\\"%s\\\" \\\"%s\\\" %s\"",
+        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"cmd.exe /k \"\\\"%s\\\" \\\"%s\\\" %s\"",
                    python, s->local, args ? args : L"");
     } else if (g.cfg.show_console) {
-        _snwprintf(cmd, MAX_APPPATH*2-1,
-                   L"cmd.exe /c \"%s\" \"%s\" %s",
+        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"cmd.exe /c \"%s\" \"%s\" %s",
                    python, s->local, args ? args : L"");
     } else {
-        _snwprintf(cmd, MAX_APPPATH*2-1,
-                   L"\"%s\" \"%s\" %s",
+        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"\"%s\" \"%s\" %s",
                    python, s->local, args ? args : L"");
     }
 
@@ -290,10 +283,10 @@ void Runner_UpdateDeps(void)
     /* 1. Main repo: try update.bat first, then requirements.txt */
     if (g.cfg.main_repo_enabled) {
         WCHAR req[MAX_APPPATH];
-        _snwprintf(req, MAX_APPPATH - 1, L"%s\\setup\\requirements.txt",
+        _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\requirements.txt",
                    g.cfg.cache_dir);
         WCHAR work_dir[MAX_APPPATH];
-        _snwprintf(work_dir, MAX_APPPATH - 1, L"%s\\setup", g.cfg.cache_dir);
+        _snwprintf_s(work_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup", g.cfg.cache_dir);
         SHCreateDirectoryEx(NULL, work_dir, NULL);
 
         /* Download if missing */
@@ -323,12 +316,12 @@ void Runner_UpdateDeps(void)
         /* Cache path: cache_dir\setup\owner_reponame
 equirements.txt */
         WCHAR sub_dir[MAX_APPPATH];
-        _snwprintf(sub_dir, MAX_APPPATH - 1, L"%s\\setup\\%s_%s",
+        _snwprintf_s(sub_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s",
                    g.cfg.cache_dir, owner, reponame);
         SHCreateDirectoryEx(NULL, sub_dir, NULL);
 
         WCHAR req[MAX_APPPATH];
-        _snwprintf(req, MAX_APPPATH - 1, L"%s\\requirements.txt", sub_dir);
+        _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\requirements.txt", sub_dir);
 
         /* Download if missing */
         if (GetFileAttributes(req) == INVALID_FILE_ATTRIBUTES) {
@@ -336,15 +329,14 @@ equirements.txt */
                              : (g.cfg.github_token[0] ? g.cfg.github_token : NULL);
             const WCHAR *branch = repo->branch[0] ? repo->branch : L"main";
             WCHAR raw_path[MAX_APPPATH];
-            _snwprintf(raw_path, MAX_APPPATH - 1,
-                       L"/%s/%s/%s/setup/requirements.txt",
+            _snwprintf_s(raw_path, MAX_APPPATH, _TRUNCATE, L"/%s/%s/%s/setup/requirements.txt",
                        owner, reponame, branch);
             GitHub_DownloadRawFull(GITHUB_RAW_HOST, raw_path, req, tok);
         }
 
         if (GetFileAttributes(req) != INVALID_FILE_ATTRIBUTES) {
             WCHAR status[256];
-            _snwprintf(status, 255, L"Installing %s/%s requirements...",
+            _snwprintf_s(status, 255, _TRUNCATE, L"Installing %s/%s requirements...",
                        owner, reponame);
             SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)status);
             RunPipInstall(python, req, sub_dir, g.cfg.deps_keep_open);
@@ -358,14 +350,14 @@ equirements.txt */
         if (!dir->enabled || !dir->path[0]) continue;
 
         WCHAR req[MAX_APPPATH];
-        _snwprintf(req, MAX_APPPATH - 1, L"%s\\setup\\requirements.txt",
+        _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\requirements.txt",
                    dir->path);
 
         if (GetFileAttributes(req) != INVALID_FILE_ATTRIBUTES) {
             WCHAR work_dir[MAX_APPPATH];
-            _snwprintf(work_dir, MAX_APPPATH - 1, L"%s\\setup", dir->path);
+            _snwprintf_s(work_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup", dir->path);
             WCHAR status[256];
-            _snwprintf(status, 255, L"Installing local folder requirements (%d)...",
+            _snwprintf_s(status, 255, _TRUNCATE, L"Installing local folder requirements (%d)...",
                        i + 1);
             SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)status);
             RunPipInstall(python, req, work_dir, g.cfg.deps_keep_open);

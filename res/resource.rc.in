@@ -1,65 +1,27 @@
+#include "resource.h"
 #include <windows.h>
+#include <commctrl.h>
 
-101 ICON "app_icon.ico"
+IDI_APP_ICON ICON "app_icon.ico"
+IDI_HELP_ICON ICON "help_icon.ico"
 
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
-
-200 MENU
-BEGIN
-    POPUP "&File"
-    BEGIN
-        MENUITEM "&Refresh + Sync\tF5",   201
-        MENUITEM SEPARATOR
-        MENUITEM "S&ettings...",          202
-        MENUITEM "S&ources...",           217
-        MENUITEM SEPARATOR
-        MENUITEM "E&xit",                 203
-    END
-    POPUP "&Run"
-    BEGIN
-        MENUITEM "Run &Last Script\tF9",  204
-        MENUITEM SEPARATOR
-        MENUITEM "Open &Cache Folder...", 205
-        MENUITEM "Update &Dependencies",  208
-    END
-    POPUP "&View"
-    BEGIN
-        MENUITEM "Always on &Top",        209
-        MENUITEM SEPARATOR
-        POPUP "&Theme"
-        BEGIN
-            MENUITEM "&Dark",             213
-            MENUITEM "&Light",            214
-            MENUITEM "&System (default)", 215
-        END
-    END
-    POPUP "&Window"
-    BEGIN
-        MENUITEM "Minimize to &Tray",     210
-        MENUITEM "Start &with Windows",   211
-        MENUITEM "Start &Minimized",      212
-    END
-    POPUP "&Help"
-    BEGIN
-        MENUITEM "&About",                206
-        MENUITEM "View on &GitHub",       207
-    END
-END
-
+/* ================================================================== */
+/*  Settings dialog  (IDD_SETTINGS = 300)                              */
+/* ================================================================== */
 300 DIALOG 0, 0, 340, 318
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Settings"
 FONT 9, "Segoe UI"
 BEGIN
-    GROUPBOX "Python Interpreter", -1, 7, 7, 326, 40
-    LTEXT "Path:", -1, 14, 22, 28, 10
-    EDITTEXT 401, 46, 20, 234, 14, ES_AUTOHSCROLL
-    PUSHBUTTON "Browse...", 402, 284, 19, 44, 16
+    GROUPBOX "Python Interpreter", -1, 7, 7, 326, 36
+    LTEXT "Path:", -1, 14, 22, 24, 10
+    EDITTEXT 401, 42, 20, 240, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...", 402, 286, 19, 40, 16
 
-    GROUPBOX "Script Cache Folder", -1, 7, 52, 326, 40
-    LTEXT "Path:", -1, 14, 67, 28, 10
-    EDITTEXT 403, 46, 65, 234, 14, ES_AUTOHSCROLL | ES_READONLY
-    PUSHBUTTON "Browse...", 404, 284, 64, 44, 16
+    GROUPBOX "Script Cache Folder", -1, 7, 50, 326, 36
+    LTEXT "Path:", -1, 14, 65, 24, 10
+    EDITTEXT 403, 42, 63, 240, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...", 404, 286, 62, 40, 16
 
     GROUPBOX "Sync && Updates", -1, 7, 97, 326, 94
     AUTOCHECKBOX "Sync scripts automatically on startup",       409, 14, 112, 220, 12
@@ -84,22 +46,25 @@ BEGIN
     PUSHBUTTON "Cancel", 2, 288, 298, 50, 16
 END
 
-301 DIALOG 0, 0, 260, 145
+/* ================================================================== */
+/*  About dialog  (IDD_ABOUT = 301)                                    */
+/* ================================================================== */
+301 DIALOG 0, 0, 220, 100
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About CatiaMenuWin32"
 FONT 9, "Segoe UI"
 BEGIN
-    ICON 101, -1, 7, 8, 20, 20
-    LTEXT "CatiaMenuWin32", -1, 36, 9, 210, 11
-    LTEXT "PyCATIA script launcher for CATIA V5.", -1, 7, 30, 246, 10
-    LTEXT "Scripts sourced from KaiUR/Pycatia_Scripts on GitHub.", -1, 7, 42, 246, 10
-    LTEXT "Author: Kai-Uwe Rathjen", -1, 7, 62, 246, 10
-    LTEXT "AI Assistance: Claude (Anthropic)", -1, 7, 74, 246, 10
-    LTEXT "License: MIT", -1, 7, 86, 246, 10
-    LTEXT "https://github.com/KaiUR/CatiaMenuWin32", -1, 7, 98, 246, 10
-    DEFPUSHBUTTON "OK", 1, 105, 122, 50, 14
+    LTEXT "CatiaMenuWin32", -1, 10, 10, 200, 14
+    LTEXT "Native Win32 PyCATIA Script Launcher", -1, 10, 26, 200, 10
+    LTEXT "Author: Kai-Uwe Rathjen", -1, 10, 42, 200, 10
+    LTEXT "AI Assistance: Claude (Anthropic)", -1, 10, 54, 200, 10
+    LTEXT "License: MIT", -1, 10, 66, 200, 10
+    DEFPUSHBUTTON "OK", 1, 84, 80, 50, 14
 END
 
+/* ================================================================== */
+/*  Sources dialog  (IDD_SOURCES = 302)                                */
+/* ================================================================== */
 302 DIALOG 0, 0, 420, 290
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Script Sources"
@@ -124,23 +89,28 @@ BEGIN
     PUSHBUTTON "Cancel",    2,  372, 272, 44, 14
 END
 
-303 DIALOG 0, 0, 300, 130
+/* ================================================================== */
+/*  Repo edit dialog  (IDD_REPO_EDIT = 303)                            */
+/* ================================================================== */
+303 DIALOG 0, 0, 300, 120
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Add / Edit Repository"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT "GitHub URL:",   -1,   7,  10, 60, 10
-    EDITTEXT 610, 72,  8, 222, 14, ES_AUTOHSCROLL
-    LTEXT "Branch:",       -1,   7,  28, 60, 10
-    EDITTEXT 611, 72, 26, 100, 14, ES_AUTOHSCROLL
-    AUTOCHECKBOX "Use token", 613, 7, 48, 60, 12
-    EDITTEXT 612, 72, 46, 222, 14, ES_PASSWORD | ES_AUTOHSCROLL
-    AUTOCHECKBOX "Enabled",   614, 7, 66, 60, 12
-    DEFPUSHBUTTON "OK",     1, 188, 110, 50, 14
-    PUSHBUTTON "Cancel",    2, 244, 110, 50, 14
+    LTEXT "Repository URL:", -1, 7, 10, 80, 10
+    EDITTEXT 610, 7, 22, 286, 14, ES_AUTOHSCROLL
+    LTEXT "Branch:", -1, 7, 42, 40, 10
+    EDITTEXT 611, 50, 40, 100, 14, ES_AUTOHSCROLL
+    AUTOCHECKBOX "Enabled", 614, 7, 60, 60, 12
+    AUTOCHECKBOX "Use token:", 613, 7, 76, 60, 12
+    EDITTEXT 612, 70, 74, 220, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    DEFPUSHBUTTON "OK",     1, 194, 100, 50, 14
+    PUSHBUTTON    "Cancel", 2, 248, 100, 50, 14
 END
 
-
+/* ================================================================== */
+/*  Script details dialog  (IDD_SCRIPT_DETAILS = 304)                  */
+/* ================================================================== */
 304 DIALOG 0, 0, 340, 310
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Script Details"
@@ -186,6 +156,9 @@ BEGIN
     PUSHBUTTON    "Cancel", 2, 290, 290, 50, 14
 END
 
+/* ================================================================== */
+/*  Run with args dialog  (IDD_RUN_ARGS = 305)                         */
+/* ================================================================== */
 305 DIALOG 0, 0, 300, 80
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Run with Arguments"
@@ -197,6 +170,9 @@ BEGIN
     PUSHBUTTON    "Cancel", 2, 248, 58, 50, 14
 END
 
+/* ================================================================== */
+/*  Script note dialog  (IDD_SCRIPT_NOTE = 306)                        */
+/* ================================================================== */
 306 DIALOG 0, 0, 300, 90
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Script Note"
@@ -208,6 +184,9 @@ BEGIN
     PUSHBUTTON    "Cancel", 2, 248, 70, 50, 14
 END
 
+/* ================================================================== */
+/*  Hidden scripts dialog  (IDD_HIDDEN_SCRIPTS = 307)                  */
+/* ================================================================== */
 307 DIALOG 0, 0, 340, 200
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Hidden Scripts"
@@ -215,30 +194,40 @@ FONT 9, "Segoe UI"
 BEGIN
     LTEXT "Scripts listed below are hidden. Select one and click Unhide to restore it.", -1, 7, 7, 326, 18
     CONTROL "", 730, "SysListView32", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP, 7, 28, 326, 138
-    PUSHBUTTON "Unhide",      731, 7,   176, 60, 14
-    PUSHBUTTON "Unhide All",  732, 74,  176, 60, 14
-    DEFPUSHBUTTON "Close",    2,   284, 176, 50, 14
+    PUSHBUTTON "Unhide",      731, 7,  176, 60, 14
+    PUSHBUTTON "Unhide All",  732, 74, 176, 60, 14
+    DEFPUSHBUTTON "Close",    2,  284, 176, 50, 14
 END
 
+/* ================================================================== */
+/*  Help dialog  (IDD_HELP = 308)                                      */
+/* ================================================================== */
+308 DIALOG 0, 0, 580, 380
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_SIZEBOX
+CAPTION "CatiaMenuWin32 Help"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "", -1, 0, 0, 1, 1
+END
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION    @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
+FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
 PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
-FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
-FILEFLAGS 0
-FILEOS VOS_NT_WINDOWS32
-FILETYPE VFT_APP
-FILESUBTYPE VFT2_UNKNOWN
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904B0"
+        BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName",      "Kai-Uwe Rathjen"
-            VALUE "FileDescription",  "CatiaMenuWin32 - PyCATIA Script Launcher"
+            VALUE "FileDescription",  "CATIA Macro Menu"
             VALUE "FileVersion",      "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.@BUILD_NUMBER@"
             VALUE "InternalName",     "CatiaMenuWin32"
-            VALUE "LegalCopyright",   "Copyright @CURRENT_YEAR@ Kai-Uwe Rathjen"
+            VALUE "LegalCopyright",   "Copyright (C) @CURRENT_YEAR@ Kai-Uwe Rathjen"
             VALUE "OriginalFilename", "CatiaMenuWin32.exe"
             VALUE "ProductName",      "CatiaMenuWin32"
             VALUE "ProductVersion",   "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@.@BUILD_NUMBER@"
@@ -246,6 +235,8 @@ BEGIN
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x0409, 0x04B0
+        VALUE "Translation", 0x409, 1200
     END
 END
+
+1 RT_MANIFEST "app.manifest"

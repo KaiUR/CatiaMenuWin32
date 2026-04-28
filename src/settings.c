@@ -6,7 +6,7 @@
 #include "main.h"
 
 static void IniPath(WCHAR *out, int max) {
-    _snwprintf(out, max-1, L"%s\\%s", g.appdata_dir, SETTINGS_FILE);
+    _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, SETTINGS_FILE);
 }
 
 /* ================================================================== */
@@ -37,10 +37,10 @@ void Settings_Load(Settings *s)
     if (s->extra_repo_count > MAX_EXTRA_REPOS) s->extra_repo_count = MAX_EXTRA_REPOS;
     for (int i = 0; i < s->extra_repo_count; i++) {
         WCHAR key[32];
-        _snwprintf(key, 31, L"Repo%dUrl",     i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].url,    511, ini);
-        _snwprintf(key, 31, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
-        _snwprintf(key, 31, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
-        _snwprintf(key, 31, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].url,    511, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
         if (!s->extra_repos[i].branch[0]) wcscpy(s->extra_repos[i].branch, L"main");
     }
 
@@ -49,8 +49,8 @@ void Settings_Load(Settings *s)
     if (s->local_dir_count > MAX_LOCAL_DIRS) s->local_dir_count = MAX_LOCAL_DIRS;
     for (int i = 0; i < s->local_dir_count; i++) {
         WCHAR key[32];
-        _snwprintf(key, 31, L"Local%dPath",    i); GetPrivateProfileString(L"Sources", key, L"", s->local_dirs[i].path, MAX_APPPATH-1, ini);
-        _snwprintf(key, 31, L"Local%dEnabled", i); s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i); GetPrivateProfileString(L"Sources", key, L"", s->local_dirs[i].path, MAX_APPPATH-1, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i); s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
     }
     s->always_on_top       = GetPrivateProfileInt(L"Window",  L"AlwaysOnTop",       1, ini) != 0;
     s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    0, ini) != 0;
@@ -60,7 +60,7 @@ void Settings_Load(Settings *s)
     if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
 
     if (!s->cache_dir[0])
-        _snwprintf(s->cache_dir, MAX_APPPATH-1, L"%s\\scripts", g.appdata_dir);
+        _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
     SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
 
     if (!s->python_exe[0])
@@ -87,28 +87,28 @@ void Settings_Save(const Settings *s)
     WB(L"Options", L"CheckUpdates",      s->check_updates);
     WB(L"Options", L"DepsKeepOpen",      s->deps_keep_open);
     WB(L"Options", L"AutoUpdate",         s->auto_update);
-    _snwprintf(tmp, 7, L"%d", s->refresh_interval);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->refresh_interval);
     WritePrivateProfileString(L"Options", L"RefreshInterval", tmp, ini);
-    _snwprintf(tmp, 7, L"%d", (int)s->sort_mode);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->sort_mode);
     WritePrivateProfileString(L"Options", L"SortMode", tmp, ini);
 
     /* Sources */
     WB(L"Sources", L"MainRepoEnabled", s->main_repo_enabled);
-    _snwprintf(tmp, 7, L"%d", s->extra_repo_count);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->extra_repo_count);
     WritePrivateProfileString(L"Sources", L"ExtraRepoCount", tmp, ini);
     for (int i = 0; i < s->extra_repo_count; i++) {
         WCHAR key[32];
-        _snwprintf(key, 31, L"Repo%dUrl",     i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].url,    ini);
-        _snwprintf(key, 31, L"Repo%dBranch",  i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].branch, ini);
-        _snwprintf(key, 31, L"Repo%dToken",   i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].token,  ini);
-        _snwprintf(key, 31, L"Repo%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].enabled ? L"1" : L"0", ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].url,    ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].branch, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].token,  ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->extra_repos[i].enabled ? L"1" : L"0", ini);
     }
-    _snwprintf(tmp, 7, L"%d", s->local_dir_count);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->local_dir_count);
     WritePrivateProfileString(L"Sources", L"LocalDirCount", tmp, ini);
     for (int i = 0; i < s->local_dir_count; i++) {
         WCHAR key[32];
-        _snwprintf(key, 31, L"Local%dPath",    i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].path, ini);
-        _snwprintf(key, 31, L"Local%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].enabled ? L"1" : L"0", ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].path, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i); WritePrivateProfileString(L"Sources", key, s->local_dirs[i].enabled ? L"1" : L"0", ini);
     }
     WB(L"Window",  L"AlwaysOnTop",       s->always_on_top);
     WB(L"Window",  L"MinimizeToTray",    s->minimize_to_tray);
@@ -116,7 +116,7 @@ void Settings_Save(const Settings *s)
     WB(L"Window",  L"StartMinimized",    s->start_minimized);
 #undef WB
 
-    _snwprintf(tmp, 7, L"%d", (int)s->theme);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
 }
 
@@ -134,7 +134,7 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
         GetModuleFileName(NULL, exe, MAX_APPPATH);
         WCHAR cmd[MAX_APPPATH + 16];
         if (minimized)
-            _snwprintf(cmd, MAX_APPPATH + 15, L"\"%s\" /minimized", exe);
+            _snwprintf_s(cmd, MAX_APPPATH + 15, _TRUNCATE, L"\"%s\" /minimized", exe);
         else
             wcsncpy(cmd, exe, MAX_APPPATH + 15);
 
@@ -168,7 +168,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,    s->auto_update          ? BST_CHECKED : BST_UNCHECKED);
 
         WCHAR ri[8];
-        _snwprintf(ri, 7, L"%d", s->refresh_interval);
+        _snwprintf_s(ri, 7, _TRUNCATE, L"%d", s->refresh_interval);
         SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri);
         CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
@@ -238,14 +238,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->deps_keep_open      = false;
             s->check_updates       = true;
             s->always_on_top       = true;
-            s->minimize_to_tray    = false;
-            s->start_with_windows  = false;
-            s->start_minimized     = true;
+            s->minimize_to_tray    = true;
+            s->start_with_windows  = true;
+            s->start_minimized     = false;
             s->theme               = THEME_SYSTEM;
 
             /* Reset cache dir to default */
-            _snwprintf(s->cache_dir, MAX_APPPATH - 1,
-                       L"%s\\scripts", g.appdata_dir);
+            _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
 
             /* Auto-detect python */
             Runner_FindPython(s->python_exe, MAX_APPPATH);

@@ -179,7 +179,6 @@ cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
 ninja
 ```
 
-> **Note**: Add `res/app_icon.ico` before building.
 
 ### Qt Creator
 
@@ -203,9 +202,9 @@ Local builds automatically detect the latest git tag for the version number and 
 | `Options\DepsKeepOpen` | off | Keep Update Deps console open until manually closed |
 | `Options\CheckUpdates` | on | Check GitHub Releases for a newer app version on startup |
 | `Window\AlwaysOnTop` | on | Keep window above other windows |
-| `Window\MinimizeToTray` | off | Hide to system tray on minimize/close |
-| `Window\StartWithWindows` | off | Add to Windows autorun registry key |
-| `Window\StartMinimized` | on | Start hidden/minimized |
+| `Window\MinimizeToTray` | on | Hide to system tray on minimize/close |
+| `Window\StartWithWindows` | on | Add to Windows autorun registry key |
+| `Window\StartMinimized` | off | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
 
 ## 🔑 GitHub Token (optional)

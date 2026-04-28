@@ -14,7 +14,7 @@
 /* ================================================================== */
 static void Prefs_GetPath(WCHAR *out, int max)
 {
-    _snwprintf(out, max - 1, L"%s\\%s", g.appdata_dir, PREFS_FILE);
+    _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, PREFS_FILE);
 }
 
 /* Encode gh_path as an INI key (replace \ and / with _) */
@@ -81,7 +81,7 @@ void Prefs_IncrementRunCount(const WCHAR *gh_path)
     Prefs_GetPath(ini, MAX_APPPATH);
     PathToKey(gh_path, key, MAX_APPPATH);
     int count = GetPrivateProfileInt(L"RunCount", key, 0, ini) + 1;
-    _snwprintf(val, 15, L"%d", count);
+    _snwprintf_s(val, 15, _TRUNCATE, L"%d", count);
     WritePrivateProfileString(L"RunCount", key, val, ini);
 }
 
@@ -169,7 +169,7 @@ void Tabs_BuildFavourites(void)
 
     /* Build favourites folder at index 0 */
     ScriptFolder *fav = &g.folders[0];
-    memset(fav, 0, sizeof(*fav));
+    ZeroMemory(fav, sizeof(*fav));
     wcscpy(fav->name,    L"Favourites");
     wcscpy(fav->display, L"\u2605 Favourites");
     fav->loaded = true;
@@ -266,7 +266,7 @@ INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)s);
         if (s) {
             WCHAR title[MAX_NAME + 20];
-            _snwprintf(title, MAX_NAME + 19, L"Run: %s", s->name);
+            _snwprintf_s(title, MAX_NAME + 19, _TRUNCATE, L"Run: %s", s->name);
             SetWindowText(hwnd, title);
         }
         return TRUE;

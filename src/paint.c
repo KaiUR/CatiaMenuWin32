@@ -62,7 +62,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 
     /* Build title string with version */
     WCHAR title[128];
-    _snwprintf(title, 127, L"%s   v%s", APP_TITLE, VERSION_STRING_W);
+    _snwprintf_s(title, 127, _TRUNCATE, L"%s   v%s", APP_TITLE, VERSION_STRING_W);
 
     if (g.latest_version[0]) {
         /* Two-line layout: title top half, update badge bottom half */
@@ -72,7 +72,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
         WCHAR upd[64];
-        _snwprintf(upd, 63, L"\u2B06 Update %s available", g.latest_version);
+        _snwprintf_s(upd, 63, _TRUNCATE, L"\u2B06 Update %s available", g.latest_version);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
         RECT ur = { 370, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
