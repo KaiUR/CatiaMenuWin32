@@ -4,6 +4,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.4 — In-app help, bounds-checking functions
+
+### Fixed
+- Auto-Updae option failing copy/paste operation in generated bat file. The path generated was incorrect.
+
+---
+
 ## v1.3.3 — In-app help, bounds-checking functions
 
 ### Added
