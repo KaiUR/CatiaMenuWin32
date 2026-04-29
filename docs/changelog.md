@@ -4,13 +4,30 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.2 — New machine tooltip fix, default settings, in-app help
+## v1.3.4 — Fiex incorrect path for auto-updater
+
+### Fixed
+- Fixed path not correctly generated for auto-updating the app.
+
+---
+
+## v1.3.3 — In-app help
 
 ### Added
 - **In-app help window** — `F1` or `Menu → Help → Help Contents` opens a resizable help window with TreeView contents and RichEdit topic display
 - 11 topics: Getting Started, The Interface, Running Scripts, Settings, Script Sources, Favourites & Search, Script Details & Notes, Sort & Hide Scripts, Update Dependencies, Keyboard Shortcuts, Troubleshooting
 - Single instance — `F1` when already open brings window to front
 - New `src/help.c` added to project
+
+### Fixed
+- Tooltips and Script Details blank on first launch on a new machine — meta retries after sync downloads files
+- Auto-update download URL fixed — missing `v` prefix caused download failure
+- Search filter rebuilds button list — no gaps between filtered results
+- All-caps script names (e.g. IGES) now match correctly in search
+
+---
+
+## v1.3.2 — New machine tooltip fix, default settings
 
 ### Changed
 - Default settings changed: **Start with Windows** on, **Minimize to Tray** on, **Start Minimized** off
