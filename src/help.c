@@ -307,9 +307,9 @@ static const char *Help_GetRTF(HelpTopic topic)
             "The local cached script differs from GitHub. Click {\\b Yes} to re-download. "
             "If it persists, delete the cache folder in Settings and re-sync.\\par\\par"
             "{\\b A script has disappeared}\\par"
-            "It may have been hidden. Check {\\b Menu \\u8594?  File \\u8594?  Manage Hidden Scripts}. "
+            "It may have been hidden. Check {\\b Menu \\u8594?  File \\u8594?  Manage Hidden Scripts }. "
             "Also check if the search filter box has text in it.\\par\\par"
-            "{\\b Update prompt appears on local builds}\\par"
+            "{\\b Update prompt appears on local builds }\\par"
             "Run {\\f1\\cf3 git fetch --tags} and {\\f1\\cf3 git pull origin main} then delete "
             "the build folder and rebuild.\\par"
             "}";
