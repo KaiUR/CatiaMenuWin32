@@ -88,6 +88,8 @@ void Window_ShowMenu(void)
 
     AppendMenu(hHelp, MF_STRING, IDM_HELP_CONTENTS,  L"Help Contents\tF1");
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hHelp, MF_STRING, IDM_REPORT_BUG,     L"Report a Bug...");
+    AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
     AppendMenu(hHelp, MF_STRING, IDM_ABOUT,          L"About");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB,         L"View App on GitHub");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB_SCRIPTS, L"View Scripts on GitHub");
