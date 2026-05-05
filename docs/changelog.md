@@ -4,6 +4,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.5 — SHA verification fix
+
+### Fixed
+- Script SHA mismatch on startup after failed download — `Sync_LoadManifest` now verifies the local file actually matches the manifest SHA; if not, clears the entry so sync re-downloads cleanly on next refresh
+- Failed downloads revert `s->sha` to the stored manifest value so the manifest is never written with a mismatched SHA
+
+---
+
 ## v1.3.4 — In-app help, bounds-checking functions
 
 ### Fixed
@@ -26,20 +34,6 @@ All notable changes to CatiaMenuWin32 are documented here.
 - Auto-update download URL fixed — missing `v` prefix caused download failure
 - Search filter rebuilds button list — no gaps between filtered results
 - All-caps script names (e.g. IGES) now match correctly in search
-
----
-
-## v1.3.2 — New machine tooltip fix, default settings
-
-### Changed
-- Replaced all `_snwprintf` with `_snwprintf_s` using `_TRUNCATE` across all source files
-- Replaced `memset` with `ZeroMemory` throughout
-- Replaced `memmove` with `memmove_s` in `meta.c`
-- Replaced `snprintf` with `_snprintf_s` in `github.c`
-
-### Fixed
-- Fixed two static analysis warnings in `meta.c` — dead code and unused variable
-- Suppressed unavoidable `GetProcAddress` cast warning with `#pragma GCC diagnostic`
 
 ---
 

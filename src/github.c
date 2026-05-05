@@ -108,9 +108,12 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         return false;
     }
 
-    HttpAddRequestHeaders(hReq,
-        L"Accept: application/vnd.github.v3+json\r\n",
-        (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
+    /* Only send JSON Accept header for API calls, not raw file downloads */
+    if (wcsstr(host, L"api.github.com")) {
+        HttpAddRequestHeaders(hReq,
+            L"Accept: application/vnd.github.v3+json\r\n",
+            (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
+    }
 
     if (token && token[0]) {
         WCHAR auth[300];
@@ -140,6 +143,7 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
                   HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
                   &status, &ssz, NULL);
     if (status != 200) {
+        Util_Log(L"GitHub_HttpGet: HTTP %d for %s%s", status, host, path);
         InternetCloseHandle(hReq);
         InternetCloseHandle(hConn);
         InternetCloseHandle(hInet);
@@ -256,31 +260,37 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
     _snwprintf_s(raw_url, MAX_APPPATH * 2 - 1, _TRUNCATE, L"/%s/%s/%s/%s",
                GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, gh_path);
 
-    char *buf = (char *)malloc(HTTP_BUF_SIZE);
-    if (!buf) return false;
+    /* Retry up to 3 times with a short delay */
+    for (int attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) Sleep(1000 * attempt);
 
-    DWORD len = 0;
-    bool  ok  = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url, token, buf, &len);
-    if (ok && len > 0) {
-        WCHAR dir[MAX_APPPATH];
-        wcsncpy(dir, local_path, MAX_APPPATH - 1);
-        PathRemoveFileSpec(dir);
-        SHCreateDirectoryEx(NULL, dir, NULL);
+        char *buf = (char *)malloc(HTTP_BUF_SIZE);
+        if (!buf) return false;
 
-        HANDLE hf = CreateFile(local_path, GENERIC_WRITE, 0, NULL,
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hf != INVALID_HANDLE_VALUE) {
-            DWORD written = 0;
-            WriteFile(hf, buf, len, &written, NULL);
-            CloseHandle(hf);
-            ok = (written == len);
+        DWORD len = 0;
+        bool  ok  = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url, token, buf, &len);
+        if (ok && len > 0) {
+            WCHAR dir[MAX_APPPATH];
+            wcsncpy(dir, local_path, MAX_APPPATH - 1);
+            PathRemoveFileSpec(dir);
+            SHCreateDirectoryEx(NULL, dir, NULL);
+
+            HANDLE hf = CreateFile(local_path, GENERIC_WRITE, 0, NULL,
+                                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hf != INVALID_HANDLE_VALUE) {
+                DWORD written = 0;
+                WriteFile(hf, buf, len, &written, NULL);
+                CloseHandle(hf);
+                free(buf);
+                if (written == len) return true;
+            } else {
+                free(buf);
+            }
         } else {
-            ok = false;
+            free(buf);
         }
     }
-
-    free(buf);
-    return ok;
+    return false;
 }
 
 /* ================================================================== */

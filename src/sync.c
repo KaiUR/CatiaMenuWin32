@@ -147,6 +147,22 @@ void Sync_LoadManifest(void)
             /* SHA from manifest */
             Sync_GetLocalSHA(s->gh_path, s->sha);
 
+            /* Verify local file actually matches the manifest SHA.
+               If not (e.g. previous failed download wrote wrong SHA to manifest),
+               clear the SHA so sync will re-download on next refresh. */
+            if (s->sha[0] && GetFileAttributes(s->local) != INVALID_FILE_ATTRIBUTES) {
+                WCHAR computed[MAX_SHA] = {0};
+                if (GitHub_ComputeFileSHA1(s->local, computed, MAX_SHA) &&
+                    wcscmp(computed, s->sha) != 0) {
+                    /* SHA mismatch — clear so sync re-downloads */
+                    s->sha[0] = L'\0';
+                    /* Also clear manifest entry */
+                    WCHAR manifest[MAX_APPPATH];
+                    ManifestPath(manifest, MAX_APPPATH);
+                    WritePrivateProfileString(f->name, s->gh_path, L"", manifest);
+                }
+            }
+
         } while (FindNextFileW(hSub, &sf));
         FindClose(hSub);
 
@@ -622,6 +638,11 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 if (GitHub_DownloadRaw(s->gh_path, s->local, token)) {
                     sr->scripts_updated++;
                 } else {
+                    /* Download failed — revert SHA in memory to the previously
+                       stored value so the manifest keeps the old SHA.
+                       This prevents the tamper warning next run — the script
+                       will simply retry downloading on the next sync. */
+                    wcsncpy(s->sha, stored_sha, MAX_SHA - 1);
                     sr->status = SR_PARTIAL;
                 }
             }
