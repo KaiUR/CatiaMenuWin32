@@ -92,7 +92,9 @@ void Window_ShowMenu(void)
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
     AppendMenu(hHelp, MF_STRING, IDM_ABOUT,          L"About");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB,         L"View App on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_WIKI,           L"App Wiki");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB_SCRIPTS, L"View Scripts on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_WIKI_SCRIPTS,   L"Scripts Wiki");
 
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hFile, L"File");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hRun,  L"Run");

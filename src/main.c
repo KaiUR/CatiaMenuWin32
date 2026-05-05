@@ -508,6 +508,16 @@ apply_theme:
             L"https://github.com/KaiUR/CatiaMenuWin32", NULL, NULL, SW_SHOW);
         break;
 
+    case IDM_WIKI:
+        ShellExecute(NULL, L"open",
+            L"https://github.com/KaiUR/CatiaMenuWin32/wiki", NULL, NULL, SW_SHOW);
+        break;
+
+    case IDM_WIKI_SCRIPTS:
+        ShellExecute(NULL, L"open",
+            L"https://github.com/KaiUR/Pycatia_Scripts/wiki", NULL, NULL, SW_SHOW);
+        break;
+
     case IDM_OPEN_EXE_FOLDER:
         Window_OpenExeFolder();
         break;
@@ -560,13 +570,16 @@ apply_theme:
         typedef NTSTATUS (WINAPI *RtlGetVersion_t)(OSVERSIONINFOEXW *);
         HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
         if (hNtdll) {
-            RtlGetVersion_t rtlfn = (RtlGetVersion_t)GetProcAddress(hNtdll, "RtlGetVersion");
-            if (rtlfn) rtlfn(&osvi);
+            RtlGetVersion_t fn = (RtlGetVersion_t)GetProcAddress(hNtdll, "RtlGetVersion");
+            if (fn) fn(&osvi);
         }
         _snwprintf_s(win_ver, 63, _TRUNCATE, L"Windows %lu.%lu build %lu",
                      osvi.dwMajorVersion, osvi.dwMinorVersion, osvi.dwBuildNumber);
+
         WCHAR python[MAX_APPPATH] = {0};
         Runner_FindPython(python, MAX_APPPATH);
+
+        /* Build body - all on one line to avoid newline corruption */
         WCHAR body[2048] = {0};
         _snwprintf_s(body, 2047, _TRUNCATE,
             L"## Description\n"
@@ -585,32 +598,35 @@ apply_theme:
             win_ver,
             python[0] ? python : L"Not found",
             g.dark_mode ? L"Dark" : L"Light");
+
+        /* URL-encode the body */
         WCHAR encoded[3072] = {0};
         WCHAR *dst = encoded;
         for (const WCHAR *src = body; *src && dst < encoded + 3070; src++) {
             WCHAR ch = *src;
-            if      (ch == L' ')  { *dst++ = L'+'; }
-            else if (ch == 13)    { /* skip CR */ }
-            else if (ch == 10)    { *dst++ = L'%'; *dst++ = L'0'; *dst++ = L'A'; }
-            else if (ch == L'#')  { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'3'; }
-            else if (ch == L'*')  { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'A'; }
-            else if (ch == L':')  { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'A'; }
-            else if (ch == L'/')  { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'F'; }
-            else if (ch == L'?')  { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'F'; }
-            else if (ch == L'=')  { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'D'; }
-            else if (ch == L'&')  { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'6'; }
-            else                  { *dst++ = ch; }
+            if (ch == L' ')  { *dst++ = L'+'; }
+            else if (ch == 13) { /* skip CR */ }
+            else if (ch == 10) { *dst++ = L'%'; *dst++ = L'0'; *dst++ = L'A'; }
+            else if (ch == L'#') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'3'; }
+            else if (ch == L'*') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'A'; }
+            else if (ch == L':') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'A'; }
+            else if (ch == L'/') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'F'; }
+            else if (ch == L'?') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'F'; }
+            else if (ch == L'=') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'D'; }
+            else if (ch == L'&') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'6'; }
+            else { *dst++ = ch; }
         }
         *dst = L'\0';
+
         WCHAR url[4096] = {0};
         _snwprintf_s(url, 4095, _TRUNCATE,
             L"https://github.com/KaiUR/CatiaMenuWin32/issues/new"
             L"?template=bug_report.md&title=&body=%s",
             encoded);
+
         ShellExecute(NULL, L"open", url, NULL, NULL, SW_SHOW);
         break;
     }
-
     case IDM_ABOUT:
         DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUT),
                   g.hwnd, AboutDlgProc);
