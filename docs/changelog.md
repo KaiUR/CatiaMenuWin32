@@ -4,15 +4,6 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.6 — Auto-update fix
-
-### Fixed
-- Auto-update now correctly closes the app instead of minimizing to tray before installing
-- Auto-update download uses `GitHub_HttpGet` with an 8MB buffer instead of `URLDownloadToFile` which was blocking the UI thread and causing the app to appear unresponsive
-- `WM_CLOSE` with `wp=1` used to force real exit bypassing the minimize-to-tray behaviour
-
----
-
 ## v1.3.4 — In-app help, bounds-checking functions
 
 ### Fixed
