@@ -4,6 +4,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.7 — Report a Bug, Wiki
+
+### Added
+- **Report a Bug** — `Menu → Help → Report a Bug...` opens a pre-filled GitHub issue in the browser with app version, Windows version, Python path and theme automatically populated
+- GitHub Wiki created with 11 pages: Home, Installation, User Guide, Settings, Script Sources, Script Management, Writing Scripts, Auto Update, Security, Developer Guide, Changelog
+
+---
+
 ## v1.3.4 — In-app help, bounds-checking functions
 
 ### Fixed
