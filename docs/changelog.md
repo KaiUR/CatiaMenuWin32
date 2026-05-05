@@ -12,6 +12,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.4 — In-app help, bounds-checking functions
+
+### Fixed
+- Auto-Updae option failing copy/paste operation in generated bat file. The path generated was incorrect.
+
+---
+
 ## v1.3.3 — In-app help, bounds-checking functions
 
 ### Added
@@ -22,15 +29,11 @@ All notable changes to CatiaMenuWin32 are documented here.
 - Help icon embedded as resource (`res/help_icon.ico`)
 - New `src/help.c` added to project
 
-### Changed
-- Replaced all `_snwprintf` with `_snwprintf_s` using `_TRUNCATE` across all source files
-- Replaced `memset` with `ZeroMemory` throughout
-- Replaced `memmove` with `memmove_s` in `meta.c`
-- Replaced `snprintf` with `_snprintf_s` in `github.c`
-
 ### Fixed
-- Fixed two static analysis warnings in `meta.c` — dead code and unused variable
-- Suppressed unavoidable `GetProcAddress` cast warning with `#pragma GCC diagnostic`
+- Tooltips and Script Details blank on first launch on a new machine — meta retries after sync downloads files
+- Auto-update download URL fixed — missing `v` prefix caused download failure
+- Search filter rebuilds button list — no gaps between filtered results
+- All-caps script names (e.g. IGES) now match correctly in search
 
 ---
 
