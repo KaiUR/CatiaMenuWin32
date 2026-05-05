@@ -4,6 +4,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.5 — SHA verification fix
+
+### Fixed
+- Script SHA mismatch on startup after failed download — `Sync_LoadManifest` now verifies the local file actually matches the manifest SHA; if not, clears the entry so sync re-downloads cleanly on next refresh
+- Failed downloads revert `s->sha` to the stored manifest value so the manifest is never written with a mismatched SHA
+
+---
+
 ## v1.3.3 — In-app help, bounds-checking functions
 
 ### Added
@@ -13,16 +21,6 @@ All notable changes to CatiaMenuWin32 are documented here.
 - Single instance — `F1` when already open brings window to front
 - Help icon embedded as resource (`res/help_icon.ico`)
 - New `src/help.c` added to project
-
-### Fixed
-- Tooltips and Script Details blank on first launch on a new machine — meta retries after sync downloads files
-- Auto-update download URL fixed — missing `v` prefix caused download failure
-- Search filter rebuilds button list — no gaps between filtered results
-- All-caps script names (e.g. IGES) now match correctly in search
-
----
-
-## v1.3.2 — New machine tooltip fix, default settings
 
 ### Changed
 - Replaced all `_snwprintf` with `_snwprintf_s` using `_TRUNCATE` across all source files
