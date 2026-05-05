@@ -151,10 +151,11 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
     }
 
     DWORD total = 0, read = 0;
+    DWORD max_read = (*len > 0) ? *len : HTTP_BUF_SIZE;
     while (InternetReadFile(hReq, buf + total,
-                            HTTP_BUF_SIZE - total - 1, &read) && read) {
+                            max_read - total - 1, &read) && read) {
         total += read;
-        if (total >= HTTP_BUF_SIZE - 1) break;
+        if (total >= max_read - 1) break;
     }
     buf[total] = '\0';
     *len = total;
