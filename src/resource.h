@@ -136,6 +136,8 @@
 /* Help window */
 #define IDM_HELP_CONTENTS   240
 #define IDM_REPORT_BUG      241
+#define IDM_WIKI            242
+#define IDM_WIKI_SCRIPTS    243
 #define IDD_HELP            308
 #define IDC_HELP_TREE       840
 #define IDC_HELP_RICHEDIT   841

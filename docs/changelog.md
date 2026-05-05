@@ -4,6 +4,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.8 — Wiki links in help menu
+
+### Added
+- `Menu → Help → App Wiki` — opens the CatiaMenuWin32 wiki in the browser
+- `Menu → Help → Scripts Wiki` — opens the Pycatia_Scripts wiki in the browser
+
+---
+
 ## v1.3.7 — Report a Bug, Wiki
 
 ### Added

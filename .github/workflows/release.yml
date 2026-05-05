@@ -104,6 +104,11 @@ jobs:
         echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
+        # Fetch latest main so tag points to the verified bot commit
+        git fetch origin main
+        git checkout main
+        git reset --hard origin/main
+
         git tag -d "$BASE_TAG" 2>/dev/null || true
         git push --delete origin "$BASE_TAG" 2>/dev/null || true
         git tag "$FULL_VERSION"
