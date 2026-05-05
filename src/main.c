@@ -363,12 +363,15 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         break;
 
     case WM_CLOSE:
-        if (g.cfg.minimize_to_tray) {
+        if (g.cfg.minimize_to_tray && wp == 0) {
             Window_AddTrayIcon();
             ShowWindow(hwnd, SW_HIDE);
             return 0;
         }
-        break;
+        /* wp != 0 means force quit (e.g. from auto-update) */
+        Window_RemoveTrayIcon();
+        DestroyWindow(hwnd);
+        return 0;
 
     case WM_DESTROY:
         Window_RemoveTrayIcon();
