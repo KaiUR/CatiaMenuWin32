@@ -17,10 +17,10 @@ Full documentation is available in the [`docs/`](docs/) folder:
 ## 📸 Screenshots
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](docs/images/Darkmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Dark Mode](docs/images/Darkmode_ScreenshotV1.3.8.82.JPG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](docs/images/Lightmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Light Mode](docs/images/Lightmode_ScreenshotV1.3.8.82.JPG)
 
 ---
 
