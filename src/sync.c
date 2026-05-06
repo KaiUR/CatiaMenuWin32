@@ -93,6 +93,7 @@ void Sync_LoadManifest(void)
        immediately even before the sync completes or if there is no internet. */
     if (!g.cfg.cache_dir[0]) return;
 
+    for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
 
     if (g.cfg.main_repo_enabled) {
@@ -115,6 +116,7 @@ void Sync_LoadManifest(void)
         wcsncpy(f->name, fd.cFileName, MAX_NAME - 1);
         wcscpy(f->display, f->name);
         Util_SnakeToTitle(f->display);
+        Folder_Alloc(f, 64);
 
         /* Scan .py files inside this folder */
         WCHAR sub[MAX_APPPATH];
@@ -127,10 +129,9 @@ void Sync_LoadManifest(void)
 
         do {
             if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
-            if (f->count >= MAX_SCRIPTS) break;
 
-            Script *s = &f->scripts[f->count++];
-            ZeroMemory(s, sizeof(*s));
+            Script *s = Folder_Push(f);
+            if (!s) break;
 
             /* gh_path: FolderName/filename.py */
             _snwprintf_s(s->gh_path, MAX_APPPATH, _TRUNCATE, L"%s/%s", f->name, sf.cFileName);
@@ -203,6 +204,7 @@ static void DeleteLocalScript(const WCHAR *local_path)
 /* ================================================================== */
 void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
 {
+    /* Ensure any existing folder with this name has its scripts freed first */
     /* Find existing folder with same name */
     for (int fi = 0; fi < g.folder_count; fi++) {
         if (_wcsicmp(g.folders[fi].name, folder_name) == 0) {
@@ -218,8 +220,10 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
                         found = true; break;
                     }
                 }
-                if (!found && g.folders[fi].count < MAX_SCRIPTS)
-                    g.folders[fi].scripts[g.folders[fi].count++] = scripts[si];
+                if (!found) {
+                    Script *dst = Folder_Push(&g.folders[fi]);
+                    if (dst) *dst = scripts[si];
+                }
             }
             return;
         }
@@ -231,9 +235,11 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
     wcsncpy(f->name, folder_name, MAX_NAME - 1);
     wcscpy(f->display, f->name);
     Util_SnakeToTitle(f->display);
-    int n = count < MAX_SCRIPTS ? count : MAX_SCRIPTS;
-    for (int i = 0; i < n; i++)
-        f->scripts[f->count++] = scripts[i];
+    if (!Folder_Alloc(f, count > 0 ? count : 64)) { g.folder_count--; return; }
+    for (int i = 0; i < count; i++) {
+        Script *dst = Folder_Push(f);
+        if (dst) *dst = scripts[i];
+    }
     f->loaded = true;
 }
 
@@ -315,7 +321,8 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             { p = tp; continue; }
 
         /* Parse scripts */
-        Script scripts[MAX_SCRIPTS];
+        Script *scripts = (Script *)calloc(MAX_SCRIPTS, sizeof(Script));
+        if (!scripts) { p = tp; continue; }
         int    script_count = 0;
         WCHAR  cache_sub[MAX_APPPATH];
         _snwprintf_s(cache_sub, MAX_APPPATH, _TRUNCATE, L"%s\\%s_%s\\%s",
@@ -381,6 +388,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         }
 
         Sync_MergeFolder(folder_w, scripts, script_count);
+        free(scripts);
         p = tp;
     }
 
@@ -411,7 +419,8 @@ static void Sync_LocalDir(const LocalDir *dir)
         _snwprintf_s(sub, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\*.py",
                    dir->path, fd.cFileName);
 
-        Script scripts[MAX_SCRIPTS];
+        Script *scripts = (Script *)calloc(MAX_SCRIPTS, sizeof(Script));
+        if (!scripts) continue;
         int    count = 0;
 
         WIN32_FIND_DATAW sf;
@@ -479,6 +488,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     }
 
     /* Clear all folders before sync so disabled sources don't linger */
+    for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
 
         if (g.cfg.main_repo_enabled) {
@@ -574,7 +584,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         }
 
         /* Save old script list for removal detection */
-        Script old_scripts[MAX_SCRIPTS];
+        Script *old_scripts = (Script *)calloc(MAX_SCRIPTS, sizeof(Script));
+        if (!old_scripts) continue;
         int    old_scount = f->count;
         if (old_scount > 0)
             memcpy(old_scripts, f->scripts,
