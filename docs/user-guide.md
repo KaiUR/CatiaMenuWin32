@@ -58,10 +58,10 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 ```
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.3.8.82.JPG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.3.8.82.JPG)
 
 **Toolbar buttons:**
 - **☰ Menu** — access all app functions via dropdown menus

@@ -39,10 +39,10 @@ Built for CATIA V5 engineers who want to run automation scripts without touching
 ## Screenshots
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.3.8.82.JPG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.2.3.32.JPG)
+![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.3.8.82.JPG)
 
 ---
 
