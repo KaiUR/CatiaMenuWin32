@@ -24,7 +24,19 @@ CatiaMenuWin32 is designed with security in mind:
 
 ---
 
-## Reporting a Vulnerability
+## Known Limitations
+
+### Local manifest trust window
+
+SHA verification at script runtime uses `s->sha` which is populated from the GitHub API during sync. At startup, before the first sync completes, `s->sha` is loaded from the local `manifest.ini` file stored in `%APPDATA%\CatiaMenuWin32\`. This file is writable by the current Windows user.
+
+A local attacker who already has access to the user account could theoretically modify `manifest.ini` to replace a stored SHA with that of a malicious script, causing verification to pass before the first sync overwrites the value with the real GitHub SHA.
+
+**Impact is limited** — an attacker with write access to `%APPDATA%` already has full access to the user account and can run arbitrary code without involving this app. Once a sync completes, all in-memory SHAs are overwritten with values from the GitHub API and the manifest is no longer trusted for verification.
+
+---
+
+
 
 **Please do not report security vulnerabilities as public GitHub issues.**
 
