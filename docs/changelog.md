@@ -4,6 +4,18 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.12 — SxS fix, verified tags, updated certificate
+
+### Fixed
+- Side-by-side configuration error on machines without the VC++ redistributable — manifest is now embedded exclusively via the RC file with `/MANIFEST:NO` on the linker, preventing the linker from merging in `Microsoft.VC*.CRT` dependencies
+- Release tags now show as **Verified** on GitHub — switched from GitHub API annotated tags to lightweight tags pointing to the verified bot commit
+
+### Changed
+- CI compiler switched from `clang` (GNU driver) to `clang-cl` (MSVC driver) — `clang-cl` correctly honours `CMAKE_MSVC_RUNTIME_LIBRARY` for static CRT selection
+- Code signing certificate updated — now includes email identity (`kairathjen@yahoo.com`)
+
+---
+
 ## v1.3.11 — LLVM toolchain, code signing
 
 ### Changed

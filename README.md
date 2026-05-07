@@ -142,7 +142,7 @@ All communication with GitHub is secured at two levels:
 - **API**: Win32 API — User32, GDI32, ComCtl32, WinINet, Shell32, Shlwapi, DwmApi, Crypt32
 - **Build system**: CMake 3.16+ / Ninja
 - **Compiler**: LLVM/Clang (with MSVC Windows SDK)
-- **Code signing**: `skymatic/code-sign-action` — release binaries are Authenticode-signed
+- **Code signing**: PowerShell + `signtool.exe` — release binaries are Authenticode-signed
 - **AI Assistance**: Claude (Anthropic) — used to assist with code generation, debugging, and architecture decisions
 - **PyCATIA**: Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 automation
 
@@ -167,7 +167,7 @@ Open a **Developer Command Prompt for VS**, then:
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl
 cmake --build build
 ```
 
