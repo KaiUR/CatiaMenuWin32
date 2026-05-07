@@ -80,7 +80,7 @@
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
 #define MAX_FOLDERS       64
-#define MAX_SCRIPTS       128
+#define MAX_SCRIPTS       1024  /* default heap capacity per folder — grows as needed */
 #define MAX_NAME          128
 #define MAX_SHA           64
 #define MAX_APPPATH       520
@@ -156,17 +156,57 @@ typedef struct {
 } Script;
 
 typedef struct {
-    WCHAR  name[MAX_NAME];
-    WCHAR  display[MAX_NAME];
-    Script scripts[MAX_SCRIPTS];
-    int    count;
-    bool   loaded;
+    WCHAR   name[MAX_NAME];
+    WCHAR   display[MAX_NAME];
+    Script *scripts;       /* heap allocated — use Folder_Alloc/Folder_Free */
+    int     count;
+    int     capacity;      /* allocated slots */
+    bool    loaded;
     SortMode sort_mode;
 } ScriptFolder;
 
 /* ------------------------------------------------------------------ */
-/*  Extra sources                                                       */
+/*  ScriptFolder heap helpers                                           */
 /* ------------------------------------------------------------------ */
+static inline bool Folder_Alloc(ScriptFolder *f, int capacity)
+{
+    if (capacity <= 0) capacity = 64;
+    Script *p = (Script *)malloc((size_t)capacity * sizeof(Script));
+    if (!p) return false;
+    ZeroMemory(p, (size_t)capacity * sizeof(Script));
+    f->scripts  = p;
+    f->capacity = capacity;
+    f->count    = 0;
+    return true;
+}
+
+static inline void Folder_Free(ScriptFolder *f)
+{
+    if (f->scripts) { free(f->scripts); f->scripts = NULL; }
+    f->count    = 0;
+    f->capacity = 0;
+}
+
+/* Append a script — grows by doubling if needed. Returns NULL on OOM. */
+static inline Script *Folder_Push(ScriptFolder *f)
+{
+    if (!f->scripts) {
+        if (!Folder_Alloc(f, 64)) return NULL;
+    }
+    if (f->count >= f->capacity) {
+        int new_cap = f->capacity * 2;
+        Script *p = (Script *)realloc(f->scripts,
+                                      (size_t)new_cap * sizeof(Script));
+        if (!p) return NULL;
+        ZeroMemory(p + f->capacity,
+                   (size_t)(new_cap - f->capacity) * sizeof(Script));
+        f->scripts  = p;
+        f->capacity = new_cap;
+    }
+    return &f->scripts[f->count++];
+}
+
+
 typedef struct {
     WCHAR        url[512];
     WCHAR        branch[64];

@@ -383,6 +383,7 @@ static const char *json_str(const char *p, const char *key,
 /* ================================================================== */
 void GitHub_ParseRoot(const char *json)
 {
+    for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
 
     const char *p = json;
@@ -419,11 +420,12 @@ void GitHub_ParseRoot(const char *json)
 void GitHub_ParseFolder(const char *json, int fi)
 {
     ScriptFolder *f = &g.folders[fi];
-    f->count  = 0;
+    /* Free existing scripts and start fresh */
+    Folder_Free(f);
+    Folder_Alloc(f, 64);
 
     const char *p = json;
-    while ((p = strstr(p, "\"type\"")) != NULL
-           && f->count < MAX_SCRIPTS) {
+    while ((p = strstr(p, "\"type\"")) != NULL) {
 
         char type_val[32] = {0};
         const char *after = json_str(p, "type", type_val, sizeof(type_val));
@@ -445,7 +447,8 @@ void GitHub_ParseFolder(const char *json, int fi)
                 p = after; continue;
             }
 
-            Script *s = &f->scripts[f->count++];
+            Script *s = Folder_Push(f);
+            if (!s) break;
             ZeroMemory(s, sizeof(*s));
 
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, s->name,    MAX_NAME);

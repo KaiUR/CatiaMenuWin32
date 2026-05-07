@@ -141,9 +141,14 @@ void Tabs_BuildFavourites(void)
     /* First remove any existing Favourites tab to avoid duplicates */
     for (int fi = 0; fi < g.folder_count; fi++) {
         if (wcscmp(g.folders[fi].name, L"Favourites") == 0) {
+            /* Free the favourites scripts first */
+            Folder_Free(&g.folders[fi]);
+            /* Shift remaining folders left */
             for (int i = fi; i < g.folder_count - 1; i++)
                 g.folders[i] = g.folders[i + 1];
             g.folder_count--;
+            /* Zero the now-unused last slot so its pointer isn't dangling */
+            ZeroMemory(&g.folders[g.folder_count], sizeof(ScriptFolder));
             if (g.active_tab > fi)       g.active_tab--;
             else if (g.active_tab == fi) g.active_tab = 0;
             break;
@@ -166,20 +171,28 @@ void Tabs_BuildFavourites(void)
         g.folders[fi] = g.folders[fi - 1];
     g.folder_count++;
     if (g.active_tab >= 0) g.active_tab++;
+    /* Zero slot 0 — g.folders[1] now owns the scripts pointer that was there */
+    ZeroMemory(&g.folders[0], sizeof(ScriptFolder));
 
     /* Build favourites folder at index 0 */
     ScriptFolder *fav = &g.folders[0];
+    /* The shift copied g.folders[1]'s scripts pointer into g.folders[0].
+       Do NOT free it — g.folders[1] still owns that memory.
+       Just zero out this slot and allocate fresh for the favourites. */
     ZeroMemory(fav, sizeof(*fav));
     wcscpy(fav->name,    L"Favourites");
     wcscpy(fav->display, L"\u2605 Favourites");
     fav->loaded = true;
+    Folder_Alloc(fav, fav_count > 0 ? fav_count : 8);
 
     /* Copy favourited scripts in — skip hidden */
-    for (int fi = 1; fi < g.folder_count && fav->count < MAX_SCRIPTS; fi++)
-        for (int si = 0; si < g.folders[fi].count && fav->count < MAX_SCRIPTS; si++)
+    for (int fi = 1; fi < g.folder_count; fi++)
+        for (int si = 0; si < g.folders[fi].count; si++)
             if (g.folders[fi].scripts[si].is_favourite &&
-                !g.folders[fi].scripts[si].is_hidden)
-                fav->scripts[fav->count++] = g.folders[fi].scripts[si];
+                !g.folders[fi].scripts[si].is_hidden) {
+                Script *dst = Folder_Push(fav);
+                if (dst) *dst = g.folders[fi].scripts[si];
+            }
 }
 
 /* ================================================================== */
