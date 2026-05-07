@@ -49,8 +49,8 @@ endif()
 
 project(CatiaMenuWin32 VERSION ${APP_VERSION} LANGUAGES C RC)
 
-# Static CRT: prevents lld-link embedding a Microsoft.VC*.CRT SxS dependency
-# in the manifest, which would require the VC++ Redistributable on end-user machines.
+# Static CRT: clang-cl honours CMAKE_MSVC_RUNTIME_LIBRARY and passes /MT to
+# lld-link, preventing the Microsoft.VC*.CRT SxS dependency in the manifest.
 if(NOT MINGW)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
@@ -146,21 +146,12 @@ if(MINGW)
         $<$<CONFIG:Release>:-s>
     )
 elseif(WIN32 AND NOT MINGW)
-    # Clang+lld-link: CMake adds /MANIFEST:EMBED; supply our custom manifest
+    # clang-cl+lld-link: CMake adds /MANIFEST:EMBED; supply our custom manifest
     # via /MANIFESTINPUT. The RC file emits no RT_MANIFEST for this toolchain.
-    #
-    # Force static CRT (/MT) so lld-link does not embed a Microsoft.VC*.CRT
-    # SxS assembly dependency — end users do not have the VC++ redistributable.
-    # CMAKE_MSVC_RUNTIME_LIBRARY is not guaranteed for Clang with GNU frontend,
-    # so we override the CRT via explicit linker defaultlib flags.
+    # CMAKE_MSVC_RUNTIME_LIBRARY (set above) handles /MT for static CRT.
     target_link_options(CatiaMenuWin32 PRIVATE
-        -Wl,/NODEFAULTLIB:msvcrt
-        -Wl,/NODEFAULTLIB:msvcrtd
-        -Wl,/DEFAULTLIB:libcmt
-        -Wl,/MANIFESTINPUT:${CMAKE_SOURCE_DIR}/res/app.manifest
+        /MANIFESTINPUT:${CMAKE_SOURCE_DIR}/res/app.manifest
     )
-    # Suppress _DLL define that CMake injects for dynamic CRT
-    target_compile_options(CatiaMenuWin32 PRIVATE -Xclang -D_MT)
 endif()
 
 if(MSVC)

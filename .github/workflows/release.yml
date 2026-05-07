@@ -55,7 +55,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
         cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_C_COMPILER=clang `
+          -DCMAKE_C_COMPILER=clang-cl `
           -DVERSION_OVERRIDE="${{ env.VERSION }}"
         cmake --build build
 
@@ -63,7 +63,7 @@ jobs:
       if: "!startsWith(github.ref, 'refs/tags/v')"
       run: |
         cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_C_COMPILER=clang-cl
         cmake --build build
 
     - name: Sign binary
