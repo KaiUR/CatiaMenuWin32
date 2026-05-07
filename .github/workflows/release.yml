@@ -140,15 +140,29 @@ jobs:
         echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
-        # Fetch latest main so tag points to the verified bot commit
+        # Resolve the verified bot commit on main
         git fetch origin main
-        git checkout main
-        git reset --hard origin/main
+        COMMIT_SHA=$(git rev-parse origin/main)
 
-        git tag -d "$BASE_TAG" 2>/dev/null || true
+        # Remove the base tag (e.g. v1.3.11) from remote
         git push --delete origin "$BASE_TAG" 2>/dev/null || true
-        git tag "$FULL_VERSION"
-        git push -u origin "$FULL_VERSION"
+
+        # Create an annotated tag via the GitHub API — GitHub signs these
+        # automatically so the tag shows as Verified on the releases page
+        TAG_SHA=$(gh api repos/${{ github.repository }}/git/tags \
+          -X POST \
+          -f tag="$FULL_VERSION" \
+          -f message="Release $FULL_VERSION" \
+          -f object="$COMMIT_SHA" \
+          -f type="commit" \
+          --jq '.sha')
+
+        gh api repos/${{ github.repository }}/git/refs \
+          -X POST \
+          -f ref="refs/tags/$FULL_VERSION" \
+          -f sha="$TAG_SHA"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Release New Binary
       if: startsWith(github.ref, 'refs/tags/v')
