@@ -74,7 +74,7 @@ jobs:
         password: '${{ secrets.PASSWORD }}'
         certificatesha1: '${{ secrets.CERTHASH }}'
         certificatename: '${{ secrets.CERTNAME }}'
-        folder: 'build'
+        folder: '${{ github.workspace }}/build'
         recursive: false
         timestampUrl: 'http://timestamp.digicert.com'
 
