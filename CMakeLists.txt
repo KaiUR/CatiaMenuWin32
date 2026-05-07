@@ -80,14 +80,9 @@ string(TIMESTAMP CURRENT_DATE "%Y-%m-%d")
 string(TIMESTAMP CURRENT_YEAR "%Y")
 
 # --- Generate version.h and resource.rc ---
-# MinGW/windres: embed the manifest directly in the RC file.
-# Clang+lld-link: CMake adds /MANIFEST:EMBED automatically; pass the manifest
-# via /MANIFESTINPUT so the RC does not also embed it (avoids duplicate error).
-if(MINGW)
-    set(RC_MANIFEST_LINE "1 RT_MANIFEST \"app.manifest\"")
-else()
-    set(RC_MANIFEST_LINE "")
-endif()
+# Always embed the manifest via the RC file so the linker never merges in
+# its own generated manifest (which can inject Microsoft.VC*.CRT dependencies).
+set(RC_MANIFEST_LINE "1 RT_MANIFEST \"app.manifest\"")
 configure_file(res/version.h.in "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 configure_file(res/resource.rc.in "${CMAKE_CURRENT_BINARY_DIR}/resource.rc" @ONLY)
 
@@ -146,12 +141,10 @@ if(MINGW)
         $<$<CONFIG:Release>:-s>
     )
 elseif(WIN32 AND NOT MINGW)
-    # clang-cl+lld-link: CMake adds /MANIFEST:EMBED; supply our custom manifest
-    # via /MANIFESTINPUT. The RC file emits no RT_MANIFEST for this toolchain.
-    # CMAKE_MSVC_RUNTIME_LIBRARY (set above) handles /MT for static CRT.
-    target_link_options(CatiaMenuWin32 PRIVATE
-        /MANIFESTINPUT:${CMAKE_SOURCE_DIR}/res/app.manifest
-    )
+    # clang-cl: disable linker manifest so it cannot merge in CRT dependencies.
+    # The RC file already embeds app.manifest; /MANIFEST:NO ensures that is the
+    # only manifest in the binary.
+    target_link_options(CatiaMenuWin32 PRIVATE /MANIFEST:NO)
 endif()
 
 if(MSVC)
