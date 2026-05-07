@@ -131,6 +131,10 @@ if(MINGW)
         -municode
         $<$<CONFIG:Release>:-s>
     )
+elseif(WIN32 AND NOT MINGW)
+    # Clang+lld-link: the RC file already embeds app.manifest as RT_MANIFEST;
+    # suppress the auto-generated manifest CMake adds via /MANIFEST:EMBED
+    target_link_options(CatiaMenuWin32 PRIVATE -Xlinker /MANIFEST:NO)
 endif()
 
 if(MSVC)
