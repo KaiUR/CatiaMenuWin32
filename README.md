@@ -141,14 +141,16 @@ All communication with GitHub is secured at two levels:
 - **Language**: C (C11)
 - **API**: Win32 API — User32, GDI32, ComCtl32, WinINet, Shell32, Shlwapi, DwmApi, Crypt32
 - **Build system**: CMake 3.16+ / Ninja
-- **Compiler**: MinGW-w64 (GCC 13)
+- **Compiler**: LLVM/Clang (with MSVC Windows SDK)
+- **Code signing**: `skymatic/code-sign-action` — release binaries are Authenticode-signed
 - **AI Assistance**: Claude (Anthropic) — used to assist with code generation, debugging, and architecture decisions
 - **PyCATIA**: Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 automation
 
 ## 📦 Building from Source
 
 ### Prerequisites
-- [MinGW-w64](https://www.mingw-w64.org/) — GCC 13+
+- [LLVM](https://releases.llvm.org/) — Clang 17+
+- [Visual Studio](https://visualstudio.microsoft.com/) 2019+ (for Windows SDK and `rc.exe`)
 - [CMake 3.16+](https://cmake.org/)
 - [Ninja](https://ninja-build.org/)
 - Qt Creator (optional, used as IDE)
@@ -160,19 +162,19 @@ All communication with GitHub is secured at two levels:
 
 ### Steps
 
+Open a **Developer Command Prompt for VS**, then:
+
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-mkdir build && cd build
-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
-ninja
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+cmake --build build
 ```
-
 
 ### Qt Creator
 
 1. Open `CMakeLists.txt` in Qt Creator
-2. Select the MinGW-w64 kit
+2. Select a Clang kit configured with the MSVC toolchain
 3. Build → Build All
 
 Local builds automatically detect the latest git tag for the version number and show a `(local)` suffix. The update checker is disabled for local builds.

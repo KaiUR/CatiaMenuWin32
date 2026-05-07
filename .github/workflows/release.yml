@@ -1,4 +1,4 @@
-name: MinGW-w64 Release
+name: LLVM Release
 
 on:
   push:
@@ -19,15 +19,14 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >-
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-cmake
-          mingw-w64-x86_64-ninja
+    - name: Set up MSVC environment
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Add LLVM to PATH
+      run: echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Verify compiler
+      run: clang --version
 
     - name: Update Contributors File
       shell: bash
@@ -54,18 +53,30 @@ jobs:
 
     - name: Configure and Build (tagged release)
       if: startsWith(github.ref, 'refs/tags/v')
-      shell: msys2 {0}
       run: |
-        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release \
+        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_C_COMPILER=clang `
           -DVERSION_OVERRIDE="${{ env.VERSION }}"
         cmake --build build
 
     - name: Configure and Build (branch/PR)
       if: "!startsWith(github.ref, 'refs/tags/v')"
-      shell: msys2 {0}
       run: |
-        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_C_COMPILER=clang
         cmake --build build
+
+    - name: Sign binary
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: skymatic/code-sign-action@v1
+      with:
+        certificate: '${{ secrets.CERTIFICATE }}'
+        password: '${{ secrets.PASSWORD }}'
+        certificatesha1: '${{ secrets.CERTHASH }}'
+        certificatename: '${{ secrets.CERTNAME }}'
+        folder: 'build'
+        recursive: false
+        timestampUrl: 'http://timestamp.digicert.com'
 
     - name: Read build number and commit
       if: startsWith(github.ref, 'refs/tags/v')

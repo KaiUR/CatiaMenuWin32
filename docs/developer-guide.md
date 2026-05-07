@@ -17,11 +17,14 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| [MinGW-w64](https://www.mingw-w64.org/) | GCC 13+ | C compiler |
+| [LLVM](https://releases.llvm.org/) | 17+ | C compiler (Clang) |
 | [CMake](https://cmake.org/) | 3.16+ | Build system |
 | [Ninja](https://ninja-build.org/) | any | Build backend |
+| [Visual Studio](https://visualstudio.microsoft.com/) | 2019+ | Windows SDK and linker (`rc.exe`, `link.exe`) |
 | [Qt Creator](https://www.qt.io/product/development-tools) | any | IDE (optional) |
 | [Git](https://git-scm.com/) | any | Version control |
+
+> **Note:** Visual Studio (or Build Tools for Visual Studio) is required to provide `rc.exe` (resource compiler) and the Windows SDK headers. LLVM/Clang is the C compiler; Visual Studio provides the rest of the Windows toolchain.
 
 ---
 
@@ -29,12 +32,13 @@
 
 ### Command Line
 
+Open a **Developer Command Prompt for VS** (or run `ilammy/msvc-dev-cmd` equivalent), then:
+
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-mkdir build && cd build
-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
-ninja
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+cmake --build build
 ```
 
 The executable is output to `build/CatiaMenuWin32.exe`.
@@ -44,9 +48,10 @@ The executable is output to `build/CatiaMenuWin32.exe`.
 ### Qt Creator
 
 1. Open `CMakeLists.txt` in Qt Creator
-2. Select the **MinGW-w64** kit (not MSVC)
-3. Configure the project
-4. **Build → Build All** (`Ctrl+B`)
+2. Select a **Clang** kit (configured against the MSVC toolchain)
+3. Add `-DCMAKE_C_COMPILER=clang` to the CMake arguments
+4. Configure the project
+5. **Build → Build All** (`Ctrl+B`)
 
 ### CMake Variables
 
@@ -152,19 +157,34 @@ To add a new source type:
 
 ## CI/CD Workflow
 
-The workflow (`.github/workflows/release.yml`) triggers on:
+The workflow (`.github/workflows/release.yml`) runs on `windows-latest` using **LLVM/Clang** as the C compiler with the Visual Studio MSVC toolchain providing the Windows SDK and resource compiler.
+
+It triggers on:
 - Push to `main` branch — builds only, no release
-- Push of a `v*` tag — full build, version tagging, and release
+- Push of a `v*` tag — full build, code signing, version tagging, and release
 
 ### Tag release flow
 1. Checkout with full history
-2. Update `CONTRIBUTORS.md` from git log
-3. Extract `major.minor.patch` from the pushed tag
-4. Run `cmake` with `-DVERSION_OVERRIDE=major.minor.patch` (increments `build_number.txt`)
-5. Build with Ninja
-6. Commit `build_number.txt` and `CONTRIBUTORS.md` back to `main`
-7. Delete the base tag (e.g. `v1.2.0`), create new tag with build number (e.g. `v1.2.0.31`)
-8. Create GitHub Release with `CatiaMenuWin32.exe`, `README.md`, `CONTRIBUTORS.md`, `LICENSE.txt`
+2. Set up MSVC environment (`ilammy/msvc-dev-cmd`) and add LLVM to PATH
+3. Update `CONTRIBUTORS.md` from git log
+4. Extract `major.minor.patch` from the pushed tag
+5. Run `cmake -DCMAKE_C_COMPILER=clang -DVERSION_OVERRIDE=major.minor.patch` (increments `build_number.txt`)
+6. Build with Ninja
+7. **Code-sign** `CatiaMenuWin32.exe` via `skymatic/code-sign-action@v1` using the certificate stored in GitHub Secrets
+8. Commit `build_number.txt` and `CONTRIBUTORS.md` back to `main`
+9. Delete the base tag (e.g. `v1.2.0`), create new tag with build number (e.g. `v1.2.0.31`)
+10. Create GitHub Release with the signed `CatiaMenuWin32.exe`, `README.md`, `CONTRIBUTORS.md`, `LICENSE.txt`
+
+### Code signing secrets
+
+The following secrets must be configured in the repository (Settings → Secrets → Actions):
+
+| Secret | Description |
+|--------|-------------|
+| `CERTIFICATE` | Base64-encoded PFX file. Generate with: `[System.Convert]::ToBase64String([IO.File]::ReadAllBytes('cert.pfx'))` |
+| `PASSWORD` | Password protecting the PFX certificate |
+| `CERTHASH` | SHA1 thumbprint of the certificate (from MMC → Certificates) |
+| `CERTNAME` | Common name of the certificate |
 
 ---
 
