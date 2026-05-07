@@ -9,6 +9,9 @@
  * License: MIT
  */
 
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -581,8 +584,7 @@ static inline void Util_SnakeToTitle(WCHAR *s) {
 static inline void Util_Log(const WCHAR *fmt, ...) {
     WCHAR buf[512];
     va_list va; va_start(va, fmt);
-    _vsnwprintf(buf, 511, fmt, va); va_end(va);
-    buf[511] = L'\0';
+    _vsnwprintf_s(buf, 512, _TRUNCATE, fmt, va); va_end(va);
     OutputDebugStringW(buf);
     OutputDebugStringW(L"\n");
 }
@@ -600,8 +602,7 @@ static inline void PostStatus(const WCHAR *fmt, ...) {
     WCHAR *buf = (WCHAR *)malloc(256 * sizeof(WCHAR));
     if (!buf) return;
     va_list va; va_start(va, fmt);
-    _vsnwprintf(buf, 255, fmt, va); va_end(va);
-    buf[255] = L'\0';
+    _vsnwprintf_s(buf, 256, _TRUNCATE, fmt, va); va_end(va);
     PostMessage(g.hwnd, WM_STATUS_SET, 0, (LPARAM)buf);
 }
 
