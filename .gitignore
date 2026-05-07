@@ -30,3 +30,4 @@ version.h
 # Windows
 Thumbs.db
 Desktop.ini
+.claude/settings.local.json

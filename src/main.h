@@ -102,9 +102,12 @@
 #define TRAY_ID            1
 #define TIMER_AUTO_REFRESH 1001
 
-/* ------------------------------------------------------------------ */
-/*  Sort mode                                                           */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  SortMode                                                            */
+/*  Purpose: Enumerates the available script sort orders.              */
+/*  In:  (enum values used as g.cfg.sort_mode or folder.sort_mode)    */
+/*  Out: (no return — used as a value type)                            */
+/* ================================================================== */
 typedef enum {
     SORT_ORDER    = 0,  /* order from GitHub API / disk                */
     SORT_ALPHA    = 1,  /* alphabetical A-Z                            */
@@ -112,14 +115,21 @@ typedef enum {
     SORT_MOST_USED = 3  /* by run count descending                     */
 } SortMode;
 
-/* ------------------------------------------------------------------ */
-/*  Theme mode                                                          */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  ThemeMode                                                           */
+/*  Purpose: Enumerates the three UI theme choices stored in Settings. */
+/*  In:  (enum values used as g.cfg.theme)                             */
+/*  Out: (no return — used as a value type)                            */
+/* ================================================================== */
 typedef enum { THEME_SYSTEM = 0, THEME_DARK = 1, THEME_LIGHT = 2 } ThemeMode;
 
-/* ------------------------------------------------------------------ */
-/*  Sync result                                                         */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  SyncStatus / SyncResult                                             */
+/*  Purpose: Communicates the outcome of a background sync operation   */
+/*           from Sync_Thread to the main window via WM_SYNC_DONE.    */
+/*  In:  (populated by Sync_Thread before PostMessage)                 */
+/*  Out: (consumed by Handle_SyncDone on the UI thread)                */
+/* ================================================================== */
 typedef enum { SR_OK=0, SR_NO_INTERNET, SR_API_ERROR, SR_PARTIAL } SyncStatus;
 typedef struct {
     SyncStatus status;
@@ -128,9 +138,13 @@ typedef struct {
     WCHAR message[256];
 } SyncResult;
 
-/* ------------------------------------------------------------------ */
-/*  Script metadata                                                     */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  ScriptMeta                                                          */
+/*  Purpose: Holds the key-value metadata parsed from a script's       */
+/*           header block (Purpose:, Author:, Version:, Date:, etc.)  */
+/*  In:  (populated by Meta_Parse from the script's local .py file)   */
+/*  Out: (read by Paint_Tooltip, ScriptDetailsDlgProc, Tabs_ApplySort)*/
+/* ================================================================== */
 typedef struct {
     WCHAR purpose[128];
     WCHAR author[64];
@@ -142,6 +156,13 @@ typedef struct {
     WCHAR requirements[512];
 } ScriptMeta;
 
+/* ================================================================== */
+/*  Script                                                              */
+/*  Purpose: Represents a single script file with its identity,        */
+/*           cached SHA, local path, parsed metadata, and user prefs. */
+/*  In:  (populated by Sync_Thread / Sync_LoadManifest)               */
+/*  Out: (consumed by Runner_Run, Meta_Parse, Paint_ScriptButton, etc.)*/
+/* ================================================================== */
 typedef struct {
     WCHAR      name[MAX_NAME];
     WCHAR      gh_path[MAX_APPPATH];
@@ -155,6 +176,14 @@ typedef struct {
     WCHAR      note[MAX_NOTE_LEN];
 } Script;
 
+/* ================================================================== */
+/*  ScriptFolder                                                        */
+/*  Purpose: Groups scripts that share a top-level folder name into    */
+/*           one tab.  The scripts array is heap-allocated and grows   */
+/*           dynamically via Folder_Push.                              */
+/*  In:  (populated by Sync_MergeFolder / Sync_LocalDir)              */
+/*  Out: (consumed by Tabs_Build, Tabs_Switch, Runner_Run, paint.c)   */
+/* ================================================================== */
 typedef struct {
     WCHAR   name[MAX_NAME];
     WCHAR   display[MAX_NAME];
@@ -168,6 +197,15 @@ typedef struct {
 /* ------------------------------------------------------------------ */
 /*  ScriptFolder heap helpers                                           */
 /* ------------------------------------------------------------------ */
+
+/* ================================================================== */
+/*  Folder_Alloc                                                        */
+/*  Purpose: Allocates the scripts array for a ScriptFolder with the   */
+/*           requested initial capacity (minimum 64 slots).            */
+/*  In:  f        — folder to initialise (must be zero-initialised)   */
+/*       capacity — initial slot count; clamped to 64 if <= 0         */
+/*  Out: true on success; false if malloc fails (f remains unchanged)  */
+/* ================================================================== */
 static inline bool Folder_Alloc(ScriptFolder *f, int capacity)
 {
     if (capacity <= 0) capacity = 64;
@@ -180,6 +218,13 @@ static inline bool Folder_Alloc(ScriptFolder *f, int capacity)
     return true;
 }
 
+/* ================================================================== */
+/*  Folder_Free                                                         */
+/*  Purpose: Releases the heap-allocated scripts array of a folder     */
+/*           and resets count and capacity to zero.                    */
+/*  In:  f — folder whose scripts buffer should be freed               */
+/*  Out: (void) — f->scripts is set to NULL after freeing              */
+/* ================================================================== */
 static inline void Folder_Free(ScriptFolder *f)
 {
     if (f->scripts) { free(f->scripts); f->scripts = NULL; }
@@ -187,7 +232,13 @@ static inline void Folder_Free(ScriptFolder *f)
     f->capacity = 0;
 }
 
-/* Append a script — grows by doubling if needed. Returns NULL on OOM. */
+/* ================================================================== */
+/*  Folder_Push                                                         */
+/*  Purpose: Appends a new zero-initialised Script slot to a folder,   */
+/*           auto-allocating or doubling the buffer when full.         */
+/*  In:  f — target folder (Folder_Alloc not required beforehand)      */
+/*  Out: pointer to the new Script slot on success; NULL on OOM        */
+/* ================================================================== */
 static inline Script *Folder_Push(ScriptFolder *f)
 {
     if (!f->scripts) {
@@ -207,6 +258,12 @@ static inline Script *Folder_Push(ScriptFolder *f)
 }
 
 
+/* ================================================================== */
+/*  ExtraRepo                                                           */
+/*  Purpose: Describes one user-added GitHub repository script source. */
+/*  In:  (loaded from settings.ini by Settings_Load)                   */
+/*  Out: (passed to Sync_ExtraRepo during each sync cycle)             */
+/* ================================================================== */
 typedef struct {
     WCHAR        url[512];
     WCHAR        branch[64];
@@ -214,14 +271,24 @@ typedef struct {
     bool         enabled;
 } ExtraRepo;
 
+/* ================================================================== */
+/*  LocalDir                                                            */
+/*  Purpose: Describes one user-added local folder script source.      */
+/*  In:  (loaded from settings.ini by Settings_Load)                   */
+/*  Out: (passed to Sync_LocalDir during each sync cycle)              */
+/* ================================================================== */
 typedef struct {
     WCHAR        path[MAX_APPPATH];
     bool         enabled;
 } LocalDir;
 
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
 /*  Settings                                                            */
-/* ------------------------------------------------------------------ */
+/*  Purpose: Holds every user-configurable option for the application. */
+/*           Persisted to %APPDATA%\CatiaMenuWin32\settings.ini.      */
+/*  In:  (populated by Settings_Load at startup)                       */
+/*  Out: (written back by Settings_Save on change or exit)             */
+/* ================================================================== */
 typedef struct {
     WCHAR     python_exe[MAX_APPPATH];
     WCHAR     cache_dir[MAX_APPPATH];
@@ -279,9 +346,15 @@ typedef struct {
 #define COL_TIP_BG_LIGHT   RGB(245, 245, 252)
 #define COL_TIP_BORDER     RGB(82, 155, 245)
 
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
 /*  AppState                                                            */
-/* ------------------------------------------------------------------ */
+/*  Purpose: Single global structure holding all runtime state —       */
+/*           window handles, folders, GDI resources, and UI state.    */
+/*           Declared as extern AppState g; and zero-initialised in   */
+/*           main.c.  No other global variables exist.                */
+/*  In:  (initialised at startup, updated by all modules)             */
+/*  Out: (read by all modules via the global `g` instance)            */
+/* ================================================================== */
 typedef struct {
     HWND   hwnd;
     HWND   hwnd_tab;
@@ -338,9 +411,13 @@ extern AppState g;
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
-/* ------------------------------------------------------------------ */
-/*  Runtime colour accessors                                            */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Runtime colour accessors  (COL_BG … COL_TIP_BG)                   */
+/*  Purpose: Return the correct COLORREF for the current theme.        */
+/*           All GDI code must call these instead of hardcoding RGB.  */
+/*  In:  (none — reads g.dark_mode)                                    */
+/*  Out: COLORREF — theme-appropriate colour value                     */
+/* ================================================================== */
 static inline COLORREF COL_BG(void)        { return g.dark_mode ? COL_BG_DARK        : COL_BG_LIGHT;        }
 static inline COLORREF COL_TOOLBAR(void)   { return g.dark_mode ? COL_TOOLBAR_DARK   : COL_TOOLBAR_LIGHT;   }
 static inline COLORREF COL_BTN_NORM(void)  { return g.dark_mode ? COL_BTN_NORM_DARK  : COL_BTN_NORM_LIGHT;  }
@@ -464,9 +541,26 @@ LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR
 /* ------------------------------------------------------------------ */
 /*  Inline helpers                                                      */
 /* ------------------------------------------------------------------ */
+
+/* ================================================================== */
+/*  Util_StripExt                                                       */
+/*  Purpose: Removes the file extension from a wide string in-place   */
+/*           by replacing the last '.' with a null terminator.        */
+/*  In:  s — wide string (modified in-place); no-op if no '.' found   */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static inline void Util_StripExt(WCHAR *s) {
     WCHAR *d = wcsrchr(s, L'.'); if (d) *d = L'\0';
 }
+
+/* ================================================================== */
+/*  Util_SnakeToTitle                                                   */
+/*  Purpose: Converts a snake_case wide string to Title Case in-place. */
+/*           Underscores become spaces; each word's first letter is    */
+/*           uppercased.                                               */
+/*  In:  s — wide string (modified in-place)                           */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static inline void Util_SnakeToTitle(WCHAR *s) {
     bool cap = true;
     for (WCHAR *p = s; *p; p++) {
@@ -474,6 +568,16 @@ static inline void Util_SnakeToTitle(WCHAR *s) {
         else if (cap && *p != L' ') { *p = (WCHAR)towupper(*p); cap = false; }
     }
 }
+
+/* ================================================================== */
+/*  Util_Log                                                            */
+/*  Purpose: Writes a formatted debug message to OutputDebugStringW.  */
+/*           Output is visible in Qt Creator's Application Output pane */
+/*           and in DebugView.  Compiled out in Release if desired.   */
+/*  In:  fmt — printf-style wide format string                         */
+/*       ... — variadic arguments                                       */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static inline void Util_Log(const WCHAR *fmt, ...) {
     WCHAR buf[512];
     va_list va; va_start(va, fmt);
@@ -482,6 +586,16 @@ static inline void Util_Log(const WCHAR *fmt, ...) {
     OutputDebugStringW(buf);
     OutputDebugStringW(L"\n");
 }
+
+/* ================================================================== */
+/*  PostStatus                                                          */
+/*  Purpose: Thread-safe status bar update.  Allocates a heap buffer,  */
+/*           formats the message, then posts WM_STATUS_SET to the main */
+/*           window.  The UI thread frees the buffer on receipt.      */
+/*  In:  fmt — printf-style wide format string                         */
+/*       ... — variadic arguments                                       */
+/*  Out: (void) — message is delivered asynchronously                  */
+/* ================================================================== */
 static inline void PostStatus(const WCHAR *fmt, ...) {
     WCHAR *buf = (WCHAR *)malloc(256 * sizeof(WCHAR));
     if (!buf) return;

@@ -11,7 +11,12 @@
 #include <commctrl.h>
 
 /* ================================================================== */
-/*  Help topic IDs                                                      */
+/*  HelpTopic                                                           */
+/*  Purpose: Enumerates all help topics shown in the TreeView pane of  */
+/*           the in-app help window. HELP_TOPIC_COUNT allows iterating */
+/*           the full set without hard-coding the count.               */
+/*  In:  (enum — no parameters)                                        */
+/*  Out: (values used as TreeView item lParam and switch keys)         */
 /* ================================================================== */
 typedef enum {
     HELP_GETTING_STARTED = 0,
@@ -29,7 +34,12 @@ typedef enum {
 } HelpTopic;
 
 /* ================================================================== */
-/*  RTF content per topic                                               */
+/*  Help_GetRTF  (static)                                              */
+/*  Purpose: Returns a static RTF-formatted string for the given help  */
+/*           topic, ready to be streamed into a RichEdit control via   */
+/*           EM_STREAMIN.                                              */
+/*  In:  topic — help topic identifier from the HelpTopic enum        */
+/*  Out: pointer to a null-terminated RTF string; never NULL           */
 /* ================================================================== */
 static const char *Help_GetRTF(HelpTopic topic)
 {
@@ -320,7 +330,11 @@ static const char *Help_GetRTF(HelpTopic topic)
 }
 
 /* ================================================================== */
-/*  Topic labels for the TreeView                                       */
+/*  Help_TopicLabel  (static)                                          */
+/*  Purpose: Maps a HelpTopic enum value to the wide-string label      */
+/*           displayed in the TreeView pane of the help window.        */
+/*  In:  t  — help topic identifier                                    */
+/*  Out: pointer to a static wide-string label; L"" for unknown values */
 /* ================================================================== */
 static const WCHAR *Help_TopicLabel(HelpTopic t)
 {
@@ -341,10 +355,26 @@ static const WCHAR *Help_TopicLabel(HelpTopic t)
 }
 
 /* ================================================================== */
-/*  Load RTF into RichEdit                                              */
+/*  RtfStream  (static)                                                */
+/*  Purpose: Streaming state struct passed as the cookie to            */
+/*           RtfCallback so successive EM_STREAMIN chunks are fed      */
+/*           from a static RTF source string without copying.          */
+/*  In:  data — pointer to a null-terminated RTF source string        */
+/*       pos  — current byte offset into data (advanced by callback)  */
+/*  Out: (struct value — consumed by RtfCallback via cookie pointer)   */
 /* ================================================================== */
 typedef struct { const char *data; DWORD pos; } RtfStream;
 
+/* ================================================================== */
+/*  RtfCallback  (static)                                              */
+/*  Purpose: EDITSTREAMCALLBACK that supplies successive chunks of RTF */
+/*           bytes to the RichEdit EM_STREAMIN mechanism.              */
+/*  In:  cookie — pointer to an RtfStream holding the RTF source      */
+/*       buf    — output buffer to fill with RTF bytes                 */
+/*       cb     — maximum bytes to write into buf                      */
+/*       read   — receives the number of bytes actually written        */
+/*  Out: 0 always (non-zero signals a streaming error to RichEdit)     */
+/* ================================================================== */
 static DWORD CALLBACK RtfCallback(DWORD_PTR cookie, LPBYTE buf,
                                    LONG cb, LONG *read)
 {
@@ -356,6 +386,15 @@ static DWORD CALLBACK RtfCallback(DWORD_PTR cookie, LPBYTE buf,
     return 0;
 }
 
+/* ================================================================== */
+/*  Help_LoadTopic  (static)                                           */
+/*  Purpose: Replaces the content of a RichEdit control with the RTF   */
+/*           for the given help topic via EM_STREAMIN, then scrolls    */
+/*           the control back to the top.                              */
+/*  In:  hEdit — handle to the RichEdit control                        */
+/*       topic — topic whose RTF string Help_GetRTF returns            */
+/*  Out: (void — control content replaced; scroll position reset)      */
+/* ================================================================== */
 static void Help_LoadTopic(HWND hEdit, HelpTopic topic)
 {
     const char *rtf = Help_GetRTF(topic);
@@ -368,7 +407,15 @@ static void Help_LoadTopic(HWND hEdit, HelpTopic topic)
 }
 
 /* ================================================================== */
-/*  HelpDlgProc                                                         */
+/*  HelpDlgProc  (static)                                              */
+/*  Purpose: Dialog procedure for the in-app help window. On init it   */
+/*           creates a TreeView of topics and a RichEdit display pane, */
+/*           then handles resizing, topic selection, and dark mode.   */
+/*  In:  hwnd — dialog window handle                                   */
+/*       msg  — window message identifier                              */
+/*       wp   — WPARAM (message-dependent)                             */
+/*       lp   — LPARAM (message-dependent)                             */
+/*  Out: TRUE if message handled; FALSE to defer to DefDlgProc         */
 /* ================================================================== */
 static HWND s_hwnd_help = NULL;
 
@@ -488,7 +535,12 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
 }
 
 /* ================================================================== */
-/*  Help_Show — public entry point                                      */
+/*  Help_Show                                                           */
+/*  Purpose: Creates and shows the in-app help dialog, or brings the   */
+/*           existing instance to the foreground if already open.      */
+/*           Enforces a single-instance constraint via s_hwnd_help.   */
+/*  In:  (none)                                                         */
+/*  Out: (void — help window created or focused)                       */
 /* ================================================================== */
 void Help_Show(void)
 {

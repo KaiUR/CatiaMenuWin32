@@ -16,6 +16,19 @@
 #define IS_LOCAL_BUILD 1
 #endif
 
+/* ================================================================== */
+/*  DrawRoundRect  (static)                                            */
+/*  Purpose: Draws a filled rounded rectangle with a border using a   */
+/*           single GDI RoundRect call.  When fill == border, uses    */
+/*           a null pen so the border does not double-draw.            */
+/*  In:  hdc    — target device context                                */
+/*       x, y   — top-left corner                                      */
+/*       w, h   — dimensions in pixels                                  */
+/*       r      — corner ellipse radius                                 */
+/*       fill   — interior fill colour                                  */
+/*       border — outline colour (use same as fill to suppress border) */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,
                            COLORREF fill, COLORREF border)
 {
@@ -32,6 +45,13 @@ static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,
 
 /* ================================================================== */
 /*  Paint_MainWindow                                                    */
+/*  Purpose: Renders the main window background via a double-buffered  */
+/*           memory DC.  Draws the toolbar band, a divider line, and  */
+/*           the app title/version string.  Shows an update-available  */
+/*           badge or a "Syncing…" indicator in the toolbar when active.*/
+/*  In:  hwnd      — main window handle (for client rect)              */
+/*       hdc_paint — device context from BeginPaint (render target)   */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 {
@@ -98,7 +118,13 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 }
 
 /* ================================================================== */
-/*  Paint_ToolbarButton  -  owner-draw for Refresh/Settings/UpdateDeps */
+/*  Paint_ToolbarButton                                                 */
+/*  Purpose: Owner-draw handler for the four toolbar buttons (Menu,    */
+/*           Refresh, Settings, Deps).  Draws a rounded rectangle with */
+/*           pressed/hot/normal background and matching text colour.   */
+/*  In:  dis — DRAWITEMSTRUCT provided by WM_DRAWITEM (contains DC,    */
+/*             item state, and button label text)                       */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 {
@@ -140,6 +166,17 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 
 /* ================================================================== */
 /*  Paint_ScriptButton                                                  */
+/*  Purpose: Renders a single script button with a main click zone and */
+/*           an "i" info zone on the right.  Hot/pressed states change */
+/*           the background and accent bar.  Shows script name in bold */
+/*           and purpose as a smaller subtitle when available.         */
+/*  In:  hwnd_btn  — button window handle (for client rect)            */
+/*       hdc       — DC to render into (may be from DRAWITEMSTRUCT)    */
+/*       hot       — true when the mouse is over the main click zone   */
+/*       pressed   — true when left button is held                     */
+/*       info_hot  — true when the mouse is over the "i" zone          */
+/*       s         — pointer to the Script to display (may be NULL)    */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
                          bool hot, bool pressed, bool info_hot,
@@ -204,7 +241,12 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
 }
 
 /* ================================================================== */
-/*  Tip_ComputeHeight  -  measure description word-wrap height         */
+/*  Tip_ComputeHeight  (static)                                        */
+/*  Purpose: Calculates the required pixel height for the tooltip popup */
+/*           based on the fixed header rows plus the word-wrapped       */
+/*           height of the description text (if any).                  */
+/*  In:  s — script whose metadata drives the height calculation        */
+/*  Out: total pixel height for the tooltip window                      */
 /* ================================================================== */
 static int Tip_ComputeHeight(const Script *s)
 {
@@ -232,6 +274,12 @@ static int Tip_ComputeHeight(const Script *s)
 
 /* ================================================================== */
 /*  Paint_Tooltip                                                       */
+/*  Purpose: Renders the floating tooltip popup for the script under   */
+/*           the "i" button.  Draws a bordered panel with Script,      */
+/*           Purpose, Author, Version, Date rows, and a word-wrapped   */
+/*           description block below a divider line.                   */
+/*  In:  hwnd — the CMW32Tip popup window handle (provides client rect)*/
+/*  Out: (void — paints directly to the window via BeginPaint/EndPaint)*/
 /* ================================================================== */
 void Paint_Tooltip(HWND hwnd)
 {
@@ -310,6 +358,12 @@ done:
 
 /* ================================================================== */
 /*  TipWndProc                                                          */
+/*  Purpose: Redundant tooltip window procedure — kept for symmetry.   */
+/*           The active tooltip WndProc is TipWndProcInternal in       */
+/*           window.c; this proc is not registered but may be used if  */
+/*           the class is re-registered in a different code path.      */
+/*  In:  hwnd — tooltip window; msg/wp/lp — standard WndProc params   */
+/*  Out: 0 for WM_PAINT / WM_ERASEBKGND; DefWindowProc for others     */
 /* ================================================================== */
 LRESULT CALLBACK TipWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -321,7 +375,19 @@ LRESULT CALLBACK TipWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 /* ================================================================== */
-/*  BtnSubclassProc  -  hover + info zone + resize tooltip             */
+/*  BtnSubclassProc                                                     */
+/*  Purpose: SetWindowSubclass callback installed on every script button*/
+/*           (via Tabs_RebuildButtons).  Manages hot-tracking, tooltip  */
+/*           show/hide with dynamic sizing, right-click context menu   */
+/*           (Details, Run with Args, Favourite, Note, Hide), and left- */
+/*           click suppression when the click lands on the "i" zone.   */
+/*  In:  hwnd — subclassed button window                               */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM                                                  */
+/*       lp   — LPARAM (mouse coords for WM_MOUSEMOVE / WM_LBUTTONUP)  */
+/*       uid  — subclass ID = button control ID (IDC_SCRIPT_BTN_BASE+i)*/
+/*       data — (unused)                                               */
+/*  Out: LRESULT — 0 for suppressed messages; DefSubclassProc otherwise*/
 /* ================================================================== */
 LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
                                    LPARAM lp, UINT_PTR uid, DWORD_PTR data)
@@ -503,7 +569,14 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
 }
 
 /* ================================================================== */
-/*  Paint_Tab  -  owner-draw for tab control items                     */
+/*  Paint_Tab                                                           */
+/*  Purpose: Owner-draw handler for individual native TABCTRL items    */
+/*           (legacy path, unused while CMW32TabBar is active).        */
+/*           Draws the tab background, an accent top-line for the      */
+/*           selected tab, and the label text.                          */
+/*  In:  dis — DRAWITEMSTRUCT from WM_DRAWITEM (contains DC, item ID,  */
+/*             and selection state)                                     */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_Tab(DRAWITEMSTRUCT *dis)
 {
