@@ -75,12 +75,16 @@ jobs:
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
         # CMake already incremented build_number.txt during configure above
+        # Read the incremented value BEFORE git checkout resets it
         BUILD_NUM=$(cat build_number.txt)
         echo "BUILD_NUM=$BUILD_NUM" >> $GITHUB_ENV
         echo "Build number: $BUILD_NUM"
 
         git fetch origin main
         git checkout -B main origin/main
+
+        # Restore the incremented value that git checkout just overwrote
+        echo "$BUILD_NUM" > build_number.txt
 
         git add build_number.txt CONTRIBUTORS.md
 
