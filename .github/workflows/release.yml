@@ -68,15 +68,36 @@ jobs:
 
     - name: Sign binary
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: skymatic/code-sign-action@v1
-      with:
-        certificate: '${{ secrets.CERTIFICATE }}'
-        password: '${{ secrets.PASSWORD }}'
-        certificatesha1: '${{ secrets.CERTHASH }}'
-        certificatename: '${{ secrets.CERTNAME }}'
-        folder: '${{ github.workspace }}/build'
-        recursive: false
-        timestampUrl: 'http://timestamp.digicert.com'
+      shell: pwsh
+      run: |
+        $exePath = "${{ github.workspace }}\build\CatiaMenuWin32.exe"
+        if (-not (Test-Path $exePath)) {
+          Write-Error "Binary not found at $exePath"
+          Get-ChildItem "${{ github.workspace }}\build" -Recurse | Select-Object FullName
+          exit 1
+        }
+
+        # Decode and import certificate into the machine store
+        $certBytes = [Convert]::FromBase64String("${{ secrets.CERTIFICATE }}")
+        $certPath  = "$env:TEMP\cert.pfx"
+        [IO.File]::WriteAllBytes($certPath, $certBytes)
+        $pwd = ConvertTo-SecureString "${{ secrets.PASSWORD }}" -AsPlainText -Force
+        Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\LocalMachine\My -Password $pwd | Out-Null
+        Remove-Item $certPath -Force
+
+        # Find the newest x64 signtool
+        $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+                    Where-Object { $_.FullName -match "x64" } |
+                    Sort-Object FullName -Descending |
+                    Select-Object -First 1 -ExpandProperty FullName
+        Write-Host "signtool: $signtool"
+
+        & $signtool sign /sm `
+            /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 `
+            /sha1 "${{ secrets.CERTHASH }}" `
+            /n   "${{ secrets.CERTNAME }}" `
+            $exePath
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     - name: Read build number and commit
       if: startsWith(github.ref, 'refs/tags/v')
