@@ -136,17 +136,6 @@ All communication with GitHub is secured at two levels:
 
 **SHA verification** — before any script is executed, its local file SHA is computed using Git's blob SHA format (`SHA1("blob <size>\0<content>")`) and compared against the SHA returned by the GitHub API. If they don't match, a warning is shown and the script is blocked until re-downloaded and verified.
 
-## 🔏 Code Signing Policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io),
-certificate by [SignPath Foundation](https://signpath.org).
-
-| Role | Member |
-|------|--------|
-| Committers, Reviewers and Approvers | [KaiUR](https://github.com/KaiUR) |
-
-This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. The only external connections made are to `api.github.com` and `raw.githubusercontent.com` to sync scripts and check for updates, and only when explicitly triggered by the user or enabled in settings.
-
 ## 🛠️ Built With
 
 - **Language**: C (C11)
