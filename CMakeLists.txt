@@ -49,6 +49,12 @@ endif()
 
 project(CatiaMenuWin32 VERSION ${APP_VERSION} LANGUAGES C RC)
 
+# Static CRT: prevents lld-link embedding a Microsoft.VC*.CRT SxS dependency
+# in the manifest, which would require the VC++ Redistributable on end-user machines.
+if(NOT MINGW)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # --- Build Number ---
