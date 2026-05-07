@@ -103,9 +103,15 @@ target_include_directories(CatiaMenuWin32 PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# --- RC include path so windres finds app_icon.ico and app.manifest ---
+# --- RC include path so the RC compiler finds app_icon.ico and app.manifest ---
+# windres (MinGW) uses -I; MSVC rc.exe and llvm-rc use /I
+if(CMAKE_RC_COMPILER MATCHES "windres")
+    set(RC_INCLUDE_FLAG "-I")
+else()
+    set(RC_INCLUDE_FLAG "/I")
+endif()
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
-    PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/res"
+    PROPERTIES COMPILE_FLAGS "${RC_INCLUDE_FLAG}${CMAKE_CURRENT_SOURCE_DIR}/res"
 )
 
 # --- Link Libraries ---
@@ -114,7 +120,11 @@ target_link_libraries(CatiaMenuWin32 PRIVATE
     wininet shell32 shlwapi uxtheme dwmapi crypt32
 )
 
+# Ensure Unicode entry point is used on all Windows toolchains
+target_compile_definitions(CatiaMenuWin32 PRIVATE UNICODE _UNICODE)
+
 if(MINGW)
+    # MinGW: -municode sets the Unicode CRT entry and defines UNICODE/_UNICODE
     target_compile_options(CatiaMenuWin32 PRIVATE -municode)
     target_link_options(CatiaMenuWin32 PRIVATE
         -mwindows

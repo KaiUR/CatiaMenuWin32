@@ -636,7 +636,7 @@ apply_theme:
         typedef NTSTATUS (WINAPI *RtlGetVersion_t)(OSVERSIONINFOEXW *);
         HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
         if (hNtdll) {
-            RtlGetVersion_t fn = (RtlGetVersion_t)GetProcAddress(hNtdll, "RtlGetVersion");
+            RtlGetVersion_t fn = (RtlGetVersion_t)(INT_PTR)GetProcAddress(hNtdll, "RtlGetVersion");
             if (fn) fn(&osvi);
         }
         _snwprintf_s(win_ver, 63, _TRUNCATE, L"Windows %lu.%lu build %lu",
