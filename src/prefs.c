@@ -10,14 +10,27 @@
 #include "main.h"
 
 /* ================================================================== */
-/*  Helpers                                                             */
+/*  Prefs_GetPath  (static)                                            */
+/*  Purpose: Builds the full path to prefs.ini in %APPDATA%\           */
+/*           CatiaMenuWin32\ and stores it in out.                     */
+/*  In:  out — buffer to receive the path                              */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: (void — out is populated)                                      */
 /* ================================================================== */
 static void Prefs_GetPath(WCHAR *out, int max)
 {
     _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, PREFS_FILE);
 }
 
-/* Encode gh_path as an INI key (replace \ and / with _) */
+/* ================================================================== */
+/*  PathToKey  (static)                                                */
+/*  Purpose: Converts a GitHub path string into a safe INI key by      */
+/*           replacing backslashes and forward slashes with underscores.*/
+/*  In:  path — GitHub-relative path (e.g. "FolderA/script.py")       */
+/*       key  — buffer to receive the sanitised key                    */
+/*       max  — capacity of key in WCHARs                              */
+/*  Out: (void — key is populated)                                      */
+/* ================================================================== */
 static void PathToKey(const WCHAR *path, WCHAR *key, int max)
 {
     wcsncpy(key, path, max - 1);
@@ -27,7 +40,11 @@ static void PathToKey(const WCHAR *path, WCHAR *key, int max)
 }
 
 /* ================================================================== */
-/*  Prefs_IsFavourite / Prefs_SetFavourite                             */
+/*  Prefs_IsFavourite                                                   */
+/*  Purpose: Returns true if the script identified by gh_path is       */
+/*           marked as a favourite in prefs.ini.                       */
+/*  In:  gh_path — GitHub-relative script path used as identity key    */
+/*  Out: true if favourited; false otherwise                            */
 /* ================================================================== */
 bool Prefs_IsFavourite(const WCHAR *gh_path)
 {
@@ -37,6 +54,14 @@ bool Prefs_IsFavourite(const WCHAR *gh_path)
     return GetPrivateProfileInt(L"Favourites", key, 0, ini) != 0;
 }
 
+/* ================================================================== */
+/*  Prefs_SetFavourite                                                  */
+/*  Purpose: Writes the favourite flag for the given script to         */
+/*           prefs.ini immediately.                                     */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*       fav     — true to mark as favourite; false to unmark          */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Prefs_SetFavourite(const WCHAR *gh_path, bool fav)
 {
     WCHAR ini[MAX_APPPATH], key[MAX_APPPATH];
@@ -46,7 +71,11 @@ void Prefs_SetFavourite(const WCHAR *gh_path, bool fav)
 }
 
 /* ================================================================== */
-/*  Prefs_IsHidden / Prefs_SetHidden                                   */
+/*  Prefs_IsHidden                                                      */
+/*  Purpose: Returns true if the script identified by gh_path is       */
+/*           marked as hidden in prefs.ini.                            */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*  Out: true if hidden; false otherwise                                */
 /* ================================================================== */
 bool Prefs_IsHidden(const WCHAR *gh_path)
 {
@@ -56,6 +85,13 @@ bool Prefs_IsHidden(const WCHAR *gh_path)
     return GetPrivateProfileInt(L"Hidden", key, 0, ini) != 0;
 }
 
+/* ================================================================== */
+/*  Prefs_SetHidden                                                     */
+/*  Purpose: Writes the hidden flag for the given script to prefs.ini. */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*       hidden  — true to hide; false to unhide                       */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Prefs_SetHidden(const WCHAR *gh_path, bool hidden)
 {
     WCHAR ini[MAX_APPPATH], key[MAX_APPPATH];
@@ -65,7 +101,11 @@ void Prefs_SetHidden(const WCHAR *gh_path, bool hidden)
 }
 
 /* ================================================================== */
-/*  Prefs_GetRunCount / Prefs_IncrementRunCount                        */
+/*  Prefs_GetRunCount                                                   */
+/*  Purpose: Returns the number of times the script has been run,      */
+/*           as stored in prefs.ini under the [RunCount] section.      */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*  Out: run count (0 if not yet stored)                                */
 /* ================================================================== */
 int Prefs_GetRunCount(const WCHAR *gh_path)
 {
@@ -75,6 +115,13 @@ int Prefs_GetRunCount(const WCHAR *gh_path)
     return GetPrivateProfileInt(L"RunCount", key, 0, ini);
 }
 
+/* ================================================================== */
+/*  Prefs_IncrementRunCount                                             */
+/*  Purpose: Reads the current run count for a script from prefs.ini,  */
+/*           increments it by one, and writes it back immediately.     */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Prefs_IncrementRunCount(const WCHAR *gh_path)
 {
     WCHAR ini[MAX_APPPATH], key[MAX_APPPATH], val[16];
@@ -86,7 +133,13 @@ void Prefs_IncrementRunCount(const WCHAR *gh_path)
 }
 
 /* ================================================================== */
-/*  Prefs_GetNote / Prefs_SetNote                                       */
+/*  Prefs_GetNote                                                       */
+/*  Purpose: Reads the user-written note for a script from prefs.ini  */
+/*           into the provided buffer.                                  */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*       note    — buffer to receive the note text                     */
+/*       max     — capacity of note in WCHARs                          */
+/*  Out: (void — note is populated; empty string if no note stored)    */
 /* ================================================================== */
 void Prefs_GetNote(const WCHAR *gh_path, WCHAR *note, int max)
 {
@@ -96,6 +149,13 @@ void Prefs_GetNote(const WCHAR *gh_path, WCHAR *note, int max)
     GetPrivateProfileString(L"Notes", key, L"", note, max, ini);
 }
 
+/* ================================================================== */
+/*  Prefs_SetNote                                                       */
+/*  Purpose: Writes a user note for the given script to prefs.ini.    */
+/*  In:  gh_path — GitHub-relative script path                         */
+/*       note    — note text to store                                   */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Prefs_SetNote(const WCHAR *gh_path, const WCHAR *note)
 {
     WCHAR ini[MAX_APPPATH], key[MAX_APPPATH];
@@ -106,16 +166,25 @@ void Prefs_SetNote(const WCHAR *gh_path, const WCHAR *note)
 
 /* ================================================================== */
 /*  Prefs_Load / Prefs_Save                                             */
-/*  These exist for bulk operations - individual reads/writes are       */
-/*  done directly via the INI functions above.                          */
+/*  Purpose: Exist for API symmetry.  All prefs reads are lazy (called */
+/*           per script on demand) and all writes are immediate.       */
+/*           No bulk load or save is needed.                           */
+/*  In:  (none)                                                         */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 void Prefs_Load(void)  { /* INI reads are lazy - no bulk load needed */ }
 void Prefs_Save(void)  { /* INI writes are immediate - no bulk save needed */ }
 
 /* ================================================================== */
 /*  Prefs_ApplyToFolders                                                */
-/*  Applies favourite, hidden and run_count from prefs.ini to all       */
-/*  scripts currently in g.folders[].                                   */
+/*  Purpose: Reads favourite, hidden, run_count, and note from         */
+/*           prefs.ini for every script in g.folders[] and writes the  */
+/*           values into the Script struct fields.  Called after a     */
+/*           sync or on startup to merge persisted prefs with the      */
+/*           in-memory script list.                                    */
+/*  In:  (reads g.folders[], g.folder_count)                           */
+/*  Out: (void — updates is_favourite, is_hidden, run_count, note      */
+/*               fields in each Script)                                */
 /* ================================================================== */
 void Prefs_ApplyToFolders(void)
 {
@@ -133,8 +202,13 @@ void Prefs_ApplyToFolders(void)
 
 /* ================================================================== */
 /*  Tabs_BuildFavourites                                                */
-/*  Builds a synthetic "Favourites" folder from all favourited scripts. */
-/*  Called after Prefs_ApplyToFolders. Inserts at index 0.             */
+/*  Purpose: Builds (or rebuilds) the synthetic "Favourites" folder at */
+/*           index 0 of g.folders[] from all non-hidden, favourited   */
+/*           scripts across the other folders.  Removes any existing  */
+/*           Favourites tab first to avoid duplicates.  No-op if no   */
+/*           scripts are favourited.                                   */
+/*  In:  (reads g.folders[], g.folder_count; writes g.folders[0])      */
+/*  Out: (void — may increment g.folder_count by 1)                    */
 /* ================================================================== */
 void Tabs_BuildFavourites(void)
 {
@@ -180,8 +254,8 @@ void Tabs_BuildFavourites(void)
        Do NOT free it — g.folders[1] still owns that memory.
        Just zero out this slot and allocate fresh for the favourites. */
     ZeroMemory(fav, sizeof(*fav));
-    wcscpy(fav->name,    L"Favourites");
-    wcscpy(fav->display, L"\u2605 Favourites");
+    wcsncpy(fav->name,    L"Favourites",       MAX_NAME - 1);
+    wcsncpy(fav->display, L"\u2605 Favourites", MAX_NAME - 1);
     fav->loaded = true;
     Folder_Alloc(fav, fav_count > 0 ? fav_count : 8);
 
@@ -197,6 +271,15 @@ void Tabs_BuildFavourites(void)
 
 /* ================================================================== */
 /*  ScriptDetailsDlgProc                                                */
+/*  Purpose: Dialog procedure for IDD_SCRIPT_DETAILS.  Displays all   */
+/*           metadata fields, note, local path, and favourite/hidden   */
+/*           checkboxes for a script.  IDOK saves note, favourite, and */
+/*           hidden changes to prefs.ini and to the Script struct.     */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (control ID on WM_COMMAND)                      */
+/*       lp   — LPARAM on WM_INITDIALOG: pointer to the Script         */
+/*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK ScriptDetailsDlgProc(HWND hwnd, UINT msg,
                                        WPARAM wp, LPARAM lp)
@@ -267,6 +350,14 @@ INT_PTR CALLBACK ScriptDetailsDlgProc(HWND hwnd, UINT msg,
 
 /* ================================================================== */
 /*  RunWithArgsDlgProc                                                  */
+/*  Purpose: Dialog procedure for IDD_RUN_ARGS.  Displays the script   */
+/*           name in the title and provides an edit box for extra      */
+/*           arguments.  The caller reads IDC_EDIT_ARGS after IDOK.   */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM                                                  */
+/*       lp   — LPARAM on WM_INITDIALOG: pointer to the Script         */
+/*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
                                      WPARAM wp, LPARAM lp)
@@ -298,6 +389,14 @@ INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
 
 /* ================================================================== */
 /*  ScriptNoteDlgProc                                                   */
+/*  Purpose: Dialog procedure for IDD_SCRIPT_NOTE.  Populates the note */
+/*           edit box on WM_INITDIALOG; IDOK saves the note back to   */
+/*           the Script struct and to prefs.ini.                       */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM                                                  */
+/*       lp   — LPARAM on WM_INITDIALOG: pointer to the Script         */
+/*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK ScriptNoteDlgProc(HWND hwnd, UINT msg,
                                     WPARAM wp, LPARAM lp)
@@ -334,7 +433,16 @@ INT_PTR CALLBACK ScriptNoteDlgProc(HWND hwnd, UINT msg,
 
 /* ================================================================== */
 /*  HiddenScriptsDlgProc                                                */
-/*  Shows a list of all hidden scripts with an Unhide button.           */
+/*  Purpose: Dialog procedure for IDD_HIDDEN_SCRIPTS.  Populates a    */
+/*           ListView with all currently hidden scripts, along with    */
+/*           their folder name.  The Unhide and Unhide All buttons     */
+/*           clear the hidden flag in the Script struct and in         */
+/*           prefs.ini and remove the row from the list.               */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (button ID on WM_COMMAND)                       */
+/*       lp   — LPARAM (unused)                                        */
+/*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK HiddenScriptsDlgProc(HWND hwnd, UINT msg,
                                        WPARAM wp, LPARAM lp)

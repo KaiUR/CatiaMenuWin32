@@ -1,16 +1,33 @@
 /*
  * settings.c  -  Settings load/save, autorun, dialogs.
  * CatiaMenuWin32
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #include "main.h"
 
+/* ================================================================== */
+/*  IniPath  (static)                                                  */
+/*  Purpose: Builds the full path to settings.ini in %APPDATA%\       */
+/*           CatiaMenuWin32\ and stores it in out.                     */
+/*  In:  out — buffer to receive the path                              */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: (void — out is populated)                                      */
+/* ================================================================== */
 static void IniPath(WCHAR *out, int max) {
     _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, SETTINGS_FILE);
 }
 
 /* ================================================================== */
 /*  Settings_Load                                                       */
+/*  Purpose: Reads all application settings from settings.ini into the */
+/*           provided Settings struct.  Applies defaults for missing   */
+/*           keys (auto-sync on, 6-hour refresh, system theme, etc.)  */
+/*           and auto-detects Python if no path is stored.             */
+/*  In:  s — pointer to the Settings struct to populate                */
+/*  Out: (void — s is fully initialised on return)                     */
 /* ================================================================== */
 void Settings_Load(Settings *s)
 {
@@ -41,7 +58,7 @@ void Settings_Load(Settings *s)
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
-        if (!s->extra_repos[i].branch[0]) wcscpy(s->extra_repos[i].branch, L"main");
+        if (!s->extra_repos[i].branch[0]) wcsncpy(s->extra_repos[i].branch, L"main", 63);
     }
 
     /* Local dirs */
@@ -69,6 +86,10 @@ void Settings_Load(Settings *s)
 
 /* ================================================================== */
 /*  Settings_Save                                                       */
+/*  Purpose: Writes every field in the Settings struct back to         */
+/*           settings.ini using WritePrivateProfileString/Int.         */
+/*  In:  s — Settings struct to persist (const, not modified)          */
+/*  Out: (void — settings.ini is updated on disk)                      */
 /* ================================================================== */
 void Settings_Save(const Settings *s)
 {
@@ -122,6 +143,13 @@ void Settings_Save(const Settings *s)
 
 /* ================================================================== */
 /*  Settings_ApplyAutorun                                               */
+/*  Purpose: Adds or removes the application from the Windows startup  */
+/*           registry key (HKCU\…\Run).  When enable is true and      */
+/*           minimized is true the /minimized flag is appended to the  */
+/*           command so wWinMain hides directly to tray.               */
+/*  In:  enable    — true to add the autorun entry; false to remove    */
+/*       minimized — when true, appends /minimized to the command      */
+/*  Out: (void — registry entry is created or deleted)                 */
 /* ================================================================== */
 void Settings_ApplyAutorun(bool enable, bool minimized)
 {
@@ -148,6 +176,16 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
 
 /* ================================================================== */
 /*  SettingsDlgProc                                                     */
+/*  Purpose: Dialog procedure for the Settings dialog (IDD_SETTINGS).  */
+/*           WM_INITDIALOG populates all controls from g.cfg; IDOK     */
+/*           reads them back and calls Settings_Save.  Handles browse  */
+/*           buttons for Python and cache folder, the token enable     */
+/*           checkbox, and the Reset to Defaults button.               */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (control ID / notification code in LOWORD/HIWORD)*/
+/*       lp   — LPARAM (unused)                                        */
+/*  Out: INT_PTR — TRUE for handled messages; FALSE otherwise          */
 /* ================================================================== */
 INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -300,6 +338,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 /* ================================================================== */
 /*  AboutDlgProc                                                        */
+/*  Purpose: Dialog procedure for the About dialog (IDD_ABOUT).        */
+/*           No dynamic content; dismisses on OK or Cancel.            */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (IDOK / IDCANCEL on WM_COMMAND)                 */
+/*       lp   — LPARAM (unused)                                        */
+/*  Out: INT_PTR — TRUE for handled messages; FALSE otherwise          */
 /* ================================================================== */
 INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {

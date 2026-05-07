@@ -8,6 +8,15 @@
 
 #include "main.h"
 
+/* ================================================================== */
+/*  Window_ApplyDarkMode                                                */
+/*  Purpose: Applies the immersive dark-mode DWM attribute to a window */
+/*           so that the title bar, borders, and system controls match  */
+/*           the current theme.  Called on window creation and after   */
+/*           theme changes.                                            */
+/*  In:  hwnd — window to apply dark mode to                           */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_ApplyDarkMode(HWND hwnd)
 {
     BOOL dark = g.dark_mode ? TRUE : FALSE;
@@ -15,6 +24,13 @@ void Window_ApplyDarkMode(HWND hwnd)
     DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
 }
 
+/* ================================================================== */
+/*  Window_OpenExeFolder                                                */
+/*  Purpose: Opens the folder containing the running executable in the */
+/*           Windows Explorer shell.                                   */
+/*  In:  (none — uses GetModuleFileNameW to locate the .exe)           */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_OpenExeFolder(void)
 {
     WCHAR exe_path[MAX_APPPATH] = {0};
@@ -23,6 +39,14 @@ void Window_OpenExeFolder(void)
     ShellExecute(NULL, L"open", exe_path, NULL, NULL, SW_SHOW);
 }
 
+/* ================================================================== */
+/*  Window_ApplyThemeToChildren                                         */
+/*  Purpose: Propagates the current theme to all child controls by     */
+/*           resetting the status bar's visual style and invalidating  */
+/*           the tab bar, status bar, and the whole window hierarchy.  */
+/*  In:  hwnd — parent window (main window)                            */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_ApplyThemeToChildren(HWND hwnd)
 {
     SetWindowTheme(g.hwnd_status, L"", L"");
@@ -31,8 +55,24 @@ void Window_ApplyThemeToChildren(HWND hwnd)
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
+/* ================================================================== */
+/*  Window_ApplyDarkMenu                                                */
+/*  Purpose: Placeholder for future dark-mode menu colouring.          */
+/*           Win32 popup menus do not support owner-draw colouring on  */
+/*           all Windows versions; reserved for future implementation. */
+/*  In:  hwnd — (unused)                                               */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_ApplyDarkMenu(HWND hwnd) { (void)hwnd; }
 
+/* ================================================================== */
+/*  Window_ApplyAlwaysOnTop                                             */
+/*  Purpose: Sets or clears the always-on-top (TOPMOST) window flag    */
+/*           based on g.cfg.always_on_top.  Called after settings     */
+/*           change and after the window becomes visible.              */
+/*  In:  (reads g.cfg.always_on_top and g.hwnd)                        */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_ApplyAlwaysOnTop(void)
 {
     HWND z = g.cfg.always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST;
@@ -42,6 +82,14 @@ void Window_ApplyAlwaysOnTop(void)
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
 }
 
+/* ================================================================== */
+/*  Window_ShowMenu                                                     */
+/*  Purpose: Builds and displays the full hamburger popup menu aligned  */
+/*           below the Menu toolbar button.  Includes File, Run, View, */
+/*           Window, and Help sub-menus with current checkmarks.       */
+/*  In:  (reads g.cfg, g.hwnd for positioning)                         */
+/*  Out: (void — menu is destroyed after TrackPopupMenu returns)       */
+/* ================================================================== */
 void Window_ShowMenu(void)
 {
     HMENU hm     = CreatePopupMenu();
@@ -126,6 +174,13 @@ void Window_ShowMenu(void)
     DestroyMenu(hm);
 }
 
+/* ================================================================== */
+/*  Window_AddTrayIcon                                                  */
+/*  Purpose: Adds the application icon to the Windows system tray      */
+/*           notification area.  No-op if the icon is already present. */
+/*  In:  (reads g.hwnd, g.tray_icon_added)                             */
+/*  Out: (void — sets g.tray_icon_added = true on success)             */
+/* ================================================================== */
 void Window_AddTrayIcon(void)
 {
     if (g.tray_icon_added) return;
@@ -137,11 +192,18 @@ void Window_AddTrayIcon(void)
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon            = LoadIcon(GetModuleHandle(NULL),
                                     MAKEINTRESOURCE(IDI_APP_ICON));
-    wcscpy(nid.szTip, APP_TITLE);
+    wcsncpy(nid.szTip, APP_TITLE, _countof(nid.szTip) - 1);
     Shell_NotifyIcon(NIM_ADD, &nid);
     g.tray_icon_added = true;
 }
 
+/* ================================================================== */
+/*  Window_RemoveTrayIcon                                               */
+/*  Purpose: Removes the application icon from the system tray.        */
+/*           No-op if the icon was not previously added.               */
+/*  In:  (reads g.hwnd, g.tray_icon_added)                             */
+/*  Out: (void — sets g.tray_icon_added = false)                       */
+/* ================================================================== */
 void Window_RemoveTrayIcon(void)
 {
     if (!g.tray_icon_added) return;
@@ -151,6 +213,13 @@ void Window_RemoveTrayIcon(void)
     g.tray_icon_added = false;
 }
 
+/* ================================================================== */
+/*  Window_ShowTrayMenu                                                 */
+/*  Purpose: Displays a minimal right-click context menu at the cursor  */
+/*           position when the user right-clicks the tray icon.        */
+/*  In:  (reads g.hwnd for ownership)                                   */
+/*  Out: (void — menu is destroyed after TrackPopupMenu returns)       */
+/* ================================================================== */
 void Window_ShowTrayMenu(void)
 {
     HMENU hm = CreatePopupMenu();
@@ -165,8 +234,14 @@ void Window_ShowTrayMenu(void)
 }
 
 /* ── Tab bar helpers ─────────────────────────────────────────────── */
-/* Compute how many tabs fit in the available width                    */
-/* Compute natural width of a tab from its label text */
+
+/* ================================================================== */
+/*  TabBar_NaturalWidth  (static)                                      */
+/*  Purpose: Measures the pixel width needed to display a tab label    */
+/*           at the UI bold font width, plus 14 px padding each side. */
+/*  In:  label — tab display string                                     */
+/*  Out: pixel width required for the tab                              */
+/* ================================================================== */
 static int TabBar_NaturalWidth(const WCHAR *label)
 {
     /* Use a temporary DC to measure text with the UI font */
@@ -179,7 +254,15 @@ static int TabBar_NaturalWidth(const WCHAR *label)
     return sz.cx + 28; /* 14px padding each side */
 }
 
-/* How many tabs fit starting from offset, given bar_w with arrows */
+/* ================================================================== */
+/*  TabBar_CountFit  (static)                                          */
+/*  Purpose: Counts how many tabs fit in the available bar width when  */
+/*           starting from tab_offset, accounting for arrow buttons.  */
+/*  In:  bar_w       — total pixel width of the tab bar               */
+/*       offset      — first visible tab index                         */
+/*       with_arrows — whether scroll arrows consume space             */
+/*  Out: number of tabs that fit                                        */
+/* ================================================================== */
 static int TabBar_CountFit(int bar_w, int offset, bool with_arrows)
 {
     int avail = with_arrows ? bar_w - 2 * TAB_ARROW_W : bar_w;
@@ -194,7 +277,13 @@ static int TabBar_CountFit(int bar_w, int offset, bool with_arrows)
     return count;
 }
 
-/* Returns true if arrows are needed */
+/* ================================================================== */
+/*  TabBar_NeedsArrows  (static)                                       */
+/*  Purpose: Determines whether the tab bar requires scroll arrow      */
+/*           buttons by checking if all tabs fit without arrows.       */
+/*  In:  bar_w — total pixel width of the tab bar                      */
+/*  Out: true if not all tabs fit (arrows needed); false otherwise      */
+/* ================================================================== */
 static bool TabBar_NeedsArrows(int bar_w)
 {
     if (g.folder_count <= 0) return false;
@@ -205,6 +294,18 @@ static bool TabBar_NeedsArrows(int bar_w)
     return total > bar_w;
 }
 
+/* ================================================================== */
+/*  TabBarProc  (static)                                               */
+/*  Purpose: Window procedure for the custom CMW32TabBar control.      */
+/*           Handles painting (tabs with accent underline, scroll      */
+/*           arrows), left-click tab selection, arrow clicks, and      */
+/*           mouse-wheel scrolling.                                    */
+/*  In:  hwnd — tab bar window handle                                  */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (wheel delta, mouse coords, etc.)               */
+/*       lp   — LPARAM (mouse coords, etc.)                            */
+/*  Out: LRESULT — 0 for handled messages; DefWindowProc result        */
+/* ================================================================== */
 static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                                     WPARAM wp, LPARAM lp)
 {
@@ -401,6 +502,19 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
+/* ================================================================== */
+/*  StatusBarProc  (static)                                            */
+/*  Purpose: Window procedure for the custom CMW32StatusBar control.   */
+/*           Handles owner-draw painting (toolbar background, divider  */
+/*           line, small grey text) and the SB_SETTEXT / SB_GETTEXT   */
+/*           messages forwarded from the main window.                  */
+/*  In:  hwnd — status bar window handle                               */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM                                                  */
+/*       lp   — LPARAM (SB_SETTEXT: pointer to text string)            */
+/*  Out: LRESULT — TRUE for SB_SETTEXT; text length for SB_GETTEXT;   */
+/*                 0 for paint; DefWindowProc for unhandled messages   */
+/* ================================================================== */
 static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
                                        WPARAM wp, LPARAM lp)
 {
@@ -455,6 +569,17 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
+/* ================================================================== */
+/*  TipWndProcInternal  (static)                                       */
+/*  Purpose: Minimal window procedure for the CMW32Tip tooltip popup.  */
+/*           Delegates all painting to Paint_Tooltip and suppresses    */
+/*           background erase to prevent flicker.                      */
+/*  In:  hwnd — tooltip popup window handle                            */
+/*       msg  — Windows message                                        */
+/*       wp, lp — message parameters (unused for paint/erase)         */
+/*  Out: LRESULT — 0 for WM_PAINT / WM_ERASEBKGND; DefWindowProc      */
+/*                 for all other messages                              */
+/* ================================================================== */
 static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
                                             WPARAM wp, LPARAM lp)
 {
@@ -465,6 +590,16 @@ static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
     return DefWindowProc(hwnd, msg, wp, lp);
 }
 
+/* ================================================================== */
+/*  Window_Create                                                       */
+/*  Purpose: Registers all custom window classes (CMW32TabBar,         */
+/*           CMW32StatusBar, CMW32ScrollPanel, CMW32Tip, main class),  */
+/*           creates the main window and all child controls, and       */
+/*           performs initial GDI and layout setup.                    */
+/*  In:  hInst — application instance handle from wWinMain            */
+/*  Out: (void — populates g.hwnd, g.hwnd_tab, g.hwnd_scroll,         */
+/*               g.hwnd_status, g.hwnd_search, g.hwnd_tip)            */
+/* ================================================================== */
 void Window_Create(HINSTANCE hInst)
 {
     App_InitGDI();
@@ -581,6 +716,15 @@ void Window_Create(HINSTANCE hInst)
         0, 0, 300, 160, g.hwnd, NULL, hInst, NULL);
 }
 
+/* ================================================================== */
+/*  Window_OnSize                                                       */
+/*  Purpose: Repositions and resizes all child controls to fill the    */
+/*           main window when it is resized.  Also triggers a button  */
+/*           rebuild so the script grid reflows to the new width.      */
+/*  In:  w — new client width in pixels                                */
+/*       h — new client height in pixels                               */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 void Window_OnSize(int w, int h)
 {
     int tab_y    = TOOLBAR_H + SEARCH_H;

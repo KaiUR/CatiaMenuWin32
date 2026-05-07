@@ -1,6 +1,9 @@
 /*
  * tabs.c  -  Tab control population, script button grid, scroll panel.
  * CatiaMenuWin32
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #include "main.h"
@@ -10,11 +13,13 @@ static HWND s_btns[MAX_SCRIPTS] = {0};
 static int  s_btn_count = 0;
 
 /* ================================================================== */
-/*  Tabs_Build  -  rebuild tab bar from g.folders[]                    */
-/* ================================================================== */
-/* ================================================================== */
 /*  Tabs_ApplyFilter                                                    */
-/*  Hides/shows script buttons based on g.filter_text.                 */
+/*  Purpose: Rebuilds the script button grid for the active tab,       */
+/*           showing only scripts that match g.filter_text.  Delegates */
+/*           to Tabs_RebuildButtons which calls Tabs_ScriptMatchesFilter*/
+/*           per script.                                               */
+/*  In:  (reads g.filter_text, g.active_tab)                           */
+/*  Out: (void — recreates child button windows in g.hwnd_scroll)      */
 /* ================================================================== */
 void Tabs_ApplyFilter(void)
 {
@@ -22,7 +27,14 @@ void Tabs_ApplyFilter(void)
     Tabs_RebuildButtons();
 }
 
-/* Internal: check if a script matches the current filter */
+/* ================================================================== */
+/*  Tabs_ScriptMatchesFilter                                            */
+/*  Purpose: Returns true if the given script's name or purpose field  */
+/*           contains g.filter_text (case-insensitive).  Returns true  */
+/*           when the filter is empty (show all).                      */
+/*  In:  s — pointer to the Script to test                             */
+/*  Out: true if the script matches or filter is empty; false otherwise */
+/* ================================================================== */
 bool Tabs_ScriptMatchesFilter(const Script *s)
 {
     if (g.filter_text[0] == L'\0') return true;
@@ -44,7 +56,10 @@ bool Tabs_ScriptMatchesFilter(const Script *s)
 }
 
 /* ================================================================== */
-/*  Tabs_ApplySort                                                      */
+/*  cmp_alpha / cmp_date / cmp_runs  (static comparators)             */
+/*  Purpose: qsort comparison functions used by Tabs_ApplySort.        */
+/*  In:  a, b — pointers to Script elements being compared             */
+/*  Out: negative / zero / positive per qsort convention               */
 /* ================================================================== */
 static int cmp_alpha(const void *a, const void *b) {
     return _wcsicmp(((Script*)a)->name, ((Script*)b)->name);
@@ -56,6 +71,14 @@ static int cmp_runs(const void *a, const void *b) {
     return ((Script*)b)->run_count - ((Script*)a)->run_count;
 }
 
+/* ================================================================== */
+/*  Tabs_ApplySort                                                      */
+/*  Purpose: Sorts the scripts array of folder fi in-place according   */
+/*           to the global sort mode (g.cfg.sort_mode).  SORT_ORDER   */
+/*           is a no-op (GitHub API / disk order is preserved).        */
+/*  In:  fi — folder index to sort (clamped via bounds check)          */
+/*  Out: (void — f->scripts reordered in place)                        */
+/* ================================================================== */
 void Tabs_ApplySort(int fi)
 {
     if (fi < 0 || fi >= g.folder_count) return;
@@ -68,6 +91,14 @@ void Tabs_ApplySort(int fi)
     }
 }
 
+/* ================================================================== */
+/*  Tabs_Build                                                          */
+/*  Purpose: Signals the custom tab bar to repaint itself from the     */
+/*           current g.folders[] array.  The bar reads folder names   */
+/*           directly; no explicit rebuild is required.                */
+/*  In:  (reads g.folders[], g.folder_count via TabBarProc on repaint) */
+/*  Out: (void — invalidates the tab bar window)                       */
+/* ================================================================== */
 void Tabs_Build(void)
 {
     /* Custom tab bar reads directly from g.folders[] - just repaint */
@@ -76,6 +107,10 @@ void Tabs_Build(void)
 
 /* ================================================================== */
 /*  Tabs_DestroyButtons                                                 */
+/*  Purpose: Destroys all script button child windows in the scroll    */
+/*           panel and resets the button count and scroll state.       */
+/*  In:  (reads s_btns[], s_btn_count)                                 */
+/*  Out: (void — s_btn_count = 0, g.scroll_y = g.scroll_max = 0)      */
 /* ================================================================== */
 void Tabs_DestroyButtons(void)
 {
@@ -90,6 +125,11 @@ void Tabs_DestroyButtons(void)
 
 /* ================================================================== */
 /*  Tabs_Switch                                                         */
+/*  Purpose: Activates the tab at index idx, repaints the tab bar to   */
+/*           show the new selection, and rebuilds the script button    */
+/*           grid for the newly active folder.                         */
+/*  In:  idx — folder index to make active (validated before use)      */
+/*  Out: (void — sets g.active_tab, triggers repaint and button rebuild)*/
 /* ================================================================== */
 void Tabs_Switch(int idx)
 {
@@ -100,7 +140,13 @@ void Tabs_Switch(int idx)
 }
 
 /* ================================================================== */
-/*  Tabs_RebuildButtons  -  create one owner-draw button per script    */
+/*  Tabs_RebuildButtons                                                 */
+/*  Purpose: Destroys existing script buttons and recreates one owner- */
+/*           draw button per visible, non-hidden, filter-matching      */
+/*           script in the active folder.  Also recalculates scroll    */
+/*           bar range based on total button height.                   */
+/*  In:  (reads g.active_tab, g.folders[], g.filter_text, g.syncing)  */
+/*  Out: (void — repopulates s_btns[], updates scroll info)            */
 /* ================================================================== */
 void Tabs_RebuildButtons(void)
 {
@@ -167,6 +213,16 @@ update_scroll:;
 
 /* ================================================================== */
 /*  ScrollPanelProc                                                     */
+/*  Purpose: Window procedure for the CMW32ScrollPanel control which   */
+/*           hosts all script buttons.  Handles background painting,   */
+/*           owner-draw dispatch, vertical scrolling (scroll bar and   */
+/*           mouse wheel), button click forwarding to the main window, */
+/*           and mouse-leave highlight clearing.                       */
+/*  In:  hwnd — scroll panel window handle                             */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (scroll direction, mouse coords, etc.)          */
+/*       lp   — LPARAM (DRAWITEMSTRUCT pointer for WM_DRAWITEM)        */
+/*  Out: LRESULT — TRUE for WM_DRAWITEM; 0 for handled; DefWindowProc  */
 /* ================================================================== */
 LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
                                   WPARAM wp, LPARAM lp)

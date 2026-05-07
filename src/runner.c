@@ -8,6 +8,14 @@
 
 #include "main.h"
 
+/* ================================================================== */
+/*  RunArg                                                              */
+/*  Purpose: Heap-allocated argument block passed to Runner_Thread.    */
+/*           Carries all data the thread needs so no globals are read  */
+/*           after the launch call returns.                            */
+/*  In:  (allocated and populated by Runner_Run before CreateThread)   */
+/*  Out: (freed by Runner_Thread on completion)                        */
+/* ================================================================== */
 typedef struct {
     WCHAR python[MAX_APPPATH];
     WCHAR script[MAX_APPPATH];
@@ -17,6 +25,12 @@ typedef struct {
 
 /* ================================================================== */
 /*  Runner_FindPython                                                   */
+/*  Purpose: Locates a Python executable by checking (in order) the    */
+/*           user-configured path in settings, PATH via SearchPath,   */
+/*           and a list of common installation directories.             */
+/*  In:  out — buffer to receive the full path on success              */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: true and out filled if Python was found; false otherwise       */
 /* ================================================================== */
 bool Runner_FindPython(WCHAR *out, int max)
 {
@@ -51,7 +65,15 @@ bool Runner_FindPython(WCHAR *out, int max)
 }
 
 /* ================================================================== */
-/*  Runner_BuildLocalPath                                               */
+/*  Runner_BuildLocalPath  (static)                                    */
+/*  Purpose: Constructs the local disk path for a cached script by     */
+/*           combining the cache directory, folder name, and the       */
+/*           filename portion of the script's GitHub path.             */
+/*  In:  fi  — folder index                                            */
+/*       si  — script index within that folder                         */
+/*       out — buffer to receive the full local path                   */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: (void — out is populated)                                      */
 /* ================================================================== */
 static void Runner_BuildLocalPath(int fi, int si, WCHAR *out, int max)
 {
@@ -65,6 +87,12 @@ static void Runner_BuildLocalPath(int fi, int si, WCHAR *out, int max)
 
 /* ================================================================== */
 /*  Runner_Thread                                                       */
+/*  Purpose: Background thread that executes the Python script via     */
+/*           CreateProcessW.  When show_console is false it waits for  */
+/*           the process and posts the exit code to the status bar.   */
+/*           Frees the RunArg before returning.                        */
+/*  In:  arg — pointer to a heap-allocated RunArg (freed on return)    */
+/*  Out: 0 (thread exit code)                                           */
 /* ================================================================== */
 DWORD WINAPI Runner_Thread(LPVOID arg)
 {
@@ -114,6 +142,13 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
 
 /* ================================================================== */
 /*  Runner_Run                                                          */
+/*  Purpose: Validates folder/script indices, locates Python, downloads */
+/*           the script if missing or if download_before_run is set,  */
+/*           performs SHA verification, then launches Runner_Thread.   */
+/*           Increments the run count and updates last_run_path.       */
+/*  In:  fi — folder index                                             */
+/*       si — script index within that folder                          */
+/*  Out: true if the thread was successfully launched; false on error   */
 /* ================================================================== */
 bool Runner_Run(int fi, int si)
 {
@@ -194,11 +229,17 @@ bool Runner_Run(int fi, int si)
 }
 
 /* ================================================================== */
-/*  Runner_UpdateDeps                                                   */
+/*  RunPipInstall  (static)                                            */
+/*  Purpose: Runs `python -m pip install -r <req>` in a new console   */
+/*           window.  When keep_open is true uses `cmd /k` so the     */
+/*           console stays visible after pip finishes.  Otherwise uses */
+/*           `cmd /c` and waits for the process to complete.           */
+/*  In:  python   — full path to the Python executable                 */
+/*       req      — full path to the requirements.txt file             */
+/*       work_dir — working directory passed to CreateProcessW         */
+/*       keep_open — true = /k (stay open); false = /c (auto-close)   */
+/*  Out: (void)                                                         */
 /* ================================================================== */
-/* ------------------------------------------------------------------ */
-/*  Run a single pip install -r <req> in its own console window        */
-/* ------------------------------------------------------------------ */
 static void RunPipInstall(const WCHAR *python, const WCHAR *req,
                            const WCHAR *work_dir, bool keep_open)
 {
@@ -225,6 +266,17 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
     }
 }
 
+/* ================================================================== */
+/*  Runner_RunWithArgs                                                  */
+/*  Purpose: Executes the script at (fi, si) with additional command-  */
+/*           line arguments provided by the caller (from the Run with  */
+/*           Arguments dialog).  Respects console and keep-open        */
+/*           settings.  Does not perform SHA re-verification.          */
+/*  In:  fi   — folder index                                           */
+/*       si   — script index within that folder                        */
+/*       args — extra argument string appended after the script path   */
+/*  Out: true if CreateProcessW succeeded; false on any error          */
+/* ================================================================== */
 bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
 {
     if (fi < 0 || fi >= g.folder_count) return false;
@@ -263,6 +315,15 @@ bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
     return true;
 }
 
+/* ================================================================== */
+/*  Runner_UpdateDeps                                                   */
+/*  Purpose: For each enabled script source, locates the setup/         */
+/*           requirements.txt, downloads it if missing, then calls    */
+/*           RunPipInstall to install dependencies.  Covers the main  */
+/*           repo, all extra GitHub repos, and all local directories.  */
+/*  In:  (reads g.cfg — enabled sources, cache_dir, deps_keep_open)   */
+/*  Out: (void — shows a warning dialog if no requirements found)      */
+/* ================================================================== */
 void Runner_UpdateDeps(void)
 {
     WCHAR python[MAX_APPPATH] = {0};

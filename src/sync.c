@@ -21,26 +21,33 @@
  *
  * CatiaMenuWin32
  * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
  * License: MIT
  */
 
 #include "main.h"
 
 /* ================================================================== */
-/*  Manifest helpers                                                    */
+/*  ManifestPath  (static)                                             */
+/*  Purpose: Builds the full path to manifest.ini in the AppData       */
+/*           directory and stores it in out.                           */
+/*  In:  out — buffer to receive the path                              */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: (void — out is populated)                                      */
 /* ================================================================== */
-
-/* Full path to manifest.ini */
 static void ManifestPath(WCHAR *out, int max)
 {
     _snwprintf_s(out, max, _TRUNCATE, L"%s\\%s", g.appdata_dir, MANIFEST_FILE);
 }
 
-/*
- * Sync_GetLocalSHA
- * Read the stored SHA for gh_path from manifest.ini.
- * Returns false (and sha_out = "") if not found.
- */
+/* ================================================================== */
+/*  Sync_GetLocalSHA                                                    */
+/*  Purpose: Reads the cached SHA for gh_path from manifest.ini.       */
+/*           The INI section is derived from the first path component. */
+/*  In:  gh_path  — GitHub-relative script path (e.g. "Folder/s.py") */
+/*       sha_out  — buffer to receive the 40-char hex SHA              */
+/*  Out: true and sha_out filled if found; false (sha_out="") otherwise*/
+/* ================================================================== */
 bool Sync_GetLocalSHA(const WCHAR *gh_path, WCHAR *sha_out)
 {
     sha_out[0] = L'\0';
@@ -60,15 +67,17 @@ bool Sync_GetLocalSHA(const WCHAR *gh_path, WCHAR *sha_out)
     return sha_out[0] != L'\0';
 }
 
-/*
- * Sync_SaveManifest
- * Write the SHA of every known script into manifest.ini.
- * Clears the old file first (delete + rewrite) so removed
- * scripts don't linger.
- */
 static void Sync_LocalDir(const LocalDir *dir);
 static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf);
 
+/* ================================================================== */
+/*  Sync_SaveManifest                                                   */
+/*  Purpose: Rewrites manifest.ini from scratch using the current      */
+/*           g.folders[] state. Deletes the old file first so stale   */
+/*           entries from removed scripts cannot persist.              */
+/*  In:  (none — reads g.folders[])                                    */
+/*  Out: (void — manifest.ini updated on disk)                         */
+/* ================================================================== */
 void Sync_SaveManifest(void)
 {
     WCHAR manifest[MAX_APPPATH];
@@ -86,6 +95,16 @@ void Sync_SaveManifest(void)
     }
 }
 
+/* ================================================================== */
+/*  Sync_LoadManifest                                                   */
+/*  Purpose: Scans the cache directory and populates g.folders[] from  */
+/*           scripts already on disk. Runs at startup so scripts are   */
+/*           immediately visible without waiting for the sync thread.  */
+/*           Verifies each file's SHA against manifest.ini and clears  */
+/*           mismatched entries so the sync thread will re-download.  */
+/*  In:  (none — reads g.cfg.cache_dir, g.cfg.local_dirs)             */
+/*  Out: (void — populates g.folders[], g.folder_count)               */
+/* ================================================================== */
 void Sync_LoadManifest(void)
 {
     /* Scan the cache directory and populate g.folders[] from what is
@@ -114,7 +133,7 @@ void Sync_LoadManifest(void)
         ScriptFolder *f = &g.folders[g.folder_count++];
         ZeroMemory(f, sizeof(*f));
         wcsncpy(f->name, fd.cFileName, MAX_NAME - 1);
-        wcscpy(f->display, f->name);
+        wcsncpy(f->display, f->name, MAX_NAME - 1);
         Util_SnakeToTitle(f->display);
         Folder_Alloc(f, 64);
 
@@ -181,7 +200,11 @@ void Sync_LoadManifest(void)
 }
 
 /* ================================================================== */
-/*  Delete local file + its folder if now empty                        */
+/*  DeleteLocalScript  (static)                                        */
+/*  Purpose: Deletes a cached script file from disk and removes its    */
+/*           parent directory if the directory is now empty.           */
+/*  In:  local_path — absolute path to the cached .py file            */
+/*  Out: (void — file and possibly its parent folder removed)          */
 /* ================================================================== */
 static void DeleteLocalScript(const WCHAR *local_path)
 {
@@ -196,11 +219,14 @@ static void DeleteLocalScript(const WCHAR *local_path)
 }
 
 /* ================================================================== */
-/*  Sync_Thread  -  background worker                                  */
-/* ================================================================== */
-/* ================================================================== */
 /*  Sync_MergeFolder                                                    */
-/*  Add scripts to an existing folder or create a new one.             */
+/*  Purpose: Merges an array of Script entries into an existing folder  */
+/*           matched by name, or creates a new folder in g.folders[].  */
+/*           Skips entries whose gh_path already exists in the folder. */
+/*  In:  folder_name — storage/display name for the folder             */
+/*       scripts     — array of Script entries to merge                */
+/*       count       — number of entries in scripts                    */
+/*  Out: (void — g.folders[] updated in place)                        */
 /* ================================================================== */
 void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
 {
@@ -233,7 +259,7 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
     ScriptFolder *f = &g.folders[g.folder_count++];
     ZeroMemory(f, sizeof(*f));
     wcsncpy(f->name, folder_name, MAX_NAME - 1);
-    wcscpy(f->display, f->name);
+    wcsncpy(f->display, f->name, MAX_NAME - 1);
     Util_SnakeToTitle(f->display);
     if (!Folder_Alloc(f, count > 0 ? count : 64)) { g.folder_count--; return; }
     for (int i = 0; i < count; i++) {
@@ -244,8 +270,13 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
 }
 
 /* ================================================================== */
-/*  Sync_ExtraRepo                                                      */
-/*  Sync one extra GitHub repository into g.folders via merging.       */
+/*  Sync_ExtraRepo  (static)                                           */
+/*  Purpose: Fetches the root and all sub-folder contents of a         */
+/*           configured extra GitHub repository, downloads any changed */
+/*           .py files, and merges results into g.folders[].          */
+/*  In:  repo — extra repository configuration (url, token, branch)   */
+/*       buf  — caller-supplied HTTP response buffer (HTTP_BUF_SIZE)  */
+/*  Out: (void — g.folders[] updated; files downloaded to cache)      */
 /* ================================================================== */
 static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
 {
@@ -396,8 +427,14 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
 }
 
 /* ================================================================== */
-/*  Sync_LocalDir                                                       */
-/*  Scan a local folder - subfolders become tabs, .py files = scripts  */
+/*  Sync_LocalDir  (static)                                            */
+/*  Purpose: Scans a local filesystem directory; each sub-directory    */
+/*           becomes a tab and every .py file inside it becomes a      */
+/*           script entry merged into g.folders[]. Also copies a       */
+/*           requirements.txt from the local setup/ sub-folder into    */
+/*           the cache setup directory if one is found.                */
+/*  In:  dir — local directory configuration entry (path, enabled)    */
+/*  Out: (void — g.folders[] updated; requirements.txt possibly copied)*/
 /* ================================================================== */
 static void Sync_LocalDir(const LocalDir *dir)
 {
@@ -425,7 +462,7 @@ static void Sync_LocalDir(const LocalDir *dir)
 
         WIN32_FIND_DATAW sf;
         HANDLE hs = FindFirstFileW(sub, &sf);
-        if (hs == INVALID_HANDLE_VALUE) continue;
+        if (hs == INVALID_HANDLE_VALUE) { free(scripts); continue; }
         do {
             if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
             if (count >= MAX_SCRIPTS) break;
@@ -444,6 +481,7 @@ static void Sync_LocalDir(const LocalDir *dir)
 
         if (count > 0)
             Sync_MergeFolder(fd.cFileName, scripts, count);
+        free(scripts);
 
     } while (FindNextFileW(h, &fd));
     FindClose(h);
@@ -466,6 +504,16 @@ static void Sync_LocalDir(const LocalDir *dir)
     }
 }
 
+/* ================================================================== */
+/*  Sync_Thread                                                         */
+/*  Purpose: Background worker that performs the full sync sequence:   */
+/*           fetches the GitHub root, detects folder/script additions  */
+/*           and removals, downloads changed files, syncs extra repos  */
+/*           and local dirs, saves the manifest, then posts            */
+/*           WM_SYNC_DONE with a heap-allocated SyncResult.           */
+/*  In:  unused — LPVOID thread parameter (not used)                   */
+/*  Out: 0 on success; 1 if OOM prevented posting the done message     */
+/* ================================================================== */
 DWORD WINAPI Sync_Thread(LPVOID unused)
 {
     (void)unused;
@@ -482,7 +530,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) {
         sr->status = SR_API_ERROR;
-        wcscpy(sr->message, L"Out of memory.");
+        wcsncpy(sr->message, L"Out of memory.", 255);
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         return 1;
     }
@@ -506,8 +554,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             _snwprintf_s(sr->message, 255, _TRUNCATE, L"Showing %d cached folder(s). Connect to internet to sync.",
                        g.folder_count);
         } else {
-            wcscpy(sr->message,
-                   L"No internet connection. No cached scripts found.");
+            wcsncpy(sr->message,
+                    L"No internet connection. No cached scripts found.", 255);
         }
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         free(buf);
@@ -520,7 +568,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     WCHAR old_names[MAX_FOLDERS][MAX_NAME];
     int   old_count = g.folder_count;
     for (int i = 0; i < old_count; i++)
-        wcscpy(old_names[i], g.folders[i].name);
+        wcsncpy(old_names[i], g.folders[i].name, MAX_NAME - 1);
 
     /* Parse new folder list from API */
     GitHub_ParseRoot(buf);
@@ -733,7 +781,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         if (sr->scripts_updated == 0 && sr->folders_added == 0
             && sr->folders_removed == 0 && sr->scripts_added == 0
             && sr->scripts_removed == 0) {
-            wcscpy(sr->message, L"All scripts are up to date.");
+            wcsncpy(sr->message, L"All scripts are up to date.", 255);
         } else {
             _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync complete. "
                 L"+%d/-%d folders, "

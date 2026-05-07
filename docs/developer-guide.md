@@ -187,8 +187,11 @@ That's it. The workflow handles everything else automatically. The final release
 ## Code Style
 
 - **C11** — designated initialisers, `bool`, `stdbool.h`, `_Static_assert`
-- **Unicode throughout** — `WCHAR`, `L""` literals, `_snwprintf`, `wcslen` etc.
+- **Unicode throughout** — `WCHAR`, `L""` literals, `_snwprintf_s`, `wcslen` etc.
+- **Bounds-safe string ops** — always `wcsncpy`/`wcsncat` with explicit limits; never `wcscpy`/`wcscat`
+- **Safe formatted output** — always `_snwprintf_s` with `_TRUNCATE`; never `_snwprintf` or `swprintf`
 - **No CRT allocations in WndProcs** where possible — use stack buffers
+- **Heap allocations** — use `calloc`/`malloc` + matching `free`; for `ScriptFolder` use the `Folder_Alloc`/`Folder_Free`/`Folder_Push` helpers in `main.h`
 - **Double-buffered GDI** — all painting via memory DC, `BitBlt` to screen
 - **No globals except `AppState g`** — all state in the single `g` struct
 - **Runtime colour functions** — `COL_BG()`, `COL_TEXT()` etc. return dark or light values based on `g.dark_mode`

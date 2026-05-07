@@ -176,10 +176,11 @@ Settings persistence and dialogs.
 Checks GitHub Releases API for newer versions.
 
 - `Updater_CheckThread` — background thread: waits 3s for sync to finish, calls releases API, compares `major.minor.patch`
+- `Updater_AutoUpdate` — downloads the new `.exe` directly via WinINet, writes a batch script to replace the binary, then posts `WM_CLOSE`; falls back to `Updater_PromptAndInstall` on any failure
+- `Updater_PromptAndInstall` — shows the update dialog and opens the releases page if confirmed
 - `IsNewer` — compares remote and local versions (first 3 parts only, ignores build number)
 - `ParseVersion` — splits `"1.2.3.4"` into an `int[4]` without locale-dependent `swscanf`
 - `ParseLatestTag` — extracts `tag_name` from releases API JSON
-- `Updater_PromptAndInstall` — shows the update dialog and opens the releases page if confirmed
 
 ---
 
@@ -243,25 +244,33 @@ One tab worth of scripts.
 
 ```c
 typedef struct {
-    WCHAR  name[MAX_NAME];      /* raw folder name e.g. "Any_Document_Scripts" */
-    WCHAR  display[MAX_NAME];   /* formatted e.g. "Any Document Scripts" */
-    Script scripts[MAX_SCRIPTS];
-    int    count;
-    bool   loaded;
+    WCHAR    name[MAX_NAME];    /* raw folder name e.g. "Any_Document_Scripts" */
+    WCHAR    display[MAX_NAME]; /* formatted e.g. "Any Document Scripts" */
+    Script  *scripts;           /* heap-allocated; use Folder_Alloc / Folder_Free */
+    int      count;
+    int      capacity;          /* number of allocated slots */
+    bool     loaded;
+    SortMode sort_mode;
 } ScriptFolder;
 ```
+
+`Folder_Alloc`, `Folder_Free`, and `Folder_Push` are inline helpers in `main.h`. `Folder_Push` doubles capacity automatically when `count == capacity`.
 
 ### `Script`
 One script button.
 
 ```c
 typedef struct {
-    WCHAR      name[MAX_NAME];      /* display name */
+    WCHAR      name[MAX_NAME];       /* display name */
     WCHAR      gh_path[MAX_APPPATH]; /* GitHub API path e.g. "folder/script.py" */
     WCHAR      sha[MAX_SHA];         /* expected blob SHA from GitHub API */
     WCHAR      local[MAX_APPPATH];   /* local cache path */
     ScriptMeta meta;
     bool       meta_loaded;
+    bool       is_favourite;
+    bool       is_hidden;
+    int        run_count;
+    WCHAR      note[MAX_NOTE_LEN];
 } Script;
 ```
 
@@ -272,7 +281,7 @@ typedef struct {
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `MAX_FOLDERS` | 64 | Maximum number of tabs |
-| `MAX_SCRIPTS` | 128 | Maximum scripts per folder |
+| `MAX_SCRIPTS` | 1024 | Default initial capacity per folder (heap grows dynamically) |
 | `MAX_EXTRA_REPOS` | 8 | Maximum extra GitHub repos |
 | `MAX_LOCAL_DIRS` | 8 | Maximum local folders |
 | `TOOLBAR_H` | 38 | Toolbar height in pixels |

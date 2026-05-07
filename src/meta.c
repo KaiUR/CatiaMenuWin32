@@ -1,12 +1,22 @@
 /*
  * meta.c  -  Parse script header into ScriptMeta.
- * CatiaMenuWin32  |  Author: Kai-Uwe Rathjen  |  License: MIT
+ * CatiaMenuWin32
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #include "main.h"
 
 #define DESC_MAX 1023   /* must match ScriptMeta.description buffer - 1 */
 
+/* ================================================================== */
+/*  TrimRight  (static)                                                */
+/*  Purpose: Removes trailing whitespace and line-ending characters    */
+/*           (\r, \n, space, tab) from a wide string in-place.         */
+/*  In:  s — wide string to trim (modified in-place)                   */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static void TrimRight(WCHAR *s)
 {
     int n = (int)wcslen(s);
@@ -15,6 +25,14 @@ static void TrimRight(WCHAR *s)
         s[--n] = L'\0';
 }
 
+/* ================================================================== */
+/*  StripLeading  (static)                                             */
+/*  Purpose: Removes leading spaces, tabs, and comment delimiter       */
+/*           characters (#, ', ", -) from a wide string in-place,     */
+/*           shifting the remaining content to the front of the buffer.*/
+/*  In:  s — wide string to strip (modified in-place)                  */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static void StripLeading(WCHAR *s)
 {
     WCHAR *p = s;
@@ -23,6 +41,17 @@ static void StripLeading(WCHAR *s)
     if (p != s) memmove_s(s, (wcslen(p)+1)*sizeof(WCHAR), p, (wcslen(p)+1)*sizeof(WCHAR));
 }
 
+/* ================================================================== */
+/*  MatchKey  (static)                                                 */
+/*  Purpose: Case-insensitively checks whether `line` begins with      */
+/*           `key` followed by optional whitespace and a colon.       */
+/*           Returns a pointer to the trimmed value after the colon,  */
+/*           or NULL if the pattern does not match or value is empty.  */
+/*  In:  line — wide string from the script header                     */
+/*       key  — expected key name (e.g. L"Purpose")                   */
+/*  Out: pointer into `line` at the start of the value; NULL if no    */
+/*       match or value is blank                                        */
+/* ================================================================== */
 static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
 {
     size_t klen = wcslen(key);
@@ -35,6 +64,15 @@ static const WCHAR *MatchKey(const WCHAR *line, const WCHAR *key)
     return (*p) ? p : NULL;
 }
 
+/* ================================================================== */
+/*  AppendDesc  (static)                                               */
+/*  Purpose: Appends a continuation text segment to the description    */
+/*           buffer, inserting a space separator before the new text   */
+/*           if the buffer is not empty.  Truncates at DESC_MAX chars. */
+/*  In:  buf  — destination description buffer (ScriptMeta.description)*/
+/*       text — wide string segment to append                          */
+/*  Out: (void — buf is modified in-place)                             */
+/* ================================================================== */
 static void AppendDesc(WCHAR *buf, const WCHAR *text)
 {
     if (!text || !*text) return;
@@ -45,6 +83,16 @@ static void AppendDesc(WCHAR *buf, const WCHAR *text)
     wcsncat(buf, text, DESC_MAX - cur);
 }
 
+/* ================================================================== */
+/*  Meta_Parse                                                          */
+/*  Purpose: Opens the local cached .py file for script s and parses  */
+/*           its header block into s->meta.  The header is bounded by  */
+/*           dashed separator lines and contains Key: value pairs for  */
+/*           Purpose, Author, Version, Date, Description, Code,       */
+/*           Release, and requirements.  No-op if already loaded.     */
+/*  In:  s — script whose local path points to a downloaded .py file   */
+/*  Out: (void — sets s->meta and s->meta_loaded = true on success)   */
+/* ================================================================== */
 void Meta_Parse(Script *s)
 {
     if (s->meta_loaded) return;
@@ -68,7 +116,7 @@ void Meta_Parse(Script *s)
     {
         lineno++;
         TrimRight(raw);
-        wcscpy(line, raw);
+        wcsncpy(line, raw, 1023);
         StripLeading(line);
         TrimRight(line);
 
@@ -187,6 +235,14 @@ void Meta_Parse(Script *s)
        after the sync thread has downloaded the file. */
 }
 
+/* ================================================================== */
+/*  Meta_ParseAll                                                       */
+/*  Purpose: Calls Meta_Parse for every script in every folder in      */
+/*           g.folders[].  Used after a sync completes to batch-load   */
+/*           all metadata from the freshly downloaded files.           */
+/*  In:  (reads g.folders[], g.folder_count)                           */
+/*  Out: (void — updates Script.meta and meta_loaded for each script)  */
+/* ================================================================== */
 void Meta_ParseAll(void)
 {
     for (int fi = 0; fi < g.folder_count; fi++)

@@ -4,6 +4,15 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.10 — Memory safety, unsafe string operations
+
+### Fixed
+- Memory leak in `Sync_LocalDir` — heap-allocated `scripts` buffer was never freed when `FindFirstFileW` returns no results, and was not freed after `Sync_MergeFolder` in any code path
+- Replaced all `wcscpy`/`wcscat` calls with bounds-safe `wcsncpy`/`wcsncat` across `sync.c`, `github.c`, `updater.c`, `window.c`, `meta.c`, `settings.c`, `sources.c`, and `prefs.c`
+- `updater.c` — `wcscat` appending filename suffix into `MAX_APPPATH` buffers after `GetTempPath` could overflow on unusually long temp paths; replaced with `wcsncat` with remaining space
+
+---
+
 ## v1.3.9 — Heap-allocated scripts, favourites fixes
 
 ### Added
