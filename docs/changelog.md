@@ -4,6 +4,19 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.11 — LLVM toolchain, code signing
+
+### Changed
+- CI/CD build toolchain switched from MSYS2/MinGW-w64 (GCC) to LLVM/Clang on `windows-latest`
+- MSVC environment (`ilammy/msvc-dev-cmd`) provides Windows SDK, `rc.exe`, and `link.exe`; Clang is the C compiler
+- CMakeLists.txt: RC include flag now auto-detects `windres` vs `rc.exe` (`-I` vs `/I`)
+- CMakeLists.txt: `UNICODE` and `_UNICODE` explicitly defined for all Windows builds
+
+### Added
+- **Code signing** — release binaries are Authenticode-signed via `skymatic/code-sign-action@v1` using a PFX certificate stored in GitHub Secrets (`CERTIFICATE`, `PASSWORD`, `CERTHASH`, `CERTNAME`)
+
+---
+
 ## v1.3.10 — Memory safety, unsafe string operations
 
 ### Fixed
