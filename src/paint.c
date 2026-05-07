@@ -459,12 +459,30 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             break;
         }
         case IDM_SCRIPT_FAVOURITE:
-            s->is_favourite = !s->is_favourite;
-            Prefs_SetFavourite(s->gh_path, s->is_favourite);
+        {
+            bool new_fav = !s->is_favourite;
+            bool was_on_favourites = (wcscmp(g.folders[fi].name, L"Favourites") == 0);
+            Prefs_SetFavourite(s->gh_path, new_fav);
+            /* Update the script in its real folder (not the Favourites copy) */
+            for (int f2 = 0; f2 < g.folder_count; f2++) {
+                if (wcscmp(g.folders[f2].name, L"Favourites") == 0) continue;
+                for (int s2 = 0; s2 < g.folders[f2].count; s2++) {
+                    if (wcscmp(g.folders[f2].scripts[s2].gh_path, s->gh_path) == 0) {
+                        g.folders[f2].scripts[s2].is_favourite = new_fav;
+                    }
+                }
+            }
+            s->is_favourite = new_fav;
             Tabs_BuildFavourites();
             Tabs_Build();
-            InvalidateRect(hwnd, NULL, FALSE);
+            /* If we were on the Favourites tab and it still exists, stay on it */
+            if (was_on_favourites && g.folder_count > 0 &&
+                wcscmp(g.folders[0].name, L"Favourites") == 0)
+                Tabs_Switch(0);
+            else
+                Tabs_RebuildButtons();
             break;
+        }
         case IDM_SCRIPT_NOTE:
             DialogBoxParam(GetModuleHandle(NULL),
                 MAKEINTRESOURCE(IDD_SCRIPT_NOTE),

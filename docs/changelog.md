@@ -4,11 +4,16 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.8 — Wiki links in help menu
+## v1.3.9 — Heap-allocated scripts, favourites fixes
 
 ### Added
-- `Menu → Help → App Wiki` — opens the CatiaMenuWin32 wiki in the browser
-- `Menu → Help → Scripts Wiki` — opens the Pycatia_Scripts wiki in the browser
+- Scripts per folder now heap-allocated and grow dynamically — no hard limit per folder
+- `MAX_SCRIPTS` set to 1024 as default initial capacity
+
+### Fixed
+- Crash when adding to favourites — pointer ownership bug after folder shift
+- Removing from favourites in the Favourites tab now correctly updates the original script
+- Tab no longer shifts after removing one item from a multi-item Favourites tab
 
 ---
 
