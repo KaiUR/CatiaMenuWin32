@@ -9,7 +9,12 @@
 #include "main.h"
 
 /* ================================================================== */
-/*  DeleteFolderRecursive  -  remove a directory and all its contents   */
+/*  DeleteFolderRecursive  (static)                                    */
+/*  Purpose: Recursively deletes a directory and all its contents.     */
+/*           Used when a user removes an extra GitHub repo to clean up */
+/*           the corresponding cached script folder.                   */
+/*  In:  path — full path of the directory to delete                   */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 static void DeleteFolderRecursive(const WCHAR *path)
 {
@@ -38,7 +43,11 @@ static void DeleteFolderRecursive(const WCHAR *path)
 }
 
 /* ================================================================== */
-/*  Helper: populate the repo list view                                 */
+/*  Repos_Populate  (static)                                           */
+/*  Purpose: Clears and repopulates the extra-repos ListView control   */
+/*           in the Sources dialog from g.cfg.extra_repos[].          */
+/*  In:  hList — HWND of the IDC_LST_REPOS ListView control           */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 static void Repos_Populate(HWND hList)
 {
@@ -57,6 +66,13 @@ static void Repos_Populate(HWND hList)
     }
 }
 
+/* ================================================================== */
+/*  Locals_Populate  (static)                                          */
+/*  Purpose: Clears and repopulates the local-dirs ListView control    */
+/*           in the Sources dialog from g.cfg.local_dirs[].           */
+/*  In:  hList — HWND of the IDC_LST_LOCAL ListView control            */
+/*  Out: (void)                                                         */
+/* ================================================================== */
 static void Locals_Populate(HWND hList)
 {
     ListView_DeleteAllItems(hList);
@@ -72,10 +88,26 @@ static void Locals_Populate(HWND hList)
 }
 
 /* ================================================================== */
-/*  RepoEdit dialog                                                     */
+/*  RepoEditArg                                                         */
+/*  Purpose: Argument struct passed to RepoEditDlgProc via LPARAM.    */
+/*           Holds a pointer to the ExtraRepo to edit and a flag       */
+/*           indicating whether this is a new or existing entry.       */
+/*  In:  (set by SourcesDlgProc before DialogBoxParam call)            */
+/*  Out: (repo is modified in-place when IDOK is returned)             */
 /* ================================================================== */
 typedef struct { ExtraRepo *repo; bool is_new; } RepoEditArg;
 
+/* ================================================================== */
+/*  RepoEditDlgProc  (static)                                          */
+/*  Purpose: Dialog procedure for IDD_REPO_EDIT (add/edit a GitHub     */
+/*           repository source).  WM_INITDIALOG populates fields from  */
+/*           the repo struct; IDOK validates the URL and writes back.  */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (control ID in WM_COMMAND)                      */
+/*       lp   — LPARAM on WM_INITDIALOG: pointer to RepoEditArg        */
+/*  Out: INT_PTR — TRUE for handled; FALSE otherwise                   */
+/* ================================================================== */
 static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
                                          WPARAM wp, LPARAM lp)
 {
@@ -126,7 +158,7 @@ static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
             GetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH,
                            arg->repo->branch, 63);
             if (!arg->repo->branch[0])
-                wcscpy(arg->repo->branch, L"main");
+                wcsncpy(arg->repo->branch, L"main", 63);
             if (IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED)
                 GetDlgItemText(hwnd, IDC_EDIT_REPO_TOKEN,
                                arg->repo->token, 255);
@@ -148,6 +180,17 @@ static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
 
 /* ================================================================== */
 /*  SourcesDlgProc                                                      */
+/*  Purpose: Dialog procedure for the Sources dialog (IDD_SOURCES).    */
+/*           Manages the main-repo enable checkbox, extra GitHub repo  */
+/*           list (add/edit/toggle/remove via RepoEditDlgProc), and   */
+/*           local folder list (add/toggle/remove).  IDOK saves via   */
+/*           Settings_Save; caller re-syncs if IDOK is returned.      */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (button ID in WM_COMMAND LOWORD)               */
+/*       lp   — LPARAM (unused)                                        */
+/*  Out: INT_PTR — TRUE for handled; FALSE otherwise; IDOK/IDCANCEL   */
+/*                 via EndDialog                                        */
 /* ================================================================== */
 INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
                                   WPARAM wp, LPARAM lp)
@@ -204,7 +247,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             {
                 ExtraRepo tmp = {0};
                 tmp.enabled = true;
-                wcscpy(tmp.branch, L"main");
+                wcsncpy(tmp.branch, L"main", 63);
                 RepoEditArg arg = { &tmp, true };
                 if (DialogBoxParam(GetModuleHandle(NULL),
                         MAKEINTRESOURCE(IDD_REPO_EDIT),

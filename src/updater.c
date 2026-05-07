@@ -13,11 +13,14 @@
 
 #include "main.h"
 
-/* ------------------------------------------------------------------ */
-/*  Simple semver compare: "v1.2.3" vs "v1.2.4"                       */
-/*  Returns true if remote > local.                                    */
-/* ------------------------------------------------------------------ */
-/* Parse "1.2.3.4" into 4 integers - avoids swscanf locale issues on MinGW */
+/* ================================================================== */
+/*  ParseVersion  (static)                                             */
+/*  Purpose: Splits a "major.minor.patch.build" version string into    */
+/*           four integers. Avoids swscanf locale issues on MinGW.    */
+/*  In:  s    — version string (leading 'v'/'V' must be stripped first)*/
+/*       v[4] — output array filled with [major, minor, patch, build] */
+/*  Out: (void — v[] populated; missing parts stay 0)                  */
+/* ================================================================== */
 static void ParseVersion(const WCHAR *s, int v[4])
 {
     v[0] = v[1] = v[2] = v[3] = 0;
@@ -31,6 +34,15 @@ static void ParseVersion(const WCHAR *s, int v[4])
     }
 }
 
+/* ================================================================== */
+/*  IsNewer  (static)                                                  */
+/*  Purpose: Compares a GitHub release tag against VERSION_STRING_W.   */
+/*           Only major.minor.patch are compared; build number is      */
+/*           ignored so a local development build does not suppress    */
+/*           update notifications.                                     */
+/*  In:  remote_tag — tag string from GitHub (e.g. "v1.3.10")         */
+/*  Out: true if the remote version is strictly newer; false otherwise  */
+/* ================================================================== */
 static bool IsNewer(const WCHAR *remote_tag)
 {
     /* Strip leading 'v' or 'V' */
@@ -51,9 +63,15 @@ static bool IsNewer(const WCHAR *remote_tag)
     return false;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Parse "tag_name" from the releases/latest JSON response            */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  ParseLatestTag  (static)                                           */
+/*  Purpose: Extracts the "tag_name" value from the GitHub releases    */
+/*           /latest JSON response and converts it to a wide string.  */
+/*  In:  json    — null-terminated UTF-8 JSON response body           */
+/*       tag_out — buffer to receive the wide-string tag              */
+/*       max     — capacity of tag_out in WCHARs                      */
+/*  Out: true and tag_out filled if "tag_name" was found; false otherwise*/
+/* ================================================================== */
 static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
 {
     const char *p = strstr(json, "\"tag_name\"");
@@ -72,7 +90,13 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
 
 
 /* ================================================================== */
-/*  Updater_CheckThread  -  runs in background                         */
+/*  Updater_CheckThread                                                 */
+/*  Purpose: Background thread that queries the GitHub releases API,   */
+/*           compares the latest tag against the running version, and  */
+/*           posts WM_UPDATE_AVAIL if a newer release is available.   */
+/*           Sleeps 3 s on startup to avoid competing with sync calls. */
+/*  In:  unused — LPVOID thread parameter (not used)                   */
+/*  Out: 0 on success; 1 on HTTP or parse failure                      */
 /* ================================================================== */
 DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
@@ -117,7 +141,13 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 }
 
 /* ================================================================== */
-/*  Updater_PromptAndInstall                                            */
+/*  Updater_AutoUpdate                                                  */
+/*  Purpose: Prompts the user to confirm an automatic update, then     */
+/*           downloads the new executable via WinINet, writes a batch  */
+/*           script that replaces the running exe and restarts it, and */
+/*           exits. Falls back to Updater_PromptAndInstall on failure. */
+/*  In:  latest_tag — version string without leading 'v' (e.g. "1.3.10")*/
+/*  Out: (void — exits the process on success; falls back otherwise)   */
 /* ================================================================== */
 void Updater_AutoUpdate(const WCHAR *latest_tag)
 {
@@ -130,7 +160,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Download to temp file */
     WCHAR temp_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, temp_path);
-    wcscat(temp_path, L"CatiaMenuWin32_update.exe");
+    wcsncat(temp_path, L"CatiaMenuWin32_update.exe", MAX_APPPATH - 1 - wcslen(temp_path));
 
     /* Delete any leftover temp file from a previous attempt */
     DeleteFile(temp_path);
@@ -202,7 +232,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Write batch script to replace exe and restart */
     WCHAR bat_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, bat_path);
-    wcscat(bat_path, L"CatiaMenuWin32_update.bat");
+    wcsncat(bat_path, L"CatiaMenuWin32_update.bat", MAX_APPPATH - 1 - wcslen(bat_path));
 
     char temp_path_a[MAX_APPPATH] = {0};
     char exe_path_a[MAX_APPPATH]  = {0};
@@ -231,6 +261,14 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wp=1 = force quit, bypass tray */
 }
 
+/* ================================================================== */
+/*  Updater_PromptAndInstall                                            */
+/*  Purpose: Shows a message box informing the user a newer release is */
+/*           available and, if confirmed, opens the GitHub releases     */
+/*           page in the default browser.                              */
+/*  In:  latest_tag — version string without leading 'v' (e.g. "1.3.10")*/
+/*  Out: (void — may open browser; no process exit)                    */
+/* ================================================================== */
 void Updater_PromptAndInstall(const WCHAR *latest_tag)
 {
     WCHAR msg[512];

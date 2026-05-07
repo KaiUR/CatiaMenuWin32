@@ -1,6 +1,9 @@
 /*
  * main.c  -  Entry point and main window procedure.
- * CatiaMenuWin32  |  Author: Kai-Uwe Rathjen  |  License: MIT
+ * CatiaMenuWin32
+ * Author : Kai-Uwe Rathjen
+ * AI Assistance: Claude (Anthropic)
+ * License: MIT
  */
 
 #include "main.h"
@@ -13,6 +16,15 @@ static bool SystemIsDark(void);
 
 /* ================================================================== */
 /*  wWinMain                                                            */
+/*  Purpose: Application entry point.  Enforces single-instance via    */
+/*           a named mutex, initialises settings, creates the main     */
+/*           window, starts the sync and update-checker threads, then  */
+/*           runs the Win32 message loop.                              */
+/*  In:  hInst — module instance handle                                 */
+/*       hPrev — always NULL in Win32                                   */
+/*       lpCmd — command-line string (checked for /minimized)          */
+/*       nShow — requested show state from the shell                   */
+/*  Out: exit code (0 for success or second-instance early exit)       */
 /* ================================================================== */
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
                     LPWSTR lpCmd, int nShow)
@@ -112,7 +124,11 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
 }
 
 /* ================================================================== */
-/*  App_ResolveTheme                                                    */
+/*  SystemIsDark  (static)                                             */
+/*  Purpose: Queries the Windows registry to determine whether the     */
+/*           system is currently using the dark app theme.             */
+/*  In:  (none)                                                         */
+/*  Out: true if the system dark theme is active; false otherwise      */
 /* ================================================================== */
 static bool SystemIsDark(void)
 {
@@ -125,6 +141,14 @@ static bool SystemIsDark(void)
     return (val == 0);  /* 0 = dark, 1 = light */
 }
 
+/* ================================================================== */
+/*  App_ResolveTheme                                                    */
+/*  Purpose: Sets g.dark_mode based on g.cfg.theme.  THEME_SYSTEM     */
+/*           queries the registry via SystemIsDark(); THEME_DARK and   */
+/*           THEME_LIGHT set the flag directly.                        */
+/*  In:  (reads g.cfg.theme)                                           */
+/*  Out: (writes g.dark_mode)                                          */
+/* ================================================================== */
 void App_ResolveTheme(void)
 {
     switch (g.cfg.theme) {
@@ -136,6 +160,11 @@ void App_ResolveTheme(void)
 
 /* ================================================================== */
 /*  App_BuildAppDataPath                                                */
+/*  Purpose: Resolves %APPDATA%\CatiaMenuWin32 and stores the full    */
+/*           path in g.appdata_dir.  Creates the directory if it does  */
+/*           not exist.                                                */
+/*  In:  (none)                                                         */
+/*  Out: (writes g.appdata_dir; creates directory on disk)             */
 /* ================================================================== */
 void App_BuildAppDataPath(void)
 {
@@ -146,7 +175,12 @@ void App_BuildAppDataPath(void)
 }
 
 /* ================================================================== */
-/*  App_InitGDI / App_FreeGDI / App_RebuildGDI                        */
+/*  App_InitGDI                                                         */
+/*  Purpose: Creates all shared GDI resources (fonts and brushes) for  */
+/*           the current theme and stores them in the global g struct. */
+/*           Called once after the main window is created.             */
+/*  In:  (reads g.dark_mode for theme-appropriate brush colours)       */
+/*  Out: (writes g.font_ui, g.font_bold, g.font_small, g.br_* fields) */
 /* ================================================================== */
 void App_InitGDI(void)
 {
@@ -170,6 +204,14 @@ void App_InitGDI(void)
     g.tip_btn    = -1;
 }
 
+/* ================================================================== */
+/*  App_FreeGDI                                                         */
+/*  Purpose: Deletes all GDI objects created by App_InitGDI.           */
+/*           Called once on application exit before the message loop   */
+/*           returns.                                                   */
+/*  In:  (reads g.font_* and g.br_* handles)                           */
+/*  Out: (void — all GDI handles are released)                         */
+/* ================================================================== */
 void App_FreeGDI(void)
 {
     DeleteObject(g.font_ui);  DeleteObject(g.font_bold);
@@ -179,6 +221,15 @@ void App_FreeGDI(void)
     DeleteObject(g.br_accent); DeleteObject(g.br_status);
 }
 
+/* ================================================================== */
+/*  App_RebuildGDI                                                      */
+/*  Purpose: Recreates only the colour brushes (not fonts) after a     */
+/*           theme change.  Fonts are theme-independent and not        */
+/*           recreated.  Called after App_ResolveTheme changes         */
+/*           g.dark_mode.                                              */
+/*  In:  (reads updated g.dark_mode for new brush colours)             */
+/*  Out: (replaces g.br_* handles; old handles are deleted first)      */
+/* ================================================================== */
 void App_RebuildGDI(void)
 {
     /* Delete brushes (not fonts) and recreate with new colours */
@@ -196,6 +247,15 @@ void App_RebuildGDI(void)
 
 /* ================================================================== */
 /*  MainWndProc                                                         */
+/*  Purpose: Window procedure for the main application window.  Routes */
+/*           keyboard shortcuts, paint messages, tray events, sync     */
+/*           completion, theme/settings changes, and menu commands.    */
+/*  In:  hwnd — handle to the main window                              */
+/*       msg  — Windows message identifier                             */
+/*       wp   — message-specific WPARAM                                */
+/*       lp   — message-specific LPARAM                                */
+/*  Out: LRESULT — 0 for handled messages; DefWindowProc result        */
+/*                 for unhandled messages                              */
 /* ================================================================== */
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -384,7 +444,13 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 /* ================================================================== */
-/*  Handle_Command                                                      */
+/*  Handle_Command  (static)                                           */
+/*  Purpose: Dispatches WM_COMMAND notifications from toolbar buttons, */
+/*           menu items, and script buttons.  Handles all IDM_* and   */
+/*           IDC_* identifiers including script execution, settings,   */
+/*           theme switching, sort, and tray actions.                  */
+/*  In:  wp — WPARAM from WM_COMMAND (LOWORD = control/menu ID)        */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 static void Handle_Command(WPARAM wp)
 {
@@ -645,7 +711,13 @@ apply_theme:
 }
 
 /* ================================================================== */
-/*  Handle_SyncDone                                                     */
+/*  Handle_SyncDone  (static)                                          */
+/*  Purpose: Processes the WM_SYNC_DONE message posted by Sync_Thread. */
+/*           Re-parses metadata, applies user prefs, rebuilds tabs and  */
+/*           buttons, and updates the status bar.  Frees the heap-     */
+/*           allocated SyncResult passed via WPARAM.                   */
+/*  In:  sr — heap-allocated SyncResult from Sync_Thread (freed here)  */
+/*  Out: (void)                                                         */
 /* ================================================================== */
 static void Handle_SyncDone(SyncResult *sr)
 {
