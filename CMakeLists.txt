@@ -148,9 +148,19 @@ if(MINGW)
 elseif(WIN32 AND NOT MINGW)
     # Clang+lld-link: CMake adds /MANIFEST:EMBED; supply our custom manifest
     # via /MANIFESTINPUT. The RC file emits no RT_MANIFEST for this toolchain.
+    #
+    # Force static CRT (/MT) so lld-link does not embed a Microsoft.VC*.CRT
+    # SxS assembly dependency — end users do not have the VC++ redistributable.
+    # CMAKE_MSVC_RUNTIME_LIBRARY is not guaranteed for Clang with GNU frontend,
+    # so we override the CRT via explicit linker defaultlib flags.
     target_link_options(CatiaMenuWin32 PRIVATE
+        -Xlinker /NODEFAULTLIB:msvcrt
+        -Xlinker /NODEFAULTLIB:msvcrtd
+        -Xlinker /DEFAULTLIB:libcmt
         -Xlinker /MANIFESTINPUT:${CMAKE_SOURCE_DIR}/res/app.manifest
     )
+    # Suppress _DLL define that CMake injects for dynamic CRT
+    target_compile_options(CatiaMenuWin32 PRIVATE -Xclang -D_MT)
 endif()
 
 if(MSVC)
