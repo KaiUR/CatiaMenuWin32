@@ -74,6 +74,14 @@ string(TIMESTAMP CURRENT_DATE "%Y-%m-%d")
 string(TIMESTAMP CURRENT_YEAR "%Y")
 
 # --- Generate version.h and resource.rc ---
+# MinGW/windres: embed the manifest directly in the RC file.
+# Clang+lld-link: CMake adds /MANIFEST:EMBED automatically; pass the manifest
+# via /MANIFESTINPUT so the RC does not also embed it (avoids duplicate error).
+if(MINGW)
+    set(RC_MANIFEST_LINE "1 RT_MANIFEST \"app.manifest\"")
+else()
+    set(RC_MANIFEST_LINE "")
+endif()
 configure_file(res/version.h.in "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 configure_file(res/resource.rc.in "${CMAKE_CURRENT_BINARY_DIR}/resource.rc" @ONLY)
 
@@ -132,9 +140,11 @@ if(MINGW)
         $<$<CONFIG:Release>:-s>
     )
 elseif(WIN32 AND NOT MINGW)
-    # Clang+lld-link: the RC file already embeds app.manifest as RT_MANIFEST;
-    # suppress the auto-generated manifest CMake adds via /MANIFEST:EMBED
-    target_link_options(CatiaMenuWin32 PRIVATE -Xlinker /MANIFEST:NO)
+    # Clang+lld-link: CMake adds /MANIFEST:EMBED; supply our custom manifest
+    # via /MANIFESTINPUT. The RC file emits no RT_MANIFEST for this toolchain.
+    target_link_options(CatiaMenuWin32 PRIVATE
+        -Xlinker /MANIFESTINPUT:${CMAKE_SOURCE_DIR}/res/app.manifest
+    )
 endif()
 
 if(MSVC)

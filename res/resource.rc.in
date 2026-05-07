@@ -239,4 +239,4 @@ BEGIN
     END
 END
 
-1 RT_MANIFEST "app.manifest"
+@RC_MANIFEST_LINE@
