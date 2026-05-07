@@ -381,7 +381,7 @@ static DWORD CALLBACK RtfCallback(DWORD_PTR cookie, LPBYTE buf,
     RtfStream *s = (RtfStream *)cookie;
     DWORD avail = (DWORD)strlen(s->data) - s->pos;
     DWORD n = (avail < (DWORD)cb) ? avail : (DWORD)cb;
-    if (n) { memcpy(buf, s->data + s->pos, n); s->pos += n; }
+    if (n) { if (memmove_s(buf, n, s->data + s->pos, n) == 0) s->pos += n; else n = 0; }
     *read = (LONG)n;
     return 0;
 }
