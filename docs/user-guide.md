@@ -137,7 +137,14 @@ Open via **☰ Menu → File → Sources...**
 CatiaMenuWin32 can load scripts from three types of sources simultaneously:
 
 ### Built-in Repository
-The `KaiUR/Pycatia_Scripts` repository is always the primary source. Use the checkbox at the top of the Sources dialog to enable or disable it.
+The `KaiUR/Pycatia_Scripts` repository is the default primary source. If you want to use the app with your own scripts only — or as a general Python script launcher unrelated to CATIA — you can disable it:
+
+1. Open **☰ Menu → File → Sources...**
+2. At the top of the dialog, uncheck **Enable built-in repository (KaiUR/Pycatia_Scripts)**
+3. Click **OK**
+4. Click **↺ Refresh** — the built-in scripts are removed from all tabs immediately
+
+The built-in repository is not deleted from your cache, just hidden. Re-check the box and refresh to restore it at any time.
 
 ### Additional GitHub Repositories
 Add any GitHub repository that uses the same folder structure (subfolders contain `.py` files):
