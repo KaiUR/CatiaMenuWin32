@@ -243,14 +243,16 @@ bool Runner_Run(int fi, int si)
 static void RunPipInstall(const WCHAR *python, const WCHAR *req,
                            const WCHAR *work_dir, bool keep_open)
 {
-    WCHAR cmd[MAX_APPPATH * 2];
+    WCHAR cmd[MAX_APPPATH * 4];
     if (keep_open) {
         /* cmd /k requires the inner command wrapped in extra quotes */
-        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /k \"\"%s\" -m pip install --upgrade -r \"%s\"\"",
-                   python, req);
+        _snwprintf_s(cmd, MAX_APPPATH * 4 - 1, _TRUNCATE,
+                   L"cmd.exe /k \"\"%s\" -m pip install --upgrade pip && \"%s\" -m pip install --upgrade -r \"%s\"\"",
+                   python, python, req);
     } else {
-        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /c \"%s\" -m pip install --upgrade -r \"%s\"",
-                   python, req);
+        _snwprintf_s(cmd, MAX_APPPATH * 4 - 1, _TRUNCATE,
+                   L"cmd.exe /c \"%s\" -m pip install --upgrade pip && \"%s\" -m pip install --upgrade -r \"%s\"",
+                   python, python, req);
     }
 
     STARTUPINFOW si; PROCESS_INFORMATION pi;

@@ -65,7 +65,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **System Tray** | Minimize to tray; restore with double-click |
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
 | **Update checker** | Checks GitHub Releases on startup and notifies if a newer version is available |
-| **Update Dependencies** | Runs `setup/update.bat` or falls back to `pip install --upgrade -r requirements.txt` |
+| **Update Dependencies** | Runs `setup/update.bat` or falls back to upgrading pip then `pip install --upgrade -r requirements.txt` |
 | **Dark / Light / System theme** | Follows Windows theme by default; toggle via Menu → View → Theme |
 | **Auto-versioning** | CMake increments `build_number.txt` on every configure; CI appends it to the release tag |
 
@@ -215,7 +215,7 @@ Without **Show console window**, scripts run silently in the background and the 
 
 ## 🔄 Update Dependencies
 
-The **Update Deps** button runs `setup/update.bat` from the cached scripts folder. If that file doesn't exist, it falls back to `pip install --upgrade -r setup/requirements.txt` using your configured Python interpreter. Enable **Keep Update Deps console open** in Settings to keep the window visible until you close it.
+The **Update Deps** button runs `setup/update.bat` from the cached scripts folder. If that file doesn't exist, it upgrades pip itself then runs `pip install --upgrade -r setup/requirements.txt` using your configured Python interpreter. Enable **Keep Update Deps console open** in Settings to keep the window visible until you close it.
 
 ## 🔢 Versioning System
 
