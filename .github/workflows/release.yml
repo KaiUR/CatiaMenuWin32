@@ -111,13 +111,21 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
-        echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-        echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-        echo "no-tty" >> ~/.gnupg/gpg.conf
+        mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+        echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+        echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --pinentry-mode loopback --passphrase "" --import
+        gpg-connect-agent reloadagent /bye || true
+
+        cat > /tmp/gpg-wrapper << 'GPGEOF'
+#!/bin/bash
+exec gpg --batch --pinentry-mode loopback --passphrase "" "$@"
+GPGEOF
+        chmod +x /tmp/gpg-wrapper
+
         git config user.name "KaiUR"
         git config user.email "kairathjen@yahoo.com"
         git config user.signingkey 7655C72C28F76CF8DCC6DE00792CE74C181F0999
-        git config gpg.program gpg
+        git config gpg.program /tmp/gpg-wrapper
 
         BASE_TAG=${{ github.ref_name }}
         BUILD_NUM=${{ env.BUILD_NUM }}
