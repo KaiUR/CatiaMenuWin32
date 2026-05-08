@@ -112,6 +112,8 @@ jobs:
       shell: bash
       run: |
         echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        git config user.name "KaiUR"
+        git config user.email "kairathjen@yahoo.com"
         git config user.signingkey 7655C72C28F76CF8DCC6DE00792CE74C181F0999
         git config gpg.program gpg
 
