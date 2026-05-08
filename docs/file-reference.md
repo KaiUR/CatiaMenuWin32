@@ -106,7 +106,7 @@ Script execution and dependency management.
 - `Runner_Run` — verifies SHA, finds Python, launches script in a thread
 - `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper)
 - `Runner_FindPython` — searches PATH, `cfg.python_exe`, and common install locations
-- `Runner_UpdateDeps` — runs `pip install -r requirements.txt` for each source sequentially
+- `Runner_UpdateDeps` — runs `pip install --upgrade -r requirements.txt` for each source sequentially
 - `RunPipInstall` — runs one pip install command and waits for it to complete
 
 ### `meta.c`
