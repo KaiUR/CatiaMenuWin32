@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kaiur.github.io/CatiaMenuWin32/sitemap.xml

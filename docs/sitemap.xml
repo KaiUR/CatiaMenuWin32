@@ -37,4 +37,10 @@
     <priority>0.7</priority>
   </url>
 
+  <url>
+    <loc>https://kaiur.github.io/CatiaMenuWin32/privacy-policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
 </urlset>
