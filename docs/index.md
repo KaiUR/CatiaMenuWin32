@@ -33,6 +33,7 @@ Built for CATIA V5 engineers who want to run automation scripts without touching
 - [File Reference](file-reference) — source files, structs, functions, constants
 - [Changelog](changelog) — release history
 - [Contributing](https://github.com/KaiUR/CatiaMenuWin32/blob/main/CONTRIBUTING.md)
+- [Privacy Policy](privacy-policy)
 
 ---
 
