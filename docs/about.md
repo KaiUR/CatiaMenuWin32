@@ -164,7 +164,7 @@ cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
 ninja
 ```
 
-> **Note**: Add `res/app_icon.ico` before building.
+> **Note**: `res/app_icon.ico` is included in the repository.
 
 ### Qt Creator
 
