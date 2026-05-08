@@ -124,6 +124,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: iarekylew00t/verified-bot-commit@v2
       with:
+        branch: main
         message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
         files: |
           build_number.txt
