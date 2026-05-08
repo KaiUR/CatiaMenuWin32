@@ -124,7 +124,6 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: iarekylew00t/verified-bot-commit@v2
       with:
-        branch: main
         message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
         files: |
           build_number.txt
@@ -141,14 +140,27 @@ jobs:
         echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
+        # Resolve the verified bot commit on main
+        git fetch origin main
+        COMMIT_SHA=$(git rev-parse origin/main)
+
         # Remove the base tag from remote
         git push --delete origin "$BASE_TAG" 2>/dev/null || true
 
-        # Create a lightweight tag on the verified bot commit — lightweight tags
-        # inherit the commit's Verified status on GitHub
-        git fetch origin main
-        git tag "$FULL_VERSION" origin/main
-        git push origin "$FULL_VERSION"
+        # Create an annotated tag via the GitHub API — GitHub signs these
+        # automatically so the tag shows as Verified on the releases page
+        TAG_SHA=$(gh api repos/${{ github.repository }}/git/tags \
+          -X POST \
+          -f tag="$FULL_VERSION" \
+          -f message="Release $FULL_VERSION" \
+          -f object="$COMMIT_SHA" \
+          -f type="commit" \
+          --jq '.sha')
+
+        gh api repos/${{ github.repository }}/git/refs \
+          -X POST \
+          -f ref="refs/tags/$FULL_VERSION" \
+          -f sha="$TAG_SHA"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
