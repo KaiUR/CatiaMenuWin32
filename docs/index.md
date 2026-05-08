@@ -1,15 +1,15 @@
 ---
 title: CatiaMenuWin32
-description: A native Win32 macro launcher for PyCATIA scripts used with CATIA V5
+description: A native Win32 Python script launcher — built for PyCATIA and CATIA V5, works for any Python scripts or macros
 ---
 
 # CatiaMenuWin32
 
 **Stop copy-pasting scripts. Click a button.**
 
-CatiaMenuWin32 is a fast, native Windows application that syncs your PyCATIA scripts directly from GitHub and presents them as one-click buttons — organised by tab, always up to date, always ready to run.
+CatiaMenuWin32 is a fast, native Windows application that syncs Python scripts directly from GitHub and presents them as one-click buttons — organised by tab, always up to date, always ready to run.
 
-Built for CATIA V5 engineers who want to run automation scripts without touching the CATIA macro editor.
+Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but equally useful as a general-purpose Python script launcher or macro manager for any application that exposes a Python API. Point it at any GitHub repository or local folder of `.py` files and it works the same way.
 
 [Download Latest Release](https://github.com/KaiUR/CatiaMenuWin32/releases/latest){: .btn} &nbsp; [View on GitHub](https://github.com/KaiUR/CatiaMenuWin32){: .btn}
 

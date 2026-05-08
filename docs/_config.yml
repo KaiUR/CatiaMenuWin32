@@ -1,5 +1,5 @@
 title: CatiaMenuWin32
-description: A native Win32 macro launcher for PyCATIA scripts used with CATIA V5
+description: A native Win32 Python script launcher — built for PyCATIA and CATIA V5, works for any Python scripts or macros
 theme: jekyll-theme-cayman
 show_downloads: true
 google_analytics:

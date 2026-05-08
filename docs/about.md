@@ -5,8 +5,8 @@ description: A native Win32 macro launcher for PyCATIA scripts
 
 # CatiaMenuWin32
 
-A lightweight, native **Win32 API / C** macro launcher for PyCATIA scripts
-— direct Win32 API, no frameworks, pure C11.
+A lightweight, native **Win32 API / C** Python script launcher and manager
+— built for PyCATIA and CATIA V5 automation, but works as a general-purpose launcher for any Python scripts or application macros. Direct Win32 API, no frameworks, pure C11.
 
 ## 📚 Documentation
 
@@ -31,11 +31,9 @@ Full documentation is available in the [`docs/`](docs/) folder:
 
 ## 🎯 What It Does
 
-CatiaMenuWin32 connects directly to the [KaiUR/Pycatia_Scripts](https://github.com/KaiUR/Pycatia_Scripts)
-GitHub repository and presents every script as a clickable button. Click a button — the script runs.
-No CATIA macro editor, no manual path setup, no copy-pasting.
+CatiaMenuWin32 syncs Python scripts from GitHub and presents them as clickable buttons organised into tabs. Click a button — the script runs. No macro editor, no manual path setup, no copy-pasting.
 
-Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 COM automation.
+While it ships with the [KaiUR/Pycatia_Scripts](https://github.com/KaiUR/Pycatia_Scripts) repository as its built-in source — scripts that automate CATIA V5 via the [PyCATIA](https://github.com/evereux/pycatia) library — the built-in source can be disabled entirely. You can point the app at any GitHub repository or local folder containing `.py` files, making it a general-purpose Python script launcher for any workflow, tool, or application that exposes a Python API.
 
 ## 📂 Script Tabs
 
