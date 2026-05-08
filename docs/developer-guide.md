@@ -43,7 +43,7 @@ cmake --build build
 
 The executable is output to `build/CatiaMenuWin32.exe`.
 
-> **Note:** `res/app_icon.ico` must exist before building. It is not included in the repository — generate it from the project icon or use any `.ico` file.
+> **Note:** `res/app_icon.ico` must exist before building. It is included in the repository.
 
 ### Qt Creator
 
@@ -86,7 +86,7 @@ CatiaMenuWin32/
 │   ├── resource.rc.in      Resource script template (CMake substitutes version)
 │   ├── version.h.in        Version header template
 │   ├── app.manifest        Application manifest (DPI awareness, ComCtl32 v6)
-│   └── app_icon.ico        Application icon (not in repo — add before building)
+│   └── app_icon.ico        Application icon
 ├── docs/                   Documentation
 ├── .github/
 │   └── workflows/
