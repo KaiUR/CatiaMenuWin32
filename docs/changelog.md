@@ -4,6 +4,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.13 — Update Dependencies now upgrades packages
+
+### Fixed
+- **Update Dependencies** now upgrades packages to their latest versions — `pip install --upgrade -r requirements.txt` is used instead of `pip install -r requirements.txt`, so packages that are already installed are brought up to date rather than skipped
+
+---
+
 ## v1.3.12 — SxS fix, verified tags, updated certificate
 
 ### Fixed

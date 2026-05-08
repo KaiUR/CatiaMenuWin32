@@ -171,7 +171,7 @@ My_Scripts/
 Local scripts run directly from disk — no downloading or SHA checking. A `setup/` subfolder is never shown as a tab — it is used for dependencies only.
 
 ### Update Dependencies for Sources
-If a source has a `setup/requirements.txt` file, clicking **↓ Deps** will run `pip install -r requirements.txt` for each source separately in order:
+If a source has a `setup/requirements.txt` file, clicking **↓ Deps** will run `pip install --upgrade -r requirements.txt` for each source separately in order:
 1. Main repo requirements
 2. Each extra GitHub repo's requirements
 3. Each local folder's requirements
@@ -182,7 +182,7 @@ If a source has a `setup/requirements.txt` file, clicking **↓ Deps** will run 
 
 Click **↓ Deps** (or **☰ Menu → Run → Update Dependencies**) to install Python packages required by the scripts.
 
-The app runs `pip install -r requirements.txt` for each configured source that has a `setup/requirements.txt` file. Each source runs in its own console window sequentially.
+The app runs `pip install --upgrade -r requirements.txt` for each configured source that has a `setup/requirements.txt` file. Each source runs in its own console window sequentially.
 
 Enable **Keep Update Deps console open** in Settings to keep each window visible until you close it manually.
 

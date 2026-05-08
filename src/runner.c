@@ -246,10 +246,10 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
     WCHAR cmd[MAX_APPPATH * 2];
     if (keep_open) {
         /* cmd /k requires the inner command wrapped in extra quotes */
-        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /k \"\"%s\" -m pip install -r \"%s\"\"",
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /k \"\"%s\" -m pip install --upgrade -r \"%s\"\"",
                    python, req);
     } else {
-        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /c \"%s\" -m pip install -r \"%s\"",
+        _snwprintf_s(cmd, MAX_APPPATH * 2 - 1, _TRUNCATE, L"cmd.exe /c \"%s\" -m pip install --upgrade -r \"%s\"",
                    python, req);
     }
 
