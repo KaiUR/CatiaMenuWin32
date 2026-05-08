@@ -99,40 +99,22 @@ jobs:
             $exePath
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    - name: Read build number and commit
+    - name: Read build number
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-        # CMake already incremented build_number.txt during configure above
-        # Read the incremented value BEFORE git checkout resets it
         BUILD_NUM=$(cat build_number.txt)
         echo "BUILD_NUM=$BUILD_NUM" >> $GITHUB_ENV
         echo "Build number: $BUILD_NUM"
 
-        git fetch origin main
-        git checkout -B main origin/main
-
-        # Restore the incremented value that git checkout just overwrote
-        echo "$BUILD_NUM" > build_number.txt
-
-        git add build_number.txt CONTRIBUTORS.md
-
-    - name: Commit & Push build number and contributors
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: iarekylew00t/verified-bot-commit@v2
-      with:
-        message: "chore: increment build number for release ${{ github.ref_name }} [skip ci]"
-        files: |
-          build_number.txt
-          CONTRIBUTORS.md
-
-    - name: Push New Tag with build number
+    - name: Push signed tag with build number
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
       run: |
+        echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        git config user.signingkey 7655C72C28F76CF8DCC6DE00792CE74C181F0999
+        git config gpg.program gpg
+
         BASE_TAG=${{ github.ref_name }}
         BUILD_NUM=${{ env.BUILD_NUM }}
 
@@ -140,27 +122,11 @@ jobs:
         echo "Creating release for $FULL_VERSION"
         echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
-        # Resolve the verified bot commit on main
-        git fetch origin main
-        COMMIT_SHA=$(git rev-parse origin/main)
+        git tag -d "$BASE_TAG"
+        git push --delete origin "$BASE_TAG"
 
-        # Remove the base tag from remote
-        git push --delete origin "$BASE_TAG" 2>/dev/null || true
-
-        # Create an annotated tag via the GitHub API — GitHub signs these
-        # automatically so the tag shows as Verified on the releases page
-        TAG_SHA=$(gh api repos/${{ github.repository }}/git/tags \
-          -X POST \
-          -f tag="$FULL_VERSION" \
-          -f message="Release $FULL_VERSION" \
-          -f object="$COMMIT_SHA" \
-          -f type="commit" \
-          --jq '.sha')
-
-        gh api repos/${{ github.repository }}/git/refs \
-          -X POST \
-          -f ref="refs/tags/$FULL_VERSION" \
-          -f sha="$TAG_SHA"
+        git tag -s "$FULL_VERSION" -m "Release $FULL_VERSION"
+        git push origin "$FULL_VERSION"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
