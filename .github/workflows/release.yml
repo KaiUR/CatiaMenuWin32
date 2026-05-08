@@ -116,10 +116,7 @@ jobs:
         echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --pinentry-mode loopback --passphrase "" --import
         gpg-connect-agent reloadagent /bye || true
 
-        cat > /tmp/gpg-wrapper << 'GPGEOF'
-#!/bin/bash
-exec gpg --batch --pinentry-mode loopback --passphrase "" "$@"
-GPGEOF
+        printf '#!/bin/sh\nexec gpg --batch --pinentry-mode loopback --passphrase "" "$@"\n' > /tmp/gpg-wrapper
         chmod +x /tmp/gpg-wrapper
 
         git config user.name "KaiUR"
