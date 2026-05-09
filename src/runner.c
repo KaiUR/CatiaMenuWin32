@@ -250,8 +250,10 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
                    L"cmd.exe /k \"\"%s\" -m pip install --upgrade pip && \"%s\" -m pip install --upgrade -r \"%s\"\"",
                    python, python, req);
     } else {
+        /* Outer ""..."" wrapping is required for cmd /c so the && chain is
+           parsed correctly when the python path contains spaces. */
         _snwprintf_s(cmd, MAX_APPPATH * 4 - 1, _TRUNCATE,
-                   L"cmd.exe /c \"%s\" -m pip install --upgrade pip && \"%s\" -m pip install --upgrade -r \"%s\"",
+                   L"cmd.exe /c \"\"%s\" -m pip install --upgrade pip && \"%s\" -m pip install --upgrade -r \"%s\"\"",
                    python, python, req);
     }
 
