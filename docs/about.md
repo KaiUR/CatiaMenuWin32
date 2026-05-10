@@ -1,6 +1,6 @@
 ---
 title: CatiaMenuWin32 — Overview
-description: A native Win32 macro launcher for PyCATIA scripts
+description: Overview of CatiaMenuWin32 — a native Win32 Python script launcher and macro manager for CATIA V5, DELMIA, and PyCATIA automation.
 ---
 
 # CatiaMenuWin32

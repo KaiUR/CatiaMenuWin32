@@ -1,3 +1,8 @@
+---
+title: File Reference — CatiaMenuWin32
+description: Source file descriptions, key data structures, functions, and constants for CatiaMenuWin32 — the native Win32 Python script launcher for CATIA V5 automation.
+---
+
 # File Reference
 
 Descriptions of every source file, key data structures, and important functions.

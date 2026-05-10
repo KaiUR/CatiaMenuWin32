@@ -1,3 +1,8 @@
+---
+title: Developer Guide — CatiaMenuWin32
+description: Build CatiaMenuWin32 from source. Covers prerequisites, project structure, versioning, adding script sources, and the CI/CD release pipeline for this CATIA V5 Python macro launcher.
+---
+
 # Developer Guide
 
 ## Contents

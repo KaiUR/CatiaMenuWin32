@@ -1,3 +1,8 @@
+---
+title: Changelog — CatiaMenuWin32
+description: Release history for CatiaMenuWin32 — the CATIA V5 and DELMIA Python script launcher and macro manager.
+---
+
 # Changelog
 
 All notable changes to CatiaMenuWin32 are documented here.

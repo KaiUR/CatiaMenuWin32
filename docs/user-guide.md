@@ -1,3 +1,8 @@
+---
+title: User Guide — CatiaMenuWin32
+description: How to install and use CatiaMenuWin32 — the Python script launcher and macro manager for CATIA V5 and DELMIA. Covers installation, script sources, settings, and favourites.
+---
+
 # User Guide
 
 ## Contents
