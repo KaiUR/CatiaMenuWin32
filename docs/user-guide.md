@@ -323,6 +323,51 @@ Your_Repo/
 
 The `setup/` folder is never shown as a tab.
 
+### Persistent Data
+
+> **Never ask users to edit a script to change settings or parameters.** CatiaMenuWin32 verifies the SHA hash of every downloaded script against GitHub before running it. A script that has been locally modified will fail the integrity check and the app will refuse to run it. All user-configurable data must be stored outside the script file.
+
+Store settings in a per-script folder under `%APPDATA%\pycatia_scripts\`:
+
+```
+%APPDATA%\pycatia_scripts\<Your_Script_Name>\user_settings.json
+```
+
+Use the script filename (without `.py`) as the folder name. This keeps each script's data isolated and easy to locate or clean up.
+
+**Implementation pattern:**
+
+```python
+import os
+import json
+
+SETTINGS_DIR  = os.path.join(os.environ['APPDATA'], 'pycatia_scripts', 'Your_Script_Name')
+SETTINGS_FILE = os.path.join(SETTINGS_DIR, 'user_settings.json')
+
+# --- Load (in your dialog __init__) ---
+hardcoded_defaults = {"my_param": "10.0", "another_param": "5.0"}
+settings = hardcoded_defaults.copy()
+if os.path.exists(SETTINGS_FILE):
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            settings.update(json.load(f))
+    except:
+        pass  # Fall back to hardcoded defaults on corrupt or missing file
+
+# --- Save (after user clicks OK) ---
+if not os.path.exists(SETTINGS_DIR):
+    os.makedirs(SETTINGS_DIR)
+with open(SETTINGS_FILE, 'w') as f:
+    json.dump({"my_param": dlg.my_field.GetValue(), "another_param": dlg.other_field.GetValue()}, f, indent=4)
+```
+
+**Rules:**
+- Always define `hardcoded_defaults` — these are factory defaults when no saved file exists
+- Wrap the file read in `try/except` and fall back to defaults if the file is corrupt
+- Create the directory before writing: use `os.makedirs()` after checking it does not exist
+- Save only on successful completion (OK), not on cancel or error
+- Include a **Clear Saved** button in dialogs that saves settings, so users can return to factory defaults without touching any files
+
 ---
 
 ## ⭐ Favourites
