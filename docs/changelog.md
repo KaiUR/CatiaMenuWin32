@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.14 — Tab bar scroll fix
+
+### Fixed
+- **Tab bar scroll** — the last tab was unreachable when tabs have unequal widths. The scroll limit (`max_off`) was calculated using `CountFit(offset=0)`, which is not symmetric — a wider last tab may not fit even after scrolling past a narrower one (e.g. "★ Favourites"). The calculation now walks forward until all remaining tabs fit from the computed offset, ensuring the last tab is always reachable via the ◄ ► arrows and mouse wheel.
+
+---
+
 ## v1.3.13 — Update Dependencies now upgrades packages
 
 ### Fixed
