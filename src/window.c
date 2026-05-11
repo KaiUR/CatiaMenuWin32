@@ -338,9 +338,14 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             left_x  = TAB_ARROW_W;
             right_x = w - TAB_ARROW_W;
 
-            /* Clamp offset so we don't scroll past available tabs */
-            int max_off = n - TabBar_CountFit(w, 0, true);
-            if (max_off < 0) max_off = 0;
+            /* Clamp offset so the last tab is always reachable.
+               Using CountFit(0) is wrong when tab widths differ — a wider
+               last tab may not fit even after scrolling past a narrower one.
+               Instead walk forward until all remaining tabs fit. */
+            int max_off = 0;
+            while (max_off < n - 1 &&
+                   max_off + TabBar_CountFit(w, max_off, true) < n)
+                max_off++;
             if (g.tab_offset > max_off) g.tab_offset = max_off;
             if (g.tab_offset < 0)       g.tab_offset = 0;
 
