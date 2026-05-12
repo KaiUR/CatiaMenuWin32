@@ -13,6 +13,7 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [Settings](#settings)
 - [Script Sources](#script-sources)
 - [Update Dependencies](#update-dependencies)
+- [Quick Launch Bar](#quick-launch-bar)
 - [System Tray](#system-tray)
 - [Themes](#themes)
 - [GitHub Token](#github-token)
@@ -197,6 +198,59 @@ Click **↓ Deps** (or **☰ Menu → Run → Update Dependencies**) to install 
 The app runs `pip install --upgrade pip && pip install --upgrade -r requirements.txt` for each configured source that has a `setup/requirements.txt` file. Each source runs in its own console window sequentially.
 
 Enable **Keep Update Deps console open** in Settings to keep each window visible until you close it manually.
+
+---
+
+## Quick Launch Bar
+
+The Quick Launch Bar is a small floating button bar that gives you one-click access to your favourite scripts without switching to the main window.
+
+### Enabling the bar
+
+Go to **☰ Menu → View → Quick Bar → Enable Quick Bar**, or right-click the bar itself and tick **Enable Quick Bar**.
+
+### Buttons
+
+Each button represents one script from your ⭐ Favourites tab. The button face shows the first two uppercase letters of the script name. Hover over a button to see the full script name and its Purpose line in a tooltip. Click to run the script.
+
+If you have more favourites than fit in the bar, **▲ ▼** (vertical) or **◄ ►** (horizontal) scroll arrows appear at the edges. You can also scroll with the **mouse wheel**.
+
+### Moving the bar
+
+Drag any empty area of the bar (between buttons) to reposition it anywhere on screen. The position is saved automatically to `settings.ini`.
+
+### Orientation
+
+Switch between vertical and horizontal layouts via **☰ Menu → View → Quick Bar** or the right-click context menu. The bar resizes automatically.
+
+### Always on top with the target app
+
+When **On Top with Target App** is enabled, the bar rises to always-on-top whenever the configured target application gains focus, and drops back to normal z-order when any other window comes to the front. This lets the bar float above your target app without covering unrelated windows.
+
+The bar also tracks the target application's state:
+- **Target app visible** — bar shown normally
+- **All target windows minimised** — bar hides automatically and reappears when any window is restored
+- **Target app not running** — bar stays visible so you can launch scripts before opening the app
+
+### Setting the target app
+
+By default the target is **CATIA V5**. To use the bar with a different application:
+
+1. Right-click the bar and select **Set Target App…** (or **☰ Menu → View → Quick Bar → Set Target App…**)
+2. Enter any substring that appears in the target application's window title (e.g. `Fusion 360`, `Blender`, `SolidWorks`)
+3. Click **OK**
+
+To disable target tracking entirely — keeping the bar always visible with no topmost behaviour — clear the field and click **OK**.
+
+### Right-click menu options
+
+| Option | Description |
+|--------|-------------|
+| Enable Quick Bar | Toggle the bar on or off |
+| Horizontal / Vertical | Switch orientation |
+| On Top with Target App | Toggle topmost-with-target behaviour (greyed out when no target is set) |
+| Set Target App… | Enter the window-title substring to track |
+| Reset Position | Move the bar back to its default position (right edge of screen) |
 
 ---
 

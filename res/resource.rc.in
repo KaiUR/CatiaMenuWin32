@@ -210,6 +210,20 @@ BEGIN
     LTEXT "", -1, 0, 0, 1, 1
 END
 
+/* ================================================================== */
+/*  Target App dialog  (IDD_QBAR_TARGET = 309)                        */
+/* ================================================================== */
+309 DIALOG 0, 0, 300, 72
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Set Target Application"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Window title substring (empty = always visible):", -1, 7, 10, 286, 10
+    EDITTEXT 760, 7, 24, 286, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON "OK",     1, 188, 50, 50, 14
+    PUSHBUTTON    "Cancel", 2, 244, 50, 50, 14
+END
+
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
 PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,@BUILD_NUMBER@
