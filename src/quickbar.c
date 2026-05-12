@@ -163,16 +163,14 @@ static void QB_UpdateVisibility(HWND fg_hwnd)
 
     CatiaState state = QB_CatiaState();
 
-    /* Hide the bar only when the target app is running but all windows
-       are minimised.  When the target is not open the bar stays visible
-       so the user can launch scripts before the app opens. */
-    if (state == CATIA_MINIMIZED) {
+    /* Hide the bar when the target app is not open or is fully minimised. */
+    if (state != CATIA_VISIBLE) {
         QB_HideTip();
         ShowWindow(g.hwnd_qbar, SW_HIDE);
         return;
     }
 
-    /* Target is either not running or has a visible window — show if enabled */
+    /* Target has a visible window — show if enabled */
     if (g.cfg.qbar_enabled && !IsWindowVisible(g.hwnd_qbar))
         ShowWindow(g.hwnd_qbar, SW_SHOWNOACTIVATE);
 
@@ -929,9 +927,9 @@ void QuickBar_Create(void)
 
     QB_UpdateGeometry();
 
-    /* Show only if enabled AND (no target set OR target is not all-minimised) */
+    /* Show only if enabled AND (no target set OR target has a visible window) */
     if (g.cfg.qbar_enabled &&
-        (!g.cfg.qbar_target_app[0] || QB_CatiaState() != CATIA_MINIMIZED))
+        (!g.cfg.qbar_target_app[0] || QB_CatiaState() == CATIA_VISIBLE))
         ShowWindow(g.hwnd_qbar, SW_SHOWNOACTIVATE);
 }
 
@@ -959,10 +957,10 @@ void QuickBar_Show(bool show)
     if (!g.hwnd_qbar) return;
     if (show) {
         /* When no target is configured, always show.
-           Otherwise only show if the target is not currently all-minimised. */
-        if (!g.cfg.qbar_target_app[0] || QB_CatiaState() != CATIA_MINIMIZED)
+           Otherwise only show if the target has a visible window. */
+        if (!g.cfg.qbar_target_app[0] || QB_CatiaState() == CATIA_VISIBLE)
             ShowWindow(g.hwnd_qbar, SW_SHOWNOACTIVATE);
-        /* else: bar will appear automatically when the target app is restored */
+        /* else: bar will appear automatically when the target app becomes visible */
     } else {
         QB_HideTip();
         ShowWindow(g.hwnd_qbar, SW_HIDE);

@@ -59,6 +59,8 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
 | **Single instance** | Only one instance runs at a time — launching a second brings the existing window to the front |
 | **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
+| **Quick Launch Bar** | Floating button bar sourced from your Favourites — large icon buttons, drag anywhere, scroll arrows, hover tooltips, always-on-top with the target app |
+| **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; shows only when a visible target window exists; rises to TOPMOST when the target app gains focus |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
 | **System Tray** | Minimize to tray; restore with double-click |
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
@@ -135,14 +137,16 @@ All communication with GitHub is secured at two levels:
 - **Language**: C (C11)
 - **API**: Win32 API — User32, GDI32, ComCtl32, WinINet, Shell32, Shlwapi, DwmApi, Crypt32
 - **Build system**: CMake 3.16+ / Ninja
-- **Compiler**: MinGW-w64 (GCC 13)
+- **Compiler**: LLVM/Clang (with MSVC Windows SDK)
+- **Code signing**: PowerShell + `signtool.exe` — release binaries are Authenticode-signed
 - **AI Assistance**: Claude (Anthropic) — used to assist with code generation, debugging, and architecture decisions
 - **PyCATIA**: Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library by evereux for CATIA V5 automation
 
 ## 📦 Building from Source
 
 ### Prerequisites
-- [MinGW-w64](https://www.mingw-w64.org/) — GCC 13+
+- [LLVM](https://releases.llvm.org/) — Clang 17+
+- [Visual Studio](https://visualstudio.microsoft.com/) 2019+ (for Windows SDK and `rc.exe`)
 - [CMake 3.16+](https://cmake.org/)
 - [Ninja](https://ninja-build.org/)
 - Qt Creator (optional, used as IDE)
@@ -154,20 +158,19 @@ All communication with GitHub is secured at two levels:
 
 ### Steps
 
+Open a **Developer Command Prompt for VS**, then:
+
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-mkdir build && cd build
-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ..
-ninja
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl
+cmake --build build
 ```
-
-> **Note**: `res/app_icon.ico` is included in the repository.
 
 ### Qt Creator
 
 1. Open `CMakeLists.txt` in Qt Creator
-2. Select the MinGW-w64 kit
+2. Select a Clang kit configured with the MSVC toolchain
 3. Build → Build All
 
 Local builds automatically detect the latest git tag for the version number and show a `(local)` suffix. The update checker is disabled for local builds.
@@ -190,6 +193,11 @@ Local builds automatically detect the latest git tag for the version number and 
 | `Window\StartWithWindows` | off | Add to Windows autorun registry key |
 | `Window\StartMinimized` | on | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
+| `QuickBar\Enabled` | off | Show the Quick Launch Bar |
+| `QuickBar\Horizontal` | off | Bar orientation: 0 = vertical, 1 = horizontal |
+| `QuickBar\TopmostWithCatia` | on | Rise to TOPMOST when the target app is in the foreground |
+| `QuickBar\TargetApp` | `CATIA V5` | Window-title substring to track; empty = always visible, no topmost |
+| `QuickBar\X` / `QuickBar\Y` | auto | Saved position of the floating bar |
 
 ## 🔑 GitHub Token (optional)
 
@@ -233,7 +241,7 @@ GitHub Actions builds, increments the build number, and publishes automatically.
 
 ## 📄 License
 
-MIT License — Copyright © 2025 Kai-Uwe Rathjen
+MIT License — Copyright © 2026 Kai-Uwe Rathjen
 
 Developed with AI assistance from Claude (Anthropic).
 

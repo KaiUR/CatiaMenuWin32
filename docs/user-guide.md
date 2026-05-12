@@ -230,7 +230,7 @@ When **On Top with Target App** is enabled, the bar rises to always-on-top whene
 The bar also tracks the target application's state:
 - **Target app visible** — bar shown normally
 - **All target windows minimised** — bar hides automatically and reappears when any window is restored
-- **Target app not running** — bar stays visible so you can launch scripts before opening the app
+- **Target app not running** — bar hides automatically; it reappears when the app is launched and a visible window is detected
 
 ### Setting the target app
 
