@@ -696,8 +696,9 @@ apply_theme:
         typedef LONG (WINAPI *RtlGetVersion_t)(OSVERSIONINFOEXW *);
         HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
         if (hNtdll) {
-            RtlGetVersion_t fn = (RtlGetVersion_t)(void *)GetProcAddress(hNtdll, "RtlGetVersion");
-            if (fn) fn(&osvi);
+            union { FARPROC proc; RtlGetVersion_t fn; } u;
+            u.proc = GetProcAddress(hNtdll, "RtlGetVersion");
+            if (u.fn) u.fn(&osvi);
         }
         _snwprintf_s(win_ver, 63, _TRUNCATE, L"Windows %lu.%lu build %lu",
                      osvi.dwMajorVersion, osvi.dwMinorVersion, osvi.dwBuildNumber);

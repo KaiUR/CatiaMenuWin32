@@ -67,8 +67,8 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/build_number.txt")
         # CI build - increment by 1 to match release tag
         math(EXPR BUILD_NUMBER "${BUILD_NUMBER} + 1")
     else()
-        # Local build - increment by 2 so local is always ahead of the release
-        math(EXPR BUILD_NUMBER "${BUILD_NUMBER} + 2")
+        # Local build - increment by 1
+        math(EXPR BUILD_NUMBER "${BUILD_NUMBER} + 1")
     endif()
 else()
     set(BUILD_NUMBER "1")
