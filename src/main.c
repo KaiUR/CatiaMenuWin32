@@ -78,6 +78,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* Apply always-on-top AFTER ShowWindow so it sticks */
     Window_ApplyAlwaysOnTop();
 
+    /* Create the Quick Launch Bar (hidden until enabled by user) */
+    QuickBar_Create();
+
     /* Load scripts from local cache immediately so tabs show before
        sync completes and when there is no internet connection */
     Sync_LoadManifest();
@@ -324,6 +327,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             App_RebuildGDI();
             Window_ApplyDarkMode(hwnd);
             Window_ApplyThemeToChildren(hwnd);
+            QuickBar_OnThemeChange();
             Tabs_RebuildButtons();
             InvalidateRect(hwnd, NULL, TRUE);
         }
@@ -434,6 +438,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
 
     case WM_DESTROY:
+        QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
         PostQuitMessage(0);
@@ -541,6 +546,7 @@ apply_theme:
         App_RebuildGDI();
         Window_ApplyDarkMode(g.hwnd);
         Window_ApplyThemeToChildren(g.hwnd);
+        QuickBar_OnThemeChange();
         /* Update menu checkmarks */
         CheckMenuItem(GetMenu(g.hwnd), IDM_THEME_DARK,
             g.cfg.theme == THEME_DARK   ? MF_CHECKED : MF_UNCHECKED);
@@ -618,6 +624,60 @@ apply_theme:
         Tabs_RebuildButtons();
         break;
 
+
+    /* ── Quick Launch Bar ──────────────────────────────────────────── */
+    case IDM_QBAR_TOGGLE:
+        g.cfg.qbar_enabled = !g.cfg.qbar_enabled;
+        QuickBar_Show(g.cfg.qbar_enabled);
+        Settings_Save(&g.cfg);
+        break;
+
+    case IDM_QBAR_HORIZONTAL:
+        if (!g.cfg.qbar_horizontal) {
+            g.cfg.qbar_horizontal = true;
+            /* Recreate bar with new orientation */
+            QuickBar_Destroy();
+            QuickBar_Register(GetModuleHandle(NULL));
+            QuickBar_Create();
+            QuickBar_Rebuild();
+            Settings_Save(&g.cfg);
+        }
+        break;
+
+    case IDM_QBAR_VERTICAL:
+        if (g.cfg.qbar_horizontal) {
+            g.cfg.qbar_horizontal = false;
+            QuickBar_Destroy();
+            QuickBar_Register(GetModuleHandle(NULL));
+            QuickBar_Create();
+            QuickBar_Rebuild();
+            Settings_Save(&g.cfg);
+        }
+        break;
+
+    case IDM_QBAR_TOPMOST:
+        g.cfg.qbar_topmost_with_catia = !g.cfg.qbar_topmost_with_catia;
+        if (!g.cfg.qbar_topmost_with_catia)
+            QuickBar_SetTopmost(false);
+        Settings_Save(&g.cfg);
+        break;
+
+    case IDM_QBAR_RESET_POS:
+    {
+        RECT work; SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
+        g.cfg.qbar_x = work.right - (QBAR_BTN_SIZE + 2 * QBAR_PAD + 2) - 20;
+        g.cfg.qbar_y = work.top + 60;
+        if (g.hwnd_qbar)
+            SetWindowPos(g.hwnd_qbar, NULL,
+                g.cfg.qbar_x, g.cfg.qbar_y, 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        Settings_Save(&g.cfg);
+        break;
+    }
+
+    case IDM_QBAR_SET_TARGET:
+        QuickBar_ShowTargetDlg();
+        break;
 
     case IDM_GITHUB_SCRIPTS:
         ShellExecute(NULL, L"open",

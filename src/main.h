@@ -79,6 +79,15 @@
 #define TIP_HEADER_ROWS  5
 #define SEARCH_H         26   /* height of search/filter box            */
 
+/* Quick Launch Bar */
+#define QBAR_BTN_SIZE    52   /* button face square (px)                 */
+#define QBAR_PAD          4   /* margin from bar edge to buttons         */
+#define QBAR_GAP          4   /* gap between adjacent buttons            */
+#define QBAR_ARROW_W     18   /* scroll arrow click area width/height    */
+#define QBAR_TIP_W       240  /* tooltip popup width                     */
+#define QBAR_TIP_PAD      8   /* tooltip internal padding                */
+#define QBAR_TIP_ROW     18   /* tooltip row height                      */
+
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
@@ -104,6 +113,7 @@
 #define WM_AUTO_REFRESH    (WM_USER + 12)
 #define TRAY_ID            1
 #define TIMER_AUTO_REFRESH 1001
+#define TIMER_QBAR         1002
 
 /* ================================================================== */
 /*  SortMode                                                            */
@@ -317,6 +327,13 @@ typedef struct {
     int       local_dir_count;
     /* Sort */
     SortMode  sort_mode;         /* global sort mode                    */
+    /* Quick Launch Bar */
+    bool      qbar_enabled;
+    bool      qbar_horizontal;
+    bool      qbar_topmost_with_catia;
+    int       qbar_x;
+    int       qbar_y;
+    WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
 } Settings;
 
 /* ------------------------------------------------------------------ */
@@ -402,6 +419,17 @@ typedef struct {
     int    details_script_fi;    /* folder index of shown script        */
     int    details_script_si;    /* script index of shown script        */
     bool   details_visible;
+
+    /* Quick Launch Bar */
+    HWND   hwnd_qbar;            /* floating bar window                 */
+    HWND   hwnd_qbar_tip;        /* bar tooltip popup                   */
+    int    qbar_hot;             /* hovered button index, -1 = none     */
+    int    qbar_scroll;          /* current scroll offset (px)          */
+    int    qbar_scroll_max;      /* maximum scroll offset               */
+    bool   qbar_dragging;        /* bar is being dragged                */
+    int    qbar_drag_ox;         /* drag start: cursor offset from left  */
+    int    qbar_drag_oy;         /* drag start: cursor offset from top   */
+    int    qbar_tip_idx;         /* button index shown in tip, -1 = none */
 
 } AppState;
 
@@ -532,6 +560,16 @@ INT_PTR CALLBACK ScriptDetailsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK RunWithArgsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ScriptNoteDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK HiddenScriptsDlgProc(HWND, UINT, WPARAM, LPARAM);
+
+/* quickbar.c */
+void QuickBar_Register(HINSTANCE hInst);
+void QuickBar_Create(void);
+void QuickBar_Destroy(void);
+void QuickBar_Show(bool show);
+void QuickBar_Rebuild(void);
+void QuickBar_OnThemeChange(void);
+void QuickBar_SetTopmost(bool topmost);
+void QuickBar_ShowTargetDlg(void);
 
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);

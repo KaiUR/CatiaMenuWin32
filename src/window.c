@@ -129,6 +129,20 @@ void Window_ShowMenu(void)
     AppendMenu(hSort, MF_STRING, IDM_SORT_DATE,      L"By Date");
     AppendMenu(hSort, MF_STRING, IDM_SORT_MOST_USED, L"Most Used");
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort,     L"Sort Scripts");
+    AppendMenu(hView, MF_SEPARATOR, 0, NULL);
+    bool qbar_has_target = g.cfg.qbar_target_app[0] != L'\0';
+    HMENU hQBar = CreatePopupMenu();
+    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_TOGGLE,     L"Enable Quick Bar");
+    AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_HORIZONTAL, L"Horizontal");
+    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_VERTICAL,   L"Vertical");
+    AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hQBar, qbar_has_target ? MF_STRING : (MF_STRING | MF_GRAYED),
+               IDM_QBAR_TOPMOST, L"On Top with Target App");
+    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_SET_TARGET, L"Set Target App...");
+    AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_RESET_POS,  L"Reset Position");
+    AppendMenu(hView, MF_POPUP, (UINT_PTR)hQBar,         L"Quick Bar");
 
     AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY,   L"Minimize to Tray");
     AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
@@ -164,6 +178,15 @@ void Window_ShowMenu(void)
         g.cfg.theme == THEME_LIGHT  ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hTheme, IDM_THEME_SYSTEM,
         g.cfg.theme == THEME_SYSTEM ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hQBar, IDM_QBAR_TOGGLE,
+        g.cfg.qbar_enabled              ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hQBar, IDM_QBAR_HORIZONTAL,
+        g.cfg.qbar_horizontal           ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hQBar, IDM_QBAR_VERTICAL,
+        !g.cfg.qbar_horizontal          ? MF_CHECKED : MF_UNCHECKED);
+    if (qbar_has_target)
+        CheckMenuItem(hQBar, IDM_QBAR_TOPMOST,
+            g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
 
     HWND hBtn = GetDlgItem(g.hwnd, IDC_BTN_MENU);
     RECT rc; GetWindowRect(hBtn, &rc);
@@ -646,6 +669,8 @@ void Window_Create(HINSTANCE hInst)
         .hIcon=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)),
         .hIconSm=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)) };
     RegisterClassEx(&wc);
+
+    QuickBar_Register(hInst);
 
     int sw = GetSystemMetrics(SM_CXSCREEN);
     int sh = GetSystemMetrics(SM_CYSCREEN);

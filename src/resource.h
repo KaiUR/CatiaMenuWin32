@@ -143,3 +143,15 @@
 #define IDC_HELP_RICHEDIT   841
 #define IDC_HELP_SEARCH     842
 #define IDI_HELP_ICON       102
+
+/* Quick Launch Bar */
+#define IDM_QBAR_TOGGLE      250
+#define IDM_QBAR_HORIZONTAL  251
+#define IDM_QBAR_VERTICAL    252
+#define IDM_QBAR_TOPMOST     253
+#define IDM_QBAR_RESET_POS   254
+#define IDM_QBAR_SET_TARGET  255
+
+/* Target App dialog */
+#define IDD_QBAR_TARGET      309
+#define IDC_EDIT_QBAR_TARGET 760

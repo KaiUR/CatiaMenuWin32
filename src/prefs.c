@@ -267,6 +267,9 @@ void Tabs_BuildFavourites(void)
                 Script *dst = Folder_Push(fav);
                 if (dst) *dst = g.folders[fi].scripts[si];
             }
+
+    /* Refresh the Quick Launch Bar whenever favourites change */
+    QuickBar_Rebuild();
 }
 
 /* ================================================================== */

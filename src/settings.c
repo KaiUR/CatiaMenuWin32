@@ -76,6 +76,15 @@ void Settings_Load(Settings *s)
     s->theme               = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme",   0, ini);
     if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
 
+    /* Quick Launch Bar */
+    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          0, ini) != 0;
+    s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
+    s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
+    s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
+    s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
+    GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
+                            s->qbar_target_app, MAX_NAME, ini);
+
     if (!s->cache_dir[0])
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
     SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
@@ -135,7 +144,17 @@ void Settings_Save(const Settings *s)
     WB(L"Window",  L"MinimizeToTray",    s->minimize_to_tray);
     WB(L"Window",  L"StartWithWindows",  s->start_with_windows);
     WB(L"Window",  L"StartMinimized",    s->start_minimized);
+
+    /* Quick Launch Bar */
+    WB(L"QuickBar", L"Enabled",          s->qbar_enabled);
+    WB(L"QuickBar", L"Horizontal",       s->qbar_horizontal);
+    WB(L"QuickBar", L"TopmostWithCatia", s->qbar_topmost_with_catia);
 #undef WB
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->qbar_x);
+    WritePrivateProfileString(L"QuickBar", L"X", tmp, ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->qbar_y);
+    WritePrivateProfileString(L"QuickBar", L"Y", tmp, ini);
+    WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
 
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);

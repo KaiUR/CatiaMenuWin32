@@ -9,6 +9,37 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.0 — Quick Launch Bar, universal target app
+
+### Added
+- **Quick Launch Bar** — a free-floating, always-on-top button bar sourced from the ⭐ Favourites tab
+  - Vertical or horizontal orientation (toggle via right-click or **Menu → View → Quick Bar**)
+  - Large 52×52 px buttons labelled with the first two uppercase letters of the script name
+  - Custom scroll arrows (▲▼ / ◄►) appear automatically when favourites exceed the visible area; mouse wheel also scrolls
+  - Hover tooltip shows the script name (bold) and Purpose metadata line
+  - Drag anywhere on the bar background to reposition it; position is saved to `settings.ini`
+  - Right-click context menu: Enable, Horizontal, Vertical, On Top with Target App, Set Target App…, Reset Position
+  - Same options accessible via **☰ Menu → View → Quick Bar**
+  - Window class `CMW32QuickBar` uses `WS_EX_TOOLWINDOW` — no taskbar entry or Alt-Tab slot
+  - Double-buffered GDI rendering with theme-aware colours
+
+- **Target application tracking** — the bar integrates with the foreground application:
+  - Hides automatically when the target app is running but **all** its windows are minimised (detected via `EnumWindows`)
+  - Reappears as soon as any target window is restored
+  - Stays visible when the target app is not open at all (so you can run start-up scripts)
+  - Rises to TOPMOST when the target app is in the foreground; drops to normal z-order otherwise
+
+- **Configurable Target App** — the bar is no longer CATIA-only:
+  - Right-click the bar (or **Menu → View → Quick Bar → Set Target App…**) to enter any window-title substring
+  - Leave the field empty for no target tracking — bar stays visible at all times when enabled, no topmost behaviour
+  - Default value: `CATIA V5` — existing users see no change
+  - Stored as `[QuickBar] TargetApp` in `settings.ini`
+
+### Changed
+- Menu label **"On Top with CATIA"** renamed to **"On Top with Target App"** and greyed out when no target is configured
+
+---
+
 ## v1.3.14 — Tab bar scroll fix
 
 ### Fixed
