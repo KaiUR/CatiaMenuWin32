@@ -9,6 +9,17 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.1 — Quick Bar hides when target not open
+
+### Changed
+- **Quick Launch Bar — hide when target not running** — when a target app is configured the bar now hides whenever the target is not open at all (previously it stayed visible when the app was not running and only hid when all windows were minimised). The bar now shows only when the target has at least one visible non-minimised window. When no target app is configured the bar remains always visible as before.
+- Local build number increments by **+1** per CMake configure (same as CI), instead of +2.
+
+### Fixed
+- **ISO C pedantic warning** in `main.c` — replaced the double cast `(RtlGetVersion_t)(void *)` on the `GetProcAddress` return value with a union type-pun (`union { FARPROC proc; RtlGetVersion_t fn; }`), which is valid C99/C11 and eliminates the `-Wpedantic` warnings about converting between function pointer and object pointer types.
+
+---
+
 ## v2.0.0 — Quick Launch Bar, universal target app
 
 ### Added
