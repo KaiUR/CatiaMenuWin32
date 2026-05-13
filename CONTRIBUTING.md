@@ -67,11 +67,11 @@ See the [Developer Guide](docs/developer-guide.md) for full build instructions.
 - Runtime colour functions — use `COL_BG()`, `COL_TEXT()` etc., never hardcode RGB values
 - Cross-thread communication via `PostMessage` — never call UI functions from worker threads directly
 - See [File Reference](docs/file-reference.md) for a full description of each source file
+- LLVM/Clang (with MSVC Windows SDK) — must compile with Clang 17+
 
 ### What We Won't Accept
 
 - External library dependencies (no Qt, no boost, no curl etc.)
-- LLVM/Clang (with MSVC Windows SDK) — must compile with Clang 17+
 - Changes that break the dark/light theme system
 - Changes that remove existing settings without a migration path
 
