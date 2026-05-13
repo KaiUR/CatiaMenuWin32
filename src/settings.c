@@ -194,48 +194,186 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
 }
 
 /* ================================================================== */
+/*  Settings_TabControls  (static)                                      */
+/*  Purpose: Lists the dialog control IDs that belong to each settings  */
+/*           tab page. Used to show/hide entire pages when the tab      */
+/*           selection changes. Terminated by -1.                      */
+/* ================================================================== */
+static const int s_stab0[] = {   /* General */
+    IDC_GRP_PYTHON, IDC_LBL_PYTHON_PATH, IDC_EDIT_PYTHON, IDC_BTN_BROWSE_PY,
+    IDC_GRP_CACHE,  IDC_LBL_CACHE_PATH,  IDC_EDIT_CACHE,  IDC_BTN_BROWSE_DIR,
+    IDC_GRP_TOKEN,  IDC_CHK_TOKEN,       IDC_EDIT_TOKEN,
+    -1
+};
+static const int s_stab1[] = {   /* Sync */
+    IDC_GRP_SYNC,
+    IDC_CHK_AUTOSYNC, IDC_CHK_DOWNLOAD, IDC_CHK_CHECK_UPDATES, IDC_CHK_AUTO_UPDATE,
+    IDC_LBL_REFRESH1, IDC_EDIT_REFRESH_INTERVAL, IDC_LBL_REFRESH2,
+    -1
+};
+static const int s_stab2[] = {   /* Console */
+    IDC_GRP_CONSOLE,
+    IDC_CHK_CONSOLE, IDC_CHK_KEEP_OPEN, IDC_CHK_DEPS_KEEP_OPEN,
+    -1
+};
+static const int s_stab3[] = {   /* Window */
+    IDC_GRP_WINDOW,
+    IDC_CHK_ALWAYS_ON_TOP, IDC_CHK_MINIMIZE_TRAY,
+    IDC_CHK_START_WINDOWS,  IDC_CHK_START_MIN,
+    IDC_GRP_THEME,
+    IDC_RAD_THEME_SYSTEM, IDC_RAD_THEME_DARK, IDC_RAD_THEME_LIGHT,
+    IDC_GRP_SORT,
+    IDC_RAD_SORT_DEFAULT, IDC_RAD_SORT_ALPHA, IDC_RAD_SORT_DATE, IDC_RAD_SORT_USED,
+    -1
+};
+static const int s_stab4[] = {   /* Quick Bar */
+    IDC_CHK_QBAR_ENABLE,
+    IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
+    IDC_CHK_QBAR_TOPMOST,
+    IDC_LBL_QBAR_TARGET, IDC_EDIT_QBAR_TARGET_S, IDC_LBL_QBAR_TIP,
+    -1
+};
+static const int *s_stabs[5] = {
+    s_stab0, s_stab1, s_stab2, s_stab3, s_stab4
+};
+
+/* ================================================================== */
+/*  Settings_ShowTab  (static)                                          */
+/*  Purpose: Shows controls that belong to the selected tab page and   */
+/*           hides controls that belong to all other pages.            */
+/*  In:  hwnd — settings dialog handle                                 */
+/*       tab  — zero-based index of the tab to make visible           */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_ShowTab(HWND hwnd, int tab)
+{
+    for (int t = 0; t < 5; t++) {
+        int sw = (t == tab) ? SW_SHOW : SW_HIDE;
+        for (const int *p = s_stabs[t]; *p != -1; p++)
+            ShowWindow(GetDlgItem(hwnd, *p), sw);
+    }
+}
+
+/* ================================================================== */
+/*  Settings_QBarEnableControls  (static)                              */
+/*  Purpose: Enables or disables the Quick Bar sub-controls based on   */
+/*           whether the Enable checkbox is checked.                   */
+/*  In:  hwnd    — settings dialog handle                              */
+/*       enabled — true to enable sub-controls; false to disable       */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
+{
+    static const int ids[] = {
+        IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
+        IDC_CHK_QBAR_TOPMOST,
+        IDC_LBL_QBAR_TARGET, IDC_EDIT_QBAR_TARGET_S, IDC_LBL_QBAR_TIP,
+        -1
+    };
+    for (const int *p = ids; *p != -1; p++)
+        EnableWindow(GetDlgItem(hwnd, *p), enabled);
+}
+
+/* ================================================================== */
 /*  SettingsDlgProc                                                     */
-/*  Purpose: Dialog procedure for the Settings dialog (IDD_SETTINGS).  */
-/*           WM_INITDIALOG populates all controls from g.cfg; IDOK     */
-/*           reads them back and calls Settings_Save.  Handles browse  */
-/*           buttons for Python and cache folder, the token enable     */
-/*           checkbox, and the Reset to Defaults button.               */
+/*  Purpose: Dialog procedure for the tabbed Settings dialog.          */
+/*           Five tabs: General, Sync, Console, Window, Quick Bar.     */
+/*           WM_INITDIALOG populates all controls and shows tab 0.    */
+/*           TCN_SELCHANGE switches the visible page. IDOK reads all   */
+/*           controls, saves settings, and applies side effects.       */
 /*  In:  hwnd — dialog handle                                          */
 /*       msg  — Windows message                                        */
-/*       wp   — WPARAM (control ID / notification code in LOWORD/HIWORD)*/
-/*       lp   — LPARAM (unused)                                        */
+/*       wp   — WPARAM (control ID or notification code)               */
+/*       lp   — LPARAM (NMHDR* for WM_NOTIFY)                         */
 /*  Out: INT_PTR — TRUE for handled messages; FALSE otherwise          */
 /* ================================================================== */
 INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-    (void)lp;
     switch (msg)
     {
     case WM_INITDIALOG:
     {
         Settings *s = &g.cfg;
+
+        /* ── Build the tab control ──────────────────────────────── */
+        HWND hTab = GetDlgItem(hwnd, IDC_TAB_SETTINGS);
+        {
+            TCITEM ti = { TCIF_TEXT, 0, 0, NULL, 0, -1, 0 };
+            static const WCHAR *labels[] = {
+                L"General", L"Sync", L"Console", L"Window", L"Quick Bar"
+            };
+            for (int i = 0; i < 5; i++) {
+                ti.pszText = (LPWSTR)labels[i];
+                TabCtrl_InsertItem(hTab, i, &ti);
+            }
+        }
+
+        /* ── Tab 0: General ─────────────────────────────────────── */
         SetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe);
         SetDlgItemText(hwnd, IDC_EDIT_CACHE,  s->cache_dir);
-        SetDlgItemText(hwnd, IDC_EDIT_TOKEN,  s->github_token);
-        CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,  s->auto_sync           ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,  s->download_before_run ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console        ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open   ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, s->check_updates       ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,    s->auto_update          ? BST_CHECKED : BST_UNCHECKED);
+        {
+            bool has_tok = (s->github_token[0] != L'\0');
+            CheckDlgButton(hwnd, IDC_CHK_TOKEN, has_tok ? BST_CHECKED : BST_UNCHECKED);
+            SetDlgItemText(hwnd, IDC_EDIT_TOKEN, s->github_token);
+            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), has_tok);
+        }
 
-        WCHAR ri[8];
-        _snwprintf_s(ri, 7, _TRUNCATE, L"%d", s->refresh_interval);
-        SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri);
-        CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
+        /* ── Tab 1: Sync ─────────────────────────────────────────── */
+        CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      s->auto_sync           ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      s->download_before_run ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, s->check_updates       ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   s->auto_update         ? BST_CHECKED : BST_UNCHECKED);
+        {
+            WCHAR ri[8];
+            _snwprintf_s(ri, 7, _TRUNCATE, L"%d", s->refresh_interval);
+            SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri);
+        }
+
+        /* ── Tab 2: Console ─────────────────────────────────────── */
+        CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console      ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open   ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
-        bool has_tok = (s->github_token[0] != L'\0');
-        CheckDlgButton(hwnd, IDC_CHK_TOKEN, has_tok ? BST_CHECKED : BST_UNCHECKED);
-        EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), has_tok);
+
+        /* ── Tab 3: Window ──────────────────────────────────────── */
+        CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, s->always_on_top     ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, s->minimize_to_tray  ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, s->start_with_windows? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_START_MIN,     s->start_minimized   ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_THEME_DARK,   s->theme == THEME_DARK   ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_THEME_LIGHT,  s->theme == THEME_LIGHT  ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_THEME_SYSTEM, s->theme == THEME_SYSTEM ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_SORT_DEFAULT, s->sort_mode == SORT_ORDER    ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_SORT_ALPHA,   s->sort_mode == SORT_ALPHA    ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_SORT_DATE,    s->sort_mode == SORT_DATE     ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_SORT_USED,    s->sort_mode == SORT_MOST_USED? BST_CHECKED : BST_UNCHECKED);
+
+        /* ── Tab 4: Quick Bar ───────────────────────────────────── */
+        CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  s->qbar_enabled           ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_QBAR_HORIZ,   s->qbar_horizontal        ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,   !s->qbar_horizontal        ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, s->qbar_topmost_with_catia? BST_CHECKED : BST_UNCHECKED);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, s->qbar_target_app);
+        Settings_QBarEnableControls(hwnd, s->qbar_enabled);
+
+        /* Show only tab 0, hide the rest */
+        Settings_ShowTab(hwnd, 0);
         return TRUE;
     }
+
+    case WM_NOTIFY:
+    {
+        NMHDR *nm = (NMHDR *)lp;
+        if (nm->idFrom == IDC_TAB_SETTINGS && nm->code == TCN_SELCHANGE) {
+            int sel = TabCtrl_GetCurSel(GetDlgItem(hwnd, IDC_TAB_SETTINGS));
+            Settings_ShowTab(hwnd, sel);
+        }
+        return FALSE;
+    }
+
     case WM_COMMAND:
         switch (LOWORD(wp)) {
+
         case IDC_BTN_BROWSE_PY:
         {
             WCHAR path[MAX_APPPATH] = {0};
@@ -250,6 +388,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (GetOpenFileName(&ofn)) SetDlgItemText(hwnd, IDC_EDIT_PYTHON, path);
             break;
         }
+
         case IDC_BTN_BROWSE_DIR:
         {
             WCHAR path[MAX_APPPATH] = {0};
@@ -265,14 +404,22 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             break;
         }
+
         case IDC_CHK_CONSOLE:
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN),
                 IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE) == BST_CHECKED);
             break;
+
         case IDC_CHK_TOKEN:
             EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN),
                 IsDlgButtonChecked(hwnd, IDC_CHK_TOKEN) == BST_CHECKED);
             break;
+
+        case IDC_CHK_QBAR_ENABLE:
+            Settings_QBarEnableControls(hwnd,
+                IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED);
+            break;
+
         case IDC_BTN_RESET:
         {
             int res = MessageBox(hwnd,
@@ -284,71 +431,159 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
             if (res != IDYES) break;
 
-            /* Apply defaults to current settings struct */
             Settings *s = &g.cfg;
-            s->python_exe[0]       = L'\0';
-            s->github_token[0]     = L'\0';
-            s->auto_sync           = true;
-            s->download_before_run = false;
-            s->show_console        = false;
-            s->console_keep_open   = true;
-            s->deps_keep_open      = false;
-            s->check_updates       = true;
-            s->always_on_top       = true;
-            s->minimize_to_tray    = true;
-            s->start_with_windows  = true;
-            s->start_minimized     = false;
-            s->theme               = THEME_SYSTEM;
-
-            /* Reset cache dir to default */
+            s->python_exe[0]           = L'\0';
+            s->github_token[0]         = L'\0';
+            s->auto_sync               = true;
+            s->download_before_run     = false;
+            s->show_console            = false;
+            s->console_keep_open       = true;
+            s->deps_keep_open          = false;
+            s->check_updates           = true;
+            s->auto_update             = false;
+            s->refresh_interval        = 6;
+            s->always_on_top           = true;
+            s->minimize_to_tray        = false;
+            s->start_with_windows      = false;
+            s->start_minimized         = true;
+            s->theme                   = THEME_SYSTEM;
+            s->sort_mode               = SORT_ORDER;
+            s->qbar_enabled            = false;
+            s->qbar_horizontal         = false;
+            s->qbar_topmost_with_catia = true;
+            wcsncpy(s->qbar_target_app, L"CATIA V5", MAX_NAME - 1);
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
-
-            /* Auto-detect python */
             Runner_FindPython(s->python_exe, MAX_APPPATH);
 
-            /* Reload dialog controls with new defaults */
+            /* Reload all tab controls */
             SetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe);
             SetDlgItemText(hwnd, IDC_EDIT_CACHE,  s->cache_dir);
             SetDlgItemText(hwnd, IDC_EDIT_TOKEN,  L"");
+            CheckDlgButton(hwnd, IDC_CHK_TOKEN,         BST_UNCHECKED);
+            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), FALSE);
+
             CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_TOKEN,         BST_UNCHECKED);
-            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN),  FALSE);
+            CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   BST_UNCHECKED);
+            SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, L"6");
+
+            CheckDlgButton(hwnd, IDC_CHK_CONSOLE,        BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,      BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, BST_UNCHECKED);
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), FALSE);
+
+            CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_START_MIN,     BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_THEME_SYSTEM,  BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_THEME_DARK,    BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_THEME_LIGHT,   BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_SORT_DEFAULT,  BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_SORT_ALPHA,    BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_SORT_DATE,     BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_SORT_USED,     BST_UNCHECKED);
+
+            CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,    BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_RAD_QBAR_HORIZ,   BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, BST_CHECKED);
+            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, L"CATIA V5");
+            Settings_QBarEnableControls(hwnd, false);
             break;
         }
 
         case IDOK:
         {
             Settings *s = &g.cfg;
+            bool old_dark       = g.dark_mode;
+            bool old_qbar_horiz = s->qbar_horizontal;
+            bool old_qbar_en    = s->qbar_enabled;
+
+            /* General */
             GetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe, MAX_APPPATH);
             GetDlgItemText(hwnd, IDC_EDIT_CACHE,  s->cache_dir,  MAX_APPPATH);
             if (IsDlgButtonChecked(hwnd, IDC_CHK_TOKEN) == BST_CHECKED)
                 GetDlgItemText(hwnd, IDC_EDIT_TOKEN, s->github_token, 256);
             else
                 s->github_token[0] = L'\0';
-            s->auto_sync           = IsDlgButtonChecked(hwnd, IDC_CHK_AUTOSYNC) == BST_CHECKED;
-            s->download_before_run = IsDlgButtonChecked(hwnd, IDC_CHK_DOWNLOAD) == BST_CHECKED;
-            s->show_console        = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)       == BST_CHECKED;
-            s->console_keep_open   = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)     == BST_CHECKED;
-            s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES)  == BST_CHECKED;
-            s->auto_update         = IsDlgButtonChecked(hwnd, IDC_CHK_AUTO_UPDATE)     == BST_CHECKED;
-            WCHAR ri_buf[8] = {0};
-            GetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri_buf, 7);
-            s->refresh_interval = _wtoi(ri_buf);
-            if (s->refresh_interval < 0)  s->refresh_interval = 0;
-            if (s->refresh_interval > 168) s->refresh_interval = 168;
-            s->deps_keep_open      = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN) == BST_CHECKED;
+
+            /* Sync */
+            s->auto_sync           = IsDlgButtonChecked(hwnd, IDC_CHK_AUTOSYNC)      == BST_CHECKED;
+            s->download_before_run = IsDlgButtonChecked(hwnd, IDC_CHK_DOWNLOAD)      == BST_CHECKED;
+            s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES) == BST_CHECKED;
+            s->auto_update         = IsDlgButtonChecked(hwnd, IDC_CHK_AUTO_UPDATE)   == BST_CHECKED;
+            {
+                WCHAR ri[8] = {0};
+                GetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri, 7);
+                s->refresh_interval = _wtoi(ri);
+                if (s->refresh_interval < 0)   s->refresh_interval = 0;
+                if (s->refresh_interval > 168) s->refresh_interval = 168;
+            }
+
+            /* Console */
+            s->show_console      = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)       == BST_CHECKED;
+            s->console_keep_open = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)     == BST_CHECKED;
+            s->deps_keep_open    = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN)== BST_CHECKED;
+
+            /* Window */
+            s->always_on_top      = IsDlgButtonChecked(hwnd, IDC_CHK_ALWAYS_ON_TOP)== BST_CHECKED;
+            s->minimize_to_tray   = IsDlgButtonChecked(hwnd, IDC_CHK_MINIMIZE_TRAY)== BST_CHECKED;
+            s->start_with_windows = IsDlgButtonChecked(hwnd, IDC_CHK_START_WINDOWS)== BST_CHECKED;
+            s->start_minimized    = IsDlgButtonChecked(hwnd, IDC_CHK_START_MIN)    == BST_CHECKED;
+            if      (IsDlgButtonChecked(hwnd, IDC_RAD_THEME_DARK)  == BST_CHECKED) s->theme = THEME_DARK;
+            else if (IsDlgButtonChecked(hwnd, IDC_RAD_THEME_LIGHT) == BST_CHECKED) s->theme = THEME_LIGHT;
+            else                                                                    s->theme = THEME_SYSTEM;
+            if      (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_ALPHA) == BST_CHECKED) s->sort_mode = SORT_ALPHA;
+            else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_DATE)  == BST_CHECKED) s->sort_mode = SORT_DATE;
+            else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_USED)  == BST_CHECKED) s->sort_mode = SORT_MOST_USED;
+            else                                                                   s->sort_mode = SORT_ORDER;
+
+            /* Quick Bar */
+            s->qbar_enabled            = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
+            s->qbar_horizontal         = IsDlgButtonChecked(hwnd, IDC_RAD_QBAR_HORIZ)  == BST_CHECKED;
+            s->qbar_topmost_with_catia = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_TOPMOST)== BST_CHECKED;
+            GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, s->qbar_target_app, MAX_NAME);
+
             Settings_Save(s);
             SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
+
+            /* ── Apply side effects ─────────────────────────────── */
+            App_ResolveTheme();
+            if (g.dark_mode != old_dark) {
+                App_RebuildGDI();
+                Window_ApplyDarkMode(g.hwnd);
+                Window_ApplyThemeToChildren(g.hwnd);
+                QuickBar_OnThemeChange();
+                Tabs_RebuildButtons();
+                InvalidateRect(g.hwnd, NULL, TRUE);
+            }
+            Window_ApplyAlwaysOnTop();
+            Settings_ApplyAutorun(s->start_with_windows, s->start_minimized);
+            Tabs_ApplySort(g.active_tab);
+            Tabs_RebuildButtons();
+
+            if (s->qbar_enabled) {
+                if (s->qbar_horizontal != old_qbar_horiz) {
+                    QuickBar_Destroy();
+                    QuickBar_Register(GetModuleHandle(NULL));
+                    QuickBar_Create();
+                    QuickBar_Rebuild();
+                } else if (!old_qbar_en) {
+                    QuickBar_Show(true);
+                }
+            } else if (old_qbar_en) {
+                QuickBar_Show(false);
+            }
+
             EndDialog(hwnd, IDOK);
             break;
         }
-        case IDCANCEL: EndDialog(hwnd, IDCANCEL); break;
+
+        case IDCANCEL:
+            EndDialog(hwnd, IDCANCEL);
+            break;
         }
         return TRUE;
     }

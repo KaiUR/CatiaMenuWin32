@@ -133,6 +133,51 @@
 /* Refresh interval */
 #define IDC_EDIT_REFRESH_INTERVAL 414
 
+/* Settings dialog – tab control */
+#define IDC_TAB_SETTINGS        415
+
+/* Settings dialog – Window tab controls */
+#define IDC_CHK_ALWAYS_ON_TOP   416
+#define IDC_CHK_MINIMIZE_TRAY   417
+#define IDC_CHK_START_WINDOWS   418
+#define IDC_CHK_START_MIN       419
+/* IDC_BTN_RESET = 420 already defined */
+
+/* Settings dialog – Theme radio buttons */
+#define IDC_RAD_THEME_DARK      421
+#define IDC_RAD_THEME_LIGHT     422
+#define IDC_RAD_THEME_SYSTEM    423
+
+/* Settings dialog – Sort radio buttons */
+#define IDC_RAD_SORT_DEFAULT    424
+#define IDC_RAD_SORT_ALPHA      425
+#define IDC_RAD_SORT_DATE       426
+#define IDC_RAD_SORT_USED       427
+
+/* Settings dialog – Quick Bar tab controls */
+#define IDC_CHK_QBAR_ENABLE     428
+#define IDC_RAD_QBAR_HORIZ      429
+#define IDC_RAD_QBAR_VERT       430
+#define IDC_CHK_QBAR_TOPMOST    431
+#define IDC_EDIT_QBAR_TARGET_S  432
+
+/* Settings dialog – groupboxes and labels that need show/hide by ID */
+#define IDC_GRP_PYTHON          450
+#define IDC_LBL_PYTHON_PATH     451
+#define IDC_GRP_CACHE           452
+#define IDC_LBL_CACHE_PATH      453
+#define IDC_GRP_TOKEN           454
+#define IDC_GRP_SYNC            455
+#define IDC_LBL_REFRESH1        456
+#define IDC_LBL_REFRESH2        457
+#define IDC_GRP_CONSOLE         458
+#define IDC_GRP_WINDOW          459
+#define IDC_GRP_THEME           460
+#define IDC_GRP_SORT            461
+#define IDC_GRP_QBAR_ORI        462
+#define IDC_LBL_QBAR_TARGET     463
+#define IDC_LBL_QBAR_TIP        464
+
 /* Help window */
 #define IDM_HELP_CONTENTS   240
 #define IDM_REPORT_BUG      241

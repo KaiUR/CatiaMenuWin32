@@ -9,6 +9,26 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.2 — Tabbed Settings dialog, Quick Bar help topic
+
+### Added
+- **Tabbed Settings dialog** — the flat Settings dialog has been reorganised into five tabs for easier navigation:
+  - **General** — Python interpreter, script cache folder, GitHub token
+  - **Sync** — sync on startup, download before run, check for updates, auto-install updates, auto-refresh interval
+  - **Console** — show console, keep console open, keep Deps console open
+  - **Window** — Always on Top, Minimize to Tray, Start with Windows, Start Minimized, Theme (Dark/Light/System), Sort Scripts (Default/Alphabetical/By Date/Most Used)
+  - **Quick Bar** — enable/disable, orientation (Vertical/Horizontal), Stay on Top with Target App, Target App window-title field
+- **Quick Launch Bar help topic** — new "Quick Launch Bar" entry in the in-app help TreeView (F1), covering enabling the bar, populating it from Favourites, moving it, orientation, and the target-app tracking behaviour
+- **Settings now applies side effects on OK** — changing theme, Always on Top, autorun, sort mode, or Quick Bar settings in the Settings dialog now takes immediate effect without requiring a separate menu toggle
+
+### Changed
+- The **Window** section settings (Always on Top, Minimize to Tray, Start with Windows, Start Minimized, Theme) and the **Sort Scripts** setting are now accessible directly from the Settings dialog in addition to the menu, making them discoverable in a single place
+- Quick Bar configuration (enable, orientation, target app) is now accessible from the Settings dialog in addition to the right-click context menu and View menu
+- **Help → Settings** topic updated to describe the new five-tab layout
+- **Help → The Interface** topic updated to mention the Quick Launch Bar
+
+---
+
 ## v2.0.1 — Quick Bar hides when target not open
 
 ### Changed

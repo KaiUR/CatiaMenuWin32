@@ -181,6 +181,8 @@ Local builds automatically detect the latest git tag for the version number and 
 
 ## ⚙️ Settings (`%APPDATA%\CatiaMenuWin32\settings.ini`)
 
+All settings are configurable in the **⚙ Settings** dialog (five tabs: General, Sync, Console, Window, Quick Bar).
+
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Python\Executable` | auto-detect | Full path to `python.exe` |
@@ -192,10 +194,13 @@ Local builds automatically detect the latest git tag for the version number and 
 | `Options\ConsoleKeepOpen` | on | Keep console open after script finishes so you can read errors |
 | `Options\DepsKeepOpen` | off | Keep Update Deps console open until manually closed |
 | `Options\CheckUpdates` | on | Check GitHub Releases for a newer app version on startup |
+| `Options\AutoUpdate` | off | Download and install new versions automatically |
+| `Options\RefreshInterval` | 6 | Background sync interval in hours (0 = disabled) |
+| `Options\SortMode` | 0 (Default) | 0 = default order, 1 = alphabetical, 2 = by date, 3 = most used |
 | `Window\AlwaysOnTop` | on | Keep window above other windows |
-| `Window\MinimizeToTray` | on | Hide to system tray on minimize/close |
-| `Window\StartWithWindows` | on | Add to Windows autorun registry key |
-| `Window\StartMinimized` | off | Start hidden/minimized |
+| `Window\MinimizeToTray` | off | Hide to system tray on minimize/close |
+| `Window\StartWithWindows` | off | Add to Windows autorun registry key |
+| `Window\StartMinimized` | on | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
 | `QuickBar\Enabled` | off | Show the Quick Launch Bar |
 | `QuickBar\Horizontal` | off | Bar orientation: 0 = vertical, 1 = horizontal |
