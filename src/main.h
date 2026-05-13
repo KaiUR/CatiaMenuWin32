@@ -408,6 +408,7 @@ typedef struct {
     WCHAR  last_run_path[MAX_APPPATH];
     WCHAR  appdata_dir[MAX_APPPATH];
     WCHAR  latest_version[32];
+    WCHAR  active_folder_name[MAX_NAME]; /* name of active folder for post-sync restoration */
     int    scroll_y;
     int    scroll_max;
     bool   tray_icon_added;

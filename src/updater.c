@@ -94,16 +94,19 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
 /*  Purpose: Background thread that queries the GitHub releases API,   */
 /*           compares the latest tag against the running version, and  */
 /*           posts WM_UPDATE_AVAIL if a newer release is available.   */
-/*           Sleeps 3 s on startup to avoid competing with sync calls. */
-/*  In:  unused — LPVOID thread parameter (not used)                   */
+/*           Pass non-NULL lpParam for a manual check: skips the 3 s  */
+/*           startup delay and posts "up to date" status if current.  */
+/*  In:  unused — NULL for auto-check; non-NULL for manual check       */
 /*  Out: 0 on success; 1 on HTTP or parse failure                      */
 /* ================================================================== */
 DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
-    (void)unused;
+    bool manual = (unused != NULL);
 
-    /* Wait for sync thread to finish its API calls first */
-    Sleep(3000);
+    /* Auto-check: wait for sync thread to finish its API calls first */
+    if (!manual) Sleep(3000);
+
+    if (manual) PostStatus(L"Checking for updates…");
 
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) return 1;
@@ -128,12 +131,14 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
             display_tag++;
         wcsncpy(g.latest_version, display_tag, 31);
 
-        if (g.cfg.auto_update) {
+        if (g.cfg.auto_update && !manual) {
             /* Auto-update: download and install on main thread */
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0);  /* wParam=1 means auto */
         } else {
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);
         }
+    } else if (manual) {
+        PostStatus(L"App is up to date (v%s).", VERSION_STRING_W);
     }
 
     free(buf);
@@ -241,19 +246,21 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     WideCharToMultiByte(CP_ACP, 0, exe_path,  -1, exe_path_a,  MAX_APPPATH-1, NULL, NULL);
     WideCharToMultiByte(CP_ACP, 0, bat_path,  -1, bat_path_a,  MAX_APPPATH-1, NULL, NULL);
 
-    FILE *f = fopen(bat_path_a, "w");
-    if (!f) { Updater_PromptAndInstall(latest_tag); return; }
-    fprintf(f, "@echo off\n");
-    fprintf(f, "timeout /t 2 /nobreak >nul\n");
-    fprintf(f, "copy /y \"%s\" \"%s\"\n", temp_path_a, exe_path_a);
-    fprintf(f, "if errorlevel 1 goto fail\n");
-    fprintf(f, "start \"\" \"%s\"\n", exe_path_a);
-    fprintf(f, "del \"%s\"\n", temp_path_a);
-    fprintf(f, "del \"%%~f0\"\n");
-    fprintf(f, "exit\n");
-    fprintf(f, ":fail\n");
-    fprintf(f, "echo Update failed - could not copy file.\n");
-    fprintf(f, "pause\n");
+    FILE *f = NULL;
+    if (fopen_s(&f, bat_path_a, "w") != 0 || !f) {
+        Updater_PromptAndInstall(latest_tag); return;
+    }
+    fprintf_s(f, "@echo off\n");
+    fprintf_s(f, "timeout /t 2 /nobreak >nul\n");
+    fprintf_s(f, "copy /y \"%s\" \"%s\"\n", temp_path_a, exe_path_a);
+    fprintf_s(f, "if errorlevel 1 goto fail\n");
+    fprintf_s(f, "start \"\" \"%s\"\n", exe_path_a);
+    fprintf_s(f, "del \"%s\"\n", temp_path_a);
+    fprintf_s(f, "del \"%%~f0\"\n");
+    fprintf_s(f, "exit\n");
+    fprintf_s(f, ":fail\n");
+    fprintf_s(f, "echo Update failed - could not copy file.\n");
+    fprintf_s(f, "pause\n");
     fclose(f);
 
     ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);

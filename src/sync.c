@@ -636,8 +636,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         if (!old_scripts) continue;
         int    old_scount = f->count;
         if (old_scount > 0)
-            memcpy(old_scripts, f->scripts,
-                   old_scount * sizeof(Script));
+            memcpy_s(old_scripts, MAX_SCRIPTS * sizeof(Script),
+                     f->scripts, old_scount * sizeof(Script));
 
         /* Parse new script list (fills f->scripts[], f->count) */
         GitHub_ParseFolder(buf, fi);
@@ -674,6 +674,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 DeleteLocalScript(old_scripts[oi].local);
             }
         }
+        free(old_scripts);
 
         /* ── Step 4: Download changed or missing scripts ─────────── */
         for (int si = 0; si < f->count; si++) {
