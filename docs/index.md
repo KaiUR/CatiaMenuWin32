@@ -1,6 +1,6 @@
 ---
 title: CatiaMenuWin32
-description: CatiaMenuWin32 — a native Windows Python script launcher and macro manager for CATIA V5 and DELMIA. Run PyCATIA automation scripts with one click. Syncs from GitHub, works offline, no setup per script.
+description: CatiaMenuWin32 — a native Windows Python script launcher and macro manager for CATIA V5. Run PyCATIA automation scripts with one click. Syncs from GitHub, works offline, no setup per script.
 ---
 
 # CatiaMenuWin32
