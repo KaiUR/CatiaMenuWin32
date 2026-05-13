@@ -180,7 +180,7 @@ It triggers on:
 6. Build with Ninja
 7. **Code-sign** `CatiaMenuWin32.exe` via `skymatic/code-sign-action@v1` using the certificate stored in GitHub Secrets
 8. Commit `build_number.txt` and `CONTRIBUTORS.md` back to `main`
-9. Delete the base tag (e.g. `v1.2.0`), create new tag with build number (e.g. `v1.2.0.31`)
+9. Import GPG key and sign the new tag — deletes the base tag (e.g. `v1.2.0`), creates a GPG-signed tag with the full build number (e.g. `v1.2.0.31`)
 10. Create GitHub Release with the signed `CatiaMenuWin32.exe`, `README.md`, `CONTRIBUTORS.md`, `LICENSE.txt`
 
 ### Code signing secrets
@@ -193,6 +193,17 @@ The following secrets must be configured in the repository (Settings → Secrets
 | `PASSWORD` | Password protecting the PFX certificate |
 | `CERTHASH` | SHA1 thumbprint of the certificate (from MMC → Certificates) |
 | `CERTNAME` | Common name of the certificate |
+
+### GPG signing secrets
+
+The following secrets are used by `crazy-max/ghaction-import-gpg@v6` to sign release tags:
+
+| Secret | Description |
+|--------|-------------|
+| `GPG_PRIVATE_KEY` | ASCII-armored GPG private key. Export with: `gpg --armor --export-secret-keys KEY_ID` |
+| `GPG_PASSPHRASE` | Passphrase protecting the GPG private key |
+
+The imported key is configured as the git signing key; every release tag is created with `git tag -s`, producing a verified tag on GitHub. The committer identity baked into the key must match the `git_committer_name` / `git_committer_email` values in the workflow (`KaiUR` / `kairathjen@yahoo.com`).
 
 ---
 
