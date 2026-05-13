@@ -34,9 +34,8 @@ When reporting, include:
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-mkdir build && cd build
-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Debug ..
-ninja
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl
+cmake --build build
 ```
 
 See the [Developer Guide](docs/developer-guide.md) for full build instructions.
@@ -61,7 +60,8 @@ See the [Developer Guide](docs/developer-guide.md) for full build instructions.
 ### Code Style
 
 - C11, Win32 API only — no external libraries, no CRT where avoidable
-- Unicode throughout — `WCHAR`, `L""` literals, `_snwprintf`, `wcslen`
+- Unicode throughout — `WCHAR`, `L""` literals, `_snwprintf_s`, `wcslen`
+- Memory-safe functions only — always use `_s` variants (`strcpy_s`, `memcpy_s`, `sprintf_s`, `_snwprintf_s` with `_TRUNCATE`, etc.); never use functions flagged by `clang-analyzer-security.insecureAPI` (`strcpy`, `strcat`, `sprintf`, `memcpy`, `gets`, etc.). Full substitution table in the [Developer Guide](docs/developer-guide.md#code-style)
 - All GDI painting double-buffered — memory DC + `BitBlt` to screen
 - All state in the global `AppState g` struct — no additional globals
 - Runtime colour functions — use `COL_BG()`, `COL_TEXT()` etc., never hardcode RGB values
