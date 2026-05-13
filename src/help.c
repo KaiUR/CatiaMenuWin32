@@ -164,7 +164,10 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\bullet  {\\b Orientation} \\emdash Vertical (stacked column) or Horizontal (row).\\par"
             "\\bullet  {\\b Stay on Top with Target App} \\emdash Auto-elevate the bar when the target application is in the foreground.\\par"
             "\\bullet  {\\b Target App} \\emdash Window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
-            "Leave empty for the bar to always remain visible.\\par\\par"
+            "Leave empty for the bar to always remain visible.\\par"
+            "\\bullet  {\\b Target Exe} \\emdash Process executable name to match alongside Target App "
+            "(e.g. {\\f1\\cf3 CNEXT.exe}). Prevents false positives from other windows whose titles "
+            "contain the same substring. Leave empty to match any process.\\par\\par"
             "{\\b Reset to Defaults}\\par\\par"
             "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
             "Sources (extra repos and local folders) are not affected.\\par"
@@ -313,7 +316,15 @@ static const char *Help_GetRTF(HelpTopic topic)
             "itself when a different window becomes active.\\par\\par"
             "\\bullet  Set the target in {\\b Settings \\u8594?  Quick Bar \\u8594?  Target App field}.\\par"
             "\\bullet  Leave the field empty to keep the bar always visible on top.\\par"
-            "\\bullet  Toggle the behaviour with {\\b Settings \\u8594?  Quick Bar \\u8594?  Stay on Top with Target App}.\\par"
+            "\\bullet  Toggle the behaviour with {\\b Settings \\u8594?  Quick Bar \\u8594?  Stay on Top with Target App}.\\par\\par"
+            "{\\b Process Executable Filter}\\par\\par"
+            "If another application has the same window-title substring as your target, the bar will "
+            "incorrectly respond to it. The {\\b Target Exe} field adds a second filter: the window\\u8217?s "
+            "owning process must also match the given executable filename.\\par\\par"
+            "\\bullet  Set {\\b Settings \\u8594?  Quick Bar \\u8594?  Target Exe} to the executable "
+            "filename (e.g. {\\f1\\cf3 CNEXT.exe} for CATIA V5).\\par"
+            "\\bullet  The check is case-insensitive and matches the filename only, not the full path.\\par"
+            "\\bullet  Leave the field empty (default) to match any process — identical to the previous behaviour.\\par"
             "}";
 
     case HELP_KEYBOARD:

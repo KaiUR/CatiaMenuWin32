@@ -9,6 +9,18 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.4 — Quick Bar process executable filter
+
+### Added
+- **Target Exe filter for the Quick Bar** — a new optional "Target process executable name" field prevents false positives from other windows that share the same title substring as the target app
+  - Set via right-click on the bar → **Set Target App…**, or **Settings → Quick Bar → Target process executable name**
+  - When set (e.g. `CNEXT.exe`), a window must match **both** the title substring **and** the process executable name before the bar responds to it
+  - Comparison is case-insensitive; only the filename is checked, not the full path
+  - Leave the field empty (default) to match any process — identical to the previous behaviour
+  - Persisted as `QuickBar\TargetExe` in `settings.ini`
+
+---
+
 ## v2.0.3 — Check for Updates, tab restore fix, security fixes
 
 ### Added

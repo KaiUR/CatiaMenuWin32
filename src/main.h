@@ -333,7 +333,8 @@ typedef struct {
     bool      qbar_topmost_with_catia;
     int       qbar_x;
     int       qbar_y;
-    WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
+    WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target      */
+    WCHAR     qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
 } Settings;
 
 /* ------------------------------------------------------------------ */

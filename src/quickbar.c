@@ -96,22 +96,56 @@ static Script *QB_GetFav(int idx, int *fi_out, int *si_out)
 }
 
 /* ================================================================== */
+/*  QB_GetProcessExeName                                               */
+/*  Retrieves the filename (not full path) of the process that owns   */
+/*  hwnd into buf.  Returns true on success.                          */
+/*  Uses PROCESS_QUERY_LIMITED_INFORMATION so it works across UAC     */
+/*  boundaries without requiring elevated privileges.                 */
+/* ================================================================== */
+static bool QB_GetProcessExeName(HWND hwnd, WCHAR *buf, int len)
+{
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (!pid) return false;
+    HANDLE hp = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hp) return false;
+    WCHAR path[MAX_PATH] = {0};
+    DWORD pathlen = MAX_PATH;
+    bool ok = QueryFullProcessImageNameW(hp, 0, path, &pathlen) != 0;
+    CloseHandle(hp);
+    if (!ok) return false;
+    /* Extract just the filename portion after the last backslash */
+    WCHAR *slash = wcsrchr(path, L'\\');
+    wcsncpy_s(buf, len, slash ? slash + 1 : path, _TRUNCATE);
+    return true;
+}
+
+/* ================================================================== */
 /*  QB_IsTarget                                                        */
-/*  Returns true if the window title contains the configured target   */
-/*  app substring.  When the target string is empty always false.     */
+/*  Returns true if hwnd passes both the title-substring filter and   */
+/*  the optional process-executable filter.                           */
+/*  - Title filter (qbar_target_app): must be non-empty for any match */
+/*  - Exe filter   (qbar_target_exe): when non-empty the owning       */
+/*    process filename must match (case-insensitive).                  */
 /* ================================================================== */
 static bool QB_IsTarget(HWND hwnd)
 {
     if (!hwnd || !g.cfg.qbar_target_app[0]) return false;
     WCHAR title[256] = {0};
     GetWindowTextW(hwnd, title, 255);
-    return wcsstr(title, g.cfg.qbar_target_app) != NULL;
+    if (!wcsstr(title, g.cfg.qbar_target_app)) return false;
+    if (!g.cfg.qbar_target_exe[0]) return true;
+    WCHAR exe[MAX_NAME] = {0};
+    if (!QB_GetProcessExeName(hwnd, exe, MAX_NAME)) return false;
+    return _wcsicmp(exe, g.cfg.qbar_target_exe) == 0;
 }
 
 /* ================================================================== */
 /*  CatiaCheckProc  (EnumWindows callback)                            */
 /*  Categorises all top-level windows into CATIA_MINIMIZED /          */
 /*  CATIA_VISIBLE.  Stops early as soon as a visible window is found. */
+/*  Applies both the title-substring filter (qbar_target_app) and     */
+/*  the optional process-executable filter (qbar_target_exe).         */
 /* ================================================================== */
 static BOOL CALLBACK CatiaCheckProc(HWND hwnd, LPARAM lp)
 {
@@ -121,7 +155,13 @@ static BOOL CALLBACK CatiaCheckProc(HWND hwnd, LPARAM lp)
     WCHAR title[256] = {0};
     GetWindowTextW(hwnd, title, 255);
     if (!wcsstr(title, g.cfg.qbar_target_app)) return TRUE;
-    /* Found a target window */
+    /* Optional exe filter — skip window if it belongs to a different process */
+    if (g.cfg.qbar_target_exe[0]) {
+        WCHAR exe[MAX_NAME] = {0};
+        if (!QB_GetProcessExeName(hwnd, exe, MAX_NAME)) return TRUE;
+        if (_wcsicmp(exe, g.cfg.qbar_target_exe) != 0) return TRUE;
+    }
+    /* Passed all filters — categorise by window state */
     if (IsIconic(hwnd)) {
         /* Minimised — mark as at-least-running if not already visible */
         if (*result < CATIA_MINIMIZED) *result = CATIA_MINIMIZED;
@@ -1009,7 +1049,8 @@ void QuickBar_SetTopmost(bool topmost)
 /* ================================================================== */
 /*  QB_TargetAppDlgProc                                                */
 /*  Dialog procedure for IDD_QBAR_TARGET (309).                       */
-/*  Lets the user set the window-title substring to track.            */
+/*  Lets the user set the window-title substring (qbar_target_app)    */
+/*  and the optional process executable name (qbar_target_exe).       */
 /* ================================================================== */
 static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
                                               WPARAM wp, LPARAM lp)
@@ -1017,25 +1058,37 @@ static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
     (void)lp;
     switch (msg) {
     case WM_INITDIALOG:
-        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET, g.cfg.qbar_target_app);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET,     g.cfg.qbar_target_app);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, g.cfg.qbar_target_exe);
         return TRUE;
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDOK:
         {
+            /* Helper lambda-equivalent: trim spaces from a buffer in-place */
+            #define TRIM(buf) do { \
+                WCHAR *_s = (buf); \
+                while (*_s == L' ') _s++; \
+                WCHAR *_e = _s + wcslen(_s); \
+                while (_e > _s && *(_e-1) == L' ') _e--; \
+                *_e = L'\0'; \
+                wcsncpy_s((buf), MAX_NAME, _s, _TRUNCATE); \
+            } while (0)
+
             WCHAR buf[MAX_NAME] = {0};
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET, buf, MAX_NAME);
-            /* Trim leading/trailing spaces */
-            WCHAR *start = buf;
-            while (*start == L' ') start++;
-            WCHAR *end = start + wcslen(start);
-            while (end > start && *(end-1) == L' ') end--;
-            *end = L'\0';
-            wcsncpy_s(g.cfg.qbar_target_app, MAX_NAME, start, _TRUNCATE);
+            TRIM(buf);
+            wcsncpy_s(g.cfg.qbar_target_app, MAX_NAME, buf, _TRUNCATE);
+
+            GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, buf, MAX_NAME);
+            TRIM(buf);
+            wcsncpy_s(g.cfg.qbar_target_exe, MAX_NAME, buf, _TRUNCATE);
+            #undef TRIM
+
             Settings_Save(&g.cfg);
-            /* Re-evaluate visibility with the new target */
+            /* Re-evaluate visibility with the new target settings */
             QB_UpdateVisibility(NULL);
-            /* If topmost is on but target is now empty, remove topmost */
+            /* If topmost is on but title target is now empty, remove topmost */
             if (!g.cfg.qbar_target_app[0])
                 QuickBar_SetTopmost(false);
             EndDialog(hwnd, IDOK);

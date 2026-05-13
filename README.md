@@ -65,7 +65,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Auto-update** | Optionally download and install new versions automatically |
 | **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
 | **Quick Launch Bar** | Floating button bar sourced from your Favourites tab — large icon buttons, drag anywhere, scroll arrows, hover tooltips, always-on-top with the target app |
-| **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; shows only when a visible target window exists; rises to TOPMOST when the target app gains focus — configurable via right-click → Set Target App… |
+| **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; shows only when a visible target window exists; rises to TOPMOST when the target app gains focus — configurable via right-click → Set Target App… or Settings → Quick Bar |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
 | **System Tray** | Minimize to tray; restore with double-click |
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
@@ -207,6 +207,7 @@ All settings are configurable in the **⚙ Settings** dialog (five tabs: General
 | `QuickBar\Horizontal` | off | Bar orientation: 0 = vertical, 1 = horizontal |
 | `QuickBar\TopmostWithCatia` | on | Rise to TOPMOST when the target app is in the foreground |
 | `QuickBar\TargetApp` | `CATIA V5` | Window-title substring to track; empty = always visible, no topmost |
+| `QuickBar\TargetExe` | `` (empty) | Process executable name to match alongside TargetApp (e.g. `CNEXT.exe`); empty = any process |
 | `QuickBar\X` / `QuickBar\Y` | auto | Saved position of the floating bar |
 
 ## 🔑 GitHub Token (optional)
