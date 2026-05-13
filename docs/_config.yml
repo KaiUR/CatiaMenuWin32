@@ -7,3 +7,6 @@ github:
   is_project_page: true
   repository_url: https://github.com/KaiUR/CatiaMenuWin32
   repository_name: CatiaMenuWin32
+
+plugins:
+  - jekyll-sitemap
