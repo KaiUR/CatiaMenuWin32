@@ -84,9 +84,12 @@ CatiaMenuWin32/
 │   ├── sync.c              GitHub sync thread, local dir scanning, manifest
 │   ├── runner.c            Script execution, Python detection, Update Deps
 │   ├── meta.c              Script header parser (Purpose, Author, etc.)
+│   ├── help.c              In-app help window (TreeView + RichEdit)
+│   ├── prefs.c             Favourites, hidden scripts, run counts, notes
 │   ├── sources.c           Sources dialog — extra repos and local folders
 │   ├── settings.c          Settings load/save, Settings dialog, About dialog
-│   └── updater.c           Update checker — GitHub releases API
+│   ├── updater.c           Update checker — GitHub releases API
+│   └── quickbar.c          Floating Quick Launch Bar
 ├── res/
 │   ├── resource.rc.in      Resource script template (CMake substitutes version)
 │   ├── version.h.in        Version header template

@@ -187,6 +187,28 @@ Checks GitHub Releases API for newer versions.
 - `ParseVersion` — splits `"1.2.3.4"` into an `int[4]` without locale-dependent `swscanf`
 - `ParseLatestTag` — extracts `tag_name` from releases API JSON
 
+### `quickbar.c`
+Floating Quick Launch Bar — a small always-on-top button bar that mirrors the ⭐ Favourites tab.
+
+Public API (called from `main.c` and `window.c`):
+- `QuickBar_Register` — registers `CMW32QuickBar` and `CMW32QBarTip` window classes, creates the shared large-bold font for 2-letter button labels; must be called once during `Window_Create` before `QuickBar_Create`
+- `QuickBar_Create` — creates the floating bar window (`WS_POPUP | WS_BORDER`) and its tooltip companion; installs `SetWinEventHook` callbacks for `EVENT_SYSTEM_FOREGROUND` and `EVENT_SYSTEM_MINIMIZESTART/END`
+- `QuickBar_Destroy` — destroys bar and tooltip windows, unhooks both WinEvent hooks, deletes the label font
+- `QuickBar_Show` — shows or hides the bar; respects `qbar_target_app` visibility rules (only shows when a visible target window exists)
+- `QuickBar_Rebuild` — called after the Favourites list changes; resets scroll to 0 and calls `QB_UpdateGeometry` to resize the bar
+- `QuickBar_OnThemeChange` — reapplies `DwmSetWindowAttribute` dark mode and repaints both windows on theme change
+- `QuickBar_SetTopmost` — sets or clears `HWND_TOPMOST` on the bar window
+- `QuickBar_ShowTargetDlg` — opens the `IDD_QBAR_TARGET` dialog to set the window-title tracking substring
+
+Internal key functions:
+- `QuickBarProc` — bar window procedure; handles drag (background = drag handle), click, hover, scroll arrows, mouse wheel, and right-click context menu
+- `QBarTipProc` — tooltip window procedure; paints script name (bold) and purpose line (small) with double-buffering
+- `QB_Paint` — double-buffered render of bar background, scroll arrows (▲▼ / ◄►), and all 2-letter abbreviation buttons with accent bar on hover
+- `QB_HitTest` — returns button index (≥0), `HIT_ARROW_PREV/NEXT`, or `HIT_NONE` (background/drag area)
+- `QB_UpdateGeometry` — sizes the bar window to fit visible favourites, clamped to 4/5 of the monitor's work area; calls `QB_UpdateScrollMax`
+- `QB_CatiaState` — enumerates all top-level windows via `EnumWindows` and returns `CATIA_NONE`, `CATIA_MINIMIZED`, or `CATIA_VISIBLE` based on the tracked title substring
+- `QB_UpdateVisibility` — central dispatcher called from both WinEvent hooks; hides bar when target is absent/minimised, sets `HWND_TOPMOST` when target gains focus
+
 ---
 
 ## Key Structs
@@ -201,6 +223,8 @@ typedef struct {
     HWND   hwnd_scroll;    /* scroll panel containing script buttons */
     HWND   hwnd_status;    /* custom status bar (CMW32StatusBar) */
     HWND   hwnd_tip;       /* tooltip popup */
+    HWND   hwnd_search;    /* search/filter edit box */
+    HWND   hwnd_details;   /* script details panel */
 
     ScriptFolder folders[MAX_FOLDERS];  /* all loaded folders/tabs */
     int      folder_count;
@@ -217,8 +241,31 @@ typedef struct {
     bool   syncing;
     int    hot_btn;        /* currently hovered script button ID */
     int    tip_btn;        /* button whose tooltip is showing */
+    int    tip_h;          /* cached tooltip height */
+    WCHAR  last_run_path[MAX_APPPATH];
+    WCHAR  appdata_dir[MAX_APPPATH];
     WCHAR  latest_version[32];   /* from GitHub releases API */
+    int    scroll_y, scroll_max;
     bool   tray_icon_added;
+
+    /* Filter */
+    WCHAR  filter_text[MAX_NAME]; /* current search/filter string */
+
+    /* Details panel */
+    int    details_script_fi;    /* folder index of shown script */
+    int    details_script_si;    /* script index of shown script */
+    bool   details_visible;
+
+    /* Quick Launch Bar */
+    HWND   hwnd_qbar;            /* floating bar window */
+    HWND   hwnd_qbar_tip;        /* bar tooltip popup */
+    int    qbar_hot;             /* hovered button index, -1 = none */
+    int    qbar_scroll;          /* current scroll offset (px) */
+    int    qbar_scroll_max;      /* maximum scroll offset */
+    bool   qbar_dragging;
+    int    qbar_drag_ox;         /* drag start: cursor offset from left */
+    int    qbar_drag_oy;         /* drag start: cursor offset from top */
+    int    qbar_tip_idx;         /* button index shown in tip, -1 = none */
 } AppState;
 ```
 
@@ -235,12 +282,21 @@ typedef struct {
     bool      always_on_top, minimize_to_tray;
     bool      start_with_windows, start_minimized;
     bool      check_updates;
-    ThemeMode theme;          /* THEME_SYSTEM=0, THEME_DARK=1, THEME_LIGHT=2 */
+    bool      auto_update;       /* auto-download and install updates */
+    ThemeMode theme;             /* THEME_SYSTEM=0, THEME_DARK=1, THEME_LIGHT=2 */
+    int       refresh_interval;  /* hours, 0 = disabled, default 6 */
     bool      main_repo_enabled;
     ExtraRepo extra_repos[MAX_EXTRA_REPOS];
     int       extra_repo_count;
     LocalDir  local_dirs[MAX_LOCAL_DIRS];
     int       local_dir_count;
+    SortMode  sort_mode;         /* global sort mode */
+    /* Quick Launch Bar */
+    bool      qbar_enabled;
+    bool      qbar_horizontal;
+    bool      qbar_topmost_with_catia;
+    int       qbar_x, qbar_y;
+    WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
 } Settings;
 ```
 
@@ -293,10 +349,17 @@ typedef struct {
 | `TAB_H` | 26 | Tab bar height in pixels |
 | `TAB_ARROW_W` | 22 | Tab scroll arrow width |
 | `STATUS_H` | 22 | Status bar height |
+| `SEARCH_H` | 26 | Search/filter box height |
 | `INFO_BTN_W` | 28 | Width of the `i` info badge |
-| `TIP_W` | 320 | Tooltip popup width |
+| `STAR_BTN_W` | 28 | Width of the favourite star badge |
+| `TIP_W` | 320 | Script tooltip popup width |
 | `HTTP_BUF_SIZE` | 512KB | HTTP response buffer |
 | `WIN_MIN_W` | 820 | Minimum window width |
+| `QBAR_BTN_SIZE` | 52 | Quick bar button face square (px) |
+| `QBAR_PAD` | 4 | Margin from bar edge to buttons |
+| `QBAR_GAP` | 4 | Gap between adjacent bar buttons |
+| `QBAR_ARROW_W` | 18 | Quick bar scroll arrow click area |
+| `QBAR_TIP_W` | 240 | Quick bar tooltip popup width |
 
 ---
 
@@ -308,6 +371,7 @@ typedef struct {
 | `WM_STATUS_SET` | `WM_USER+2` | Thread → Main | Update status bar; `lParam` is heap `WCHAR*` |
 | `WM_TRAYICON` | `WM_USER+10` | System → Main | Tray icon mouse event |
 | `WM_UPDATE_AVAIL` | `WM_USER+11` | Thread → Main | Newer version found |
+| `WM_AUTO_REFRESH` | `WM_USER+12` | Timer → Main | Auto-refresh interval elapsed |
 
 ---
 
