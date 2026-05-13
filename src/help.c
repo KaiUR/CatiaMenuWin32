@@ -28,6 +28,7 @@ typedef enum {
     HELP_DETAILS_NOTES,
     HELP_SORT_HIDE,
     HELP_UPDATE_DEPS,
+    HELP_QUICK_BAR,
     HELP_KEYBOARD,
     HELP_TROUBLESHOOTING,
     HELP_TOPIC_COUNT
@@ -93,7 +94,12 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\bullet  {\\b Hover} the {\\b i} badge on the right to see script info in a tooltip.\\par"
             "\\bullet  {\\b Right-click} any button to see the full context menu.\\par\\par"
             "{\\b Status Bar}\\par\\par"
-            "Shows sync progress, script launch status, and exit codes.\\par"
+            "Shows sync progress, script launch status, and exit codes.\\par\\par"
+            "{\\b Quick Launch Bar}\\par\\par"
+            "An optional floating toolbar that pins your favourite scripts as icon buttons outside "
+            "the main window. Enable it in {\\b Settings \\u8594?  Quick Bar} or "
+            "{\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Enable Quick Bar}. "
+            "See the {\\b Quick Launch Bar} help topic for details.\\par"
             "}";
 
     case HELP_RUNNING_SCRIPTS:
@@ -126,33 +132,41 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
             "\\f0\\fs20\\cf2"
             "{\\b\\fs28\\cf1 Settings}\\par\\par"
-            "Open via {\\b Menu \\u8594?  File \\u8594?  Settings...} or the toolbar button.\\par\\par"
-            "{\\b Python Interpreter}\\par\\par"
-            "Full path to {\\f1\\cf3 python.exe}. Click Browse to locate it. "
-            "If blank, the app auto-detects Python from your PATH.\\par\\par"
-            "{\\b Script Cache Folder}\\par\\par"
-            "Where downloaded scripts are stored. Defaults to "
-            "{\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\scripts}.\\par\\par"
-            "{\\b Sync & Updates}\\par\\par"
+            "Open via the {\\b \\u2699?  Settings} toolbar button or {\\b Menu \\u8594?  File \\u8594?  Settings...}. "
+            "The dialog has five tabs:\\par\\par"
+            "{\\b General tab}\\par\\par"
+            "\\bullet  {\\b Python Interpreter} \\emdash path to {\\f1\\cf3 python.exe}. "
+            "Browse or leave blank to auto-detect from PATH.\\par"
+            "\\bullet  {\\b Script Cache Folder} \\emdash where downloaded scripts are stored "
+            "(defaults to {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\scripts}).\\par"
+            "\\bullet  {\\b GitHub Token} \\emdash optional Personal Access Token. "
+            "Raises the API rate limit from 60 to 5000 req/hr. Required for private repositories.\\par\\par"
+            "{\\b Sync tab}\\par\\par"
             "\\bullet  {\\b Sync on startup} \\emdash download latest scripts when the app starts.\\par"
-            "\\bullet  {\\b Auto-refresh interval} \\emdash sync in the background every N hours (0 = off, default 6).\\par"
+            "\\bullet  {\\b Always download latest before running} \\emdash fetch the newest version of a script before each launch.\\par"
             "\\bullet  {\\b Check for updates} \\emdash notify when a newer app version is available.\\par"
-            "\\bullet  {\\b Auto-install updates} \\emdash download and install new versions automatically.\\par\\par"
-            "{\\b Console Options}\\par\\par"
-            "\\bullet  {\\b Show console} \\emdash open a visible console when running scripts.\\par"
-            "\\bullet  {\\b Keep console open} \\emdash keep console open after script finishes.\\par"
-            "\\bullet  {\\b Keep Deps console open} \\emdash keep dependency install window open.\\par\\par"
-            "{\\b GitHub Token}\\par\\par"
-            "Optional Personal Access Token. Raises API rate limit from 60 to 5000 req/hr. "
-            "Required for private repositories.\\par\\par"
-            "{\\b Window}\\par\\par"
-            "\\bullet  {\\b Always on Top} \\emdash keep window above CATIA.\\par"
-            "\\bullet  {\\b Minimize to Tray} \\emdash hide to system tray on minimize.\\par"
+            "\\bullet  {\\b Auto-install updates} \\emdash download and install new versions automatically.\\par"
+            "\\bullet  {\\b Auto-refresh every N hours} \\emdash background sync interval (0 = disabled, default 6).\\par\\par"
+            "{\\b Console tab}\\par\\par"
+            "\\bullet  {\\b Show console} \\emdash open a visible Python console window when running scripts.\\par"
+            "\\bullet  {\\b Keep console open} \\emdash keep the window open after the script finishes "
+            "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par"
+            "\\bullet  {\\b Keep Deps console open} \\emdash keep the dependency install window open until you close it.\\par\\par"
+            "{\\b Window tab}\\par\\par"
+            "\\bullet  {\\b Always on Top} \\emdash keep the main window above other applications such as CATIA.\\par"
+            "\\bullet  {\\b Minimize to Tray} \\emdash hide to the system tray instead of the taskbar when minimized.\\par"
             "\\bullet  {\\b Start with Windows} \\emdash launch automatically at login.\\par"
             "\\bullet  {\\b Start Minimized} \\emdash start hidden in the tray.\\par"
-            "\\bullet  {\\b Theme} \\emdash Dark, Light, or follow Windows setting.\\par\\par"
+            "\\bullet  {\\b Theme} \\emdash Dark, Light, or System (follows Windows setting).\\par"
+            "\\bullet  {\\b Sort Scripts} \\emdash Default Order, Alphabetical, By Date, or Most Used.\\par\\par"
+            "{\\b Quick Bar tab}\\par\\par"
+            "\\bullet  {\\b Enable Quick Launch Bar} \\emdash show the floating icon toolbar for favourite scripts.\\par"
+            "\\bullet  {\\b Orientation} \\emdash Vertical (stacked column) or Horizontal (row).\\par"
+            "\\bullet  {\\b Stay on Top with Target App} \\emdash auto-elevate the bar when the target application is in the foreground.\\par"
+            "\\bullet  {\\b Target App} \\emdash window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
+            "Leave empty for the bar to always remain visible.\\par\\par"
             "{\\b Reset to Defaults}\\par\\par"
-            "The button at the bottom left resets all settings to their defaults. "
+            "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
             "Sources (extra repos and local folders) are not affected.\\par"
             "}";
 
@@ -272,6 +286,36 @@ static const char *Help_GetRTF(HelpTopic topic)
             "your script repository or local folder. The app will find and run it automatically.\\par"
             "}";
 
+    case HELP_QUICK_BAR:
+        return "{\\rtf1\\ansi\\deff0"
+            "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
+            "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
+            "\\f0\\fs20\\cf2"
+            "{\\b\\fs28\\cf1 Quick Launch Bar}\\par\\par"
+            "The Quick Launch Bar is a small floating toolbar that displays your favourite scripts as "
+            "icon buttons, always within reach outside the main window.\\par\\par"
+            "{\\b Enabling}\\par\\par"
+            "\\bullet  Open {\\b \\u2699?  Settings \\u8594?  Quick Bar tab} and check {\\b Enable Quick Launch Bar}.\\par"
+            "\\bullet  Or use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Enable Quick Bar}.\\par\\par"
+            "{\\b Populating the bar}\\par\\par"
+            "Right-click any script \\u8594?  {\\b Add to Favourites}. "
+            "Every script you mark as a favourite automatically appears on the Quick Bar.\\par\\par"
+            "{\\b Orientation}\\par\\par"
+            "Switch between {\\b Vertical} (stacked column) and {\\b Horizontal} (row) layouts "
+            "from {\\b Settings \\u8594?  Quick Bar} or {\\b Menu \\u8594?  View \\u8594?  Quick Bar}.\\par\\par"
+            "{\\b Moving the bar}\\par\\par"
+            "Click and drag the bar to reposition it anywhere on screen. "
+            "The position is saved automatically.\\par"
+            "Use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Reset Position} to move it back to the default location.\\par\\par"
+            "{\\b Stay on Top with Target Application}\\par\\par"
+            "When a {\\b Target App} is configured, the Quick Bar automatically elevates to topmost "
+            "when that application\\u8217?s window is in the foreground (e.g. CATIA V5), and lowers "
+            "itself when a different window becomes active.\\par\\par"
+            "\\bullet  Set the target in {\\b Settings \\u8594?  Quick Bar \\u8594?  Target App field}.\\par"
+            "\\bullet  Leave the field empty to keep the bar always visible on top.\\par"
+            "\\bullet  Toggle the behaviour with {\\b Settings \\u8594?  Quick Bar \\u8594?  Stay on Top with Target App}.\\par"
+            "}";
+
     case HELP_KEYBOARD:
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
@@ -348,6 +392,7 @@ static const WCHAR *Help_TopicLabel(HelpTopic t)
     case HELP_DETAILS_NOTES:    return L"Script Details & Notes";
     case HELP_SORT_HIDE:        return L"Sort & Hide Scripts";
     case HELP_UPDATE_DEPS:      return L"Update Dependencies";
+    case HELP_QUICK_BAR:        return L"Quick Launch Bar";
     case HELP_KEYBOARD:         return L"Keyboard Shortcuts";
     case HELP_TROUBLESHOOTING:  return L"Troubleshooting";
     default:                    return L"";

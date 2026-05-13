@@ -106,30 +106,53 @@ Without **Show console**, scripts run silently in the background.
 
 Open via **☰ Menu → File → Settings...** or the **⚙ Settings** toolbar button.
 
-### Python Interpreter
-Set the full path to your `python.exe`. Click **Browse...** to locate it. If left blank the app auto-detects Python from your PATH and common installation locations.
+The Settings dialog is organised into five tabs:
 
-### Script Cache Folder
-Where downloaded scripts are stored locally. Defaults to `%APPDATA%\CatiaMenuWin32\scripts`. Click **Browse...** to change.
+### General tab
 
-### Sync & Updates
+| Option | Description |
+|--------|-------------|
+| **Python Interpreter** | Full path to `python.exe`. Click **Browse...** to locate it. Leave blank to auto-detect from PATH. |
+| **Script Cache Folder** | Where downloaded scripts are stored locally. Defaults to `%APPDATA%\CatiaMenuWin32\scripts`. |
+| **GitHub Token** | Optional Personal Access Token to raise the API rate limit from 60 to 5000 req/hr. Tick **Use token** and paste the token. See [GitHub Token](#github-token). |
+
+### Sync tab
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | Sync scripts automatically on startup | On | Downloads latest scripts when the app starts |
 | Always download latest before running | Off | Re-downloads the script every time before running |
 | Check for app updates on startup | On | Notifies you when a newer version is available |
+| Auto-install updates | Off | Downloads and installs new versions automatically |
+| Auto-refresh every N hours | 6 | Background sync interval in hours; 0 = disabled |
 
-### Console Options
+### Console tab
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | Show Python console window | Off | Opens a visible console when running scripts |
-| Keep console open after script finishes | On | Window stays open so you can read output/errors |
-| Keep Update Deps console open | Off | Keeps the dependency install window open |
+| Keep console open after script finishes | On | Window stays open so you can read output/errors (`cmd /k` mode) |
+| Keep Update Deps console open | Off | Keeps the dependency install window open until you close it |
 
-### GitHub Token
-Optional Personal Access Token to raise the API rate limit from 60 to 5000 requests/hour. See [GitHub Token](#github-token).
+### Window tab
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| Always on Top | On | Keep the main window above other applications |
+| Minimize to Tray | Off | Hide to system tray instead of taskbar when minimised |
+| Start with Windows | Off | Launch automatically at login |
+| Start Minimized | On | Start hidden in the tray |
+| Theme | System | Dark, Light, or follow Windows setting |
+| Sort Scripts | Default Order | Default, Alphabetical, By Date, or Most Used |
+
+### Quick Bar tab
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| Enable Quick Launch Bar | Off | Show the floating icon toolbar |
+| Orientation | Vertical | Vertical (column) or Horizontal (row) |
+| Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
+| Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
