@@ -74,6 +74,9 @@ BEGIN
     LTEXT "Target application window title substring:",         463, 10, 106, 260, 10
     EDITTEXT 432,                                                   10, 118, 344, 14, ES_AUTOHSCROLL
     LTEXT "(empty = Quick Bar is always visible on screen)",    464, 10, 136, 280, 10
+    LTEXT "Target process executable name (e.g. CNEXT.exe):",  465, 10, 154, 260, 10
+    EDITTEXT 433,                                                   10, 166, 344, 14, ES_AUTOHSCROLL
+    LTEXT "(empty = match any process)",                        466, 10, 184, 200, 10
 
     /* ── Close-group sentinel + bottom buttons ──────────────────── */
     PUSHBUTTON    "Reset to Defaults", 420,   7, 288,  90, 16, WS_GROUP
@@ -248,15 +251,17 @@ END
 /* ================================================================== */
 /*  Target App dialog  (IDD_QBAR_TARGET = 309)                        */
 /* ================================================================== */
-309 DIALOG 0, 0, 300, 72
+309 DIALOG 0, 0, 300, 108
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Set Target Application"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT "Window title substring (empty = always visible):", -1, 7, 10, 286, 10
-    EDITTEXT 760, 7, 24, 286, 14, ES_AUTOHSCROLL
-    DEFPUSHBUTTON "OK",     1, 188, 50, 50, 14
-    PUSHBUTTON    "Cancel", 2, 244, 50, 50, 14
+    LTEXT "Window title substring (empty = always visible):",  -1,  7, 10, 286, 10
+    EDITTEXT 760,                                                    7, 24, 286, 14, ES_AUTOHSCROLL
+    LTEXT "Process executable name (e.g. CNEXT.exe):",         -1,  7, 46, 286, 10
+    EDITTEXT 761,                                                    7, 60, 286, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON "OK",     1, 188, 86, 50, 14
+    PUSHBUTTON    "Cancel", 2, 244, 86, 50, 14
 END
 
 VS_VERSION_INFO VERSIONINFO

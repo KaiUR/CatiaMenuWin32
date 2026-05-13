@@ -155,11 +155,12 @@
 #define IDC_RAD_SORT_USED       427
 
 /* Settings dialog – Quick Bar tab controls */
-#define IDC_CHK_QBAR_ENABLE     428
-#define IDC_RAD_QBAR_HORIZ      429
-#define IDC_RAD_QBAR_VERT       430
-#define IDC_CHK_QBAR_TOPMOST    431
-#define IDC_EDIT_QBAR_TARGET_S  432
+#define IDC_CHK_QBAR_ENABLE         428
+#define IDC_RAD_QBAR_HORIZ          429
+#define IDC_RAD_QBAR_VERT           430
+#define IDC_CHK_QBAR_TOPMOST        431
+#define IDC_EDIT_QBAR_TARGET_S      432
+#define IDC_EDIT_QBAR_TARGET_EXE_S  433
 
 /* Settings dialog – groupboxes and labels that need show/hide by ID */
 #define IDC_GRP_PYTHON          450
@@ -174,9 +175,11 @@
 #define IDC_GRP_WINDOW          459
 #define IDC_GRP_THEME           460
 #define IDC_GRP_SORT            461
-#define IDC_GRP_QBAR_ORI        462
-#define IDC_LBL_QBAR_TARGET     463
-#define IDC_LBL_QBAR_TIP        464
+#define IDC_GRP_QBAR_ORI            462
+#define IDC_LBL_QBAR_TARGET         463
+#define IDC_LBL_QBAR_TIP            464
+#define IDC_LBL_QBAR_TARGET_EXE     465
+#define IDC_LBL_QBAR_EXE_TIP        466
 
 /* Help window */
 #define IDM_HELP_CONTENTS   240
@@ -199,5 +202,6 @@
 #define IDM_QBAR_SET_TARGET  255
 
 /* Target App dialog */
-#define IDD_QBAR_TARGET      309
-#define IDC_EDIT_QBAR_TARGET 760
+#define IDD_QBAR_TARGET          309
+#define IDC_EDIT_QBAR_TARGET     760
+#define IDC_EDIT_QBAR_TARGET_EXE 761

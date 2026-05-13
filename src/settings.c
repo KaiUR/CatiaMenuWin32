@@ -84,6 +84,8 @@ void Settings_Load(Settings *s)
     s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
     GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
                             s->qbar_target_app, MAX_NAME, ini);
+    GetPrivateProfileString(L"QuickBar", L"TargetExe", L"",
+                            s->qbar_target_exe, MAX_NAME, ini);
 
     if (!s->cache_dir[0])
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
@@ -155,6 +157,7 @@ void Settings_Save(const Settings *s)
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->qbar_y);
     WritePrivateProfileString(L"QuickBar", L"Y", tmp, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
+    WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
 
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
@@ -230,7 +233,8 @@ static const int s_stab4[] = {   /* Quick Bar */
     IDC_CHK_QBAR_ENABLE,
     IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
     IDC_CHK_QBAR_TOPMOST,
-    IDC_LBL_QBAR_TARGET, IDC_EDIT_QBAR_TARGET_S, IDC_LBL_QBAR_TIP,
+    IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
+    IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_LBL_QBAR_EXE_TIP,
     -1
 };
 static const int *s_stabs[5] = {
@@ -267,7 +271,8 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
     static const int ids[] = {
         IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
         IDC_CHK_QBAR_TOPMOST,
-        IDC_LBL_QBAR_TARGET, IDC_EDIT_QBAR_TARGET_S, IDC_LBL_QBAR_TIP,
+        IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
+        IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_LBL_QBAR_EXE_TIP,
         -1
     };
     for (const int *p = ids; *p != -1; p++)
@@ -353,7 +358,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_RAD_QBAR_HORIZ,   s->qbar_horizontal        ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,   !s->qbar_horizontal        ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, s->qbar_topmost_with_catia? BST_CHECKED : BST_UNCHECKED);
-        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, s->qbar_target_app);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     s->qbar_target_app);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe);
         Settings_QBarEnableControls(hwnd, s->qbar_enabled);
 
         /* Show only tab 0, hide the rest */
@@ -452,6 +458,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_horizontal         = false;
             s->qbar_topmost_with_catia = true;
             wcsncpy(s->qbar_target_app, L"CATIA V5", MAX_NAME - 1);
+            s->qbar_target_exe[0]      = L'\0';
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
             Runner_FindPython(s->python_exe, MAX_APPPATH);
 
@@ -489,7 +496,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,    BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_QBAR_HORIZ,   BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, BST_CHECKED);
-            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, L"CATIA V5");
+            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     L"CATIA V5");
+            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, L"");
             Settings_QBarEnableControls(hwnd, false);
             break;
         }
@@ -544,7 +552,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_enabled            = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
             s->qbar_horizontal         = IsDlgButtonChecked(hwnd, IDC_RAD_QBAR_HORIZ)  == BST_CHECKED;
             s->qbar_topmost_with_catia = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_TOPMOST)== BST_CHECKED;
-            GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, s->qbar_target_app, MAX_NAME);
+            GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     s->qbar_target_app, MAX_NAME);
+            GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe, MAX_NAME);
 
             Settings_Save(s);
             SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
