@@ -9,6 +9,21 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.3 — Check for Updates, tab restore fix, security fixes
+
+### Added
+- **Check for Updates menu item** — `Help → Check for Updates...` performs a manual update check in the background and reports "up to date" in the status bar if no newer version is found; does not wait for the startup delay used by the auto-check
+
+### Fixed
+- **Active tab restores by folder name after sync** — after a refresh/sync the active tab now restores by folder name instead of by index, preventing a one-tab-right drift that occurred when the Favourites tab is present
+- **C11 security warnings** — replaced all `fprintf` / `memcpy` calls in `updater.c` and `sync.c` with C11 Annex K `_s` variants (`fprintf_s`, `memcpy_s`); replaced `fopen` with `fopen_s` in the auto-updater batch script writer
+- **Memory leak in sync** — `old_scripts` buffer allocated per-folder in the sync loop was never freed; `free()` now called after the removal-detection step each iteration
+
+### Changed
+- **Help window content reformatted** — all 10 help topics updated: subheadings now have a blank-line gap before their content; bullet descriptions after em-dashes are consistently capitalised; section tab names use title case (General Tab, Sync Tab, Console Tab, Window Tab, Quick Bar Tab); numbered list in Running Scripts replaced with bullets for visual consistency
+
+---
+
 ## v2.0.2 — Tabbed Settings dialog, Quick Bar help topic
 
 ### Added

@@ -149,6 +149,7 @@ void Window_ShowMenu(void)
     AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED,    L"Start Minimized");
 
     AppendMenu(hHelp, MF_STRING, IDM_HELP_CONTENTS,  L"Help Contents\tF1");
+    AppendMenu(hHelp, MF_STRING, IDM_CHECK_UPDATES,  L"Check for Updates...");
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
     AppendMenu(hHelp, MF_STRING, IDM_REPORT_BUG,     L"Report a Bug...");
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);

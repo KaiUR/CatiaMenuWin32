@@ -52,16 +52,16 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
             "\\f0\\fs20\\cf2"
             "{\\b\\fs28\\cf1 Getting Started}\\par\\par"
-            "{\\b Requirements}\\par"
+            "{\\b Requirements}\\par\\par"
             "\\bullet  Windows 10 or later\\par"
             "\\bullet  Python 3.9+ installed and in your PATH\\par"
             "\\bullet  PyCATIA: {\\f1\\cf3 pip install pycatia}\\par"
             "\\bullet  CATIA V5 must be running for scripts that interact with it\\par\\par"
-            "{\\b Installation}\\par"
+            "{\\b Installation}\\par\\par"
             "1. Download {\\b CatiaMenuWin32.exe} from the GitHub releases page.\\par"
             "2. Place it anywhere on your machine \\emdash no installer required.\\par"
             "3. Double-click to run.\\par\\par"
-            "{\\b First Launch}\\par"
+            "{\\b First Launch}\\par\\par"
             "On first launch the app will:\\par"
             "\\bullet  Create {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\} to store settings and scripts.\\par"
             "\\bullet  Auto-detect your Python installation.\\par"
@@ -78,10 +78,10 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\f0\\fs20\\cf2"
             "{\\b\\fs28\\cf1 The Interface}\\par\\par"
             "{\\b Toolbar}\\par\\par"
-            "\\bullet  {\\b \\u9776?  Menu} \\emdash access all app functions\\par"
-            "\\bullet  {\\b \\u8635?  Refresh} \\emdash re-sync scripts from all sources\\par"
-            "\\bullet  {\\b \\u9881?  Settings} \\emdash open the settings dialog\\par"
-            "\\bullet  {\\b \\u8615?  Deps} \\emdash install/update Python dependencies\\par\\par"
+            "\\bullet  {\\b \\u9776?  Menu} \\emdash Access all app functions\\par"
+            "\\bullet  {\\b \\u8635?  Refresh} \\emdash Re-sync scripts from all sources\\par"
+            "\\bullet  {\\b \\u9881?  Settings} \\emdash Open the settings dialog\\par"
+            "\\bullet  {\\b \\u8615?  Deps} \\emdash Install/update Python dependencies\\par\\par"
             "{\\b Search Bar}\\par\\par"
             "The filter bar below the toolbar filters scripts in real time by name or purpose. "
             "Type any text to filter, clear it to show all scripts.\\par\\par"
@@ -108,14 +108,14 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
             "\\f0\\fs20\\cf2"
             "{\\b\\fs28\\cf1 Running Scripts}\\par\\par"
-            "\\pard\\f0\\fs20\\cf2 Click any script button to run it. The app will:\\par"
-            "  1. Verify the script SHA hash against GitHub to confirm it has not been tampered with.\\par"
-            "  2. Launch Python with the script path.\\par"
-            "  3. Show the status in the status bar.\\par\\par"
+            "Click any script button to run it. The app will:\\par"
+            "\\bullet  Verify the script SHA hash against GitHub to confirm it has not been tampered with.\\par"
+            "\\bullet  Launch Python with the script path.\\par"
+            "\\bullet  Show the status in the status bar.\\par\\par"
             "{\\b Console Options}\\par\\par"
             "Configurable in Settings:\\par\\par"
-            "\\bullet  {\\b Show console} \\emdash  opens a visible Python console when the script runs.\\par"
-            "\\bullet  {\\b Keep console open} \\emdash  window stays open after the script finishes "
+            "\\bullet  {\\b Show console} \\emdash Opens a visible Python console when the script runs.\\par"
+            "\\bullet  {\\b Keep console open} \\emdash Window stays open after the script finishes "
             "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par\\par"
             "Without Show console, scripts run silently in the background.\\par\\par"
             "{\\b Run with Arguments}\\par\\par"
@@ -134,36 +134,36 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\b\\fs28\\cf1 Settings}\\par\\par"
             "Open via the {\\b \\u2699?  Settings} toolbar button or {\\b Menu \\u8594?  File \\u8594?  Settings...}. "
             "The dialog has five tabs:\\par\\par"
-            "{\\b General tab}\\par\\par"
-            "\\bullet  {\\b Python Interpreter} \\emdash path to {\\f1\\cf3 python.exe}. "
+            "{\\b General Tab}\\par\\par"
+            "\\bullet  {\\b Python Interpreter} \\emdash Path to {\\f1\\cf3 python.exe}. "
             "Browse or leave blank to auto-detect from PATH.\\par"
-            "\\bullet  {\\b Script Cache Folder} \\emdash where downloaded scripts are stored "
+            "\\bullet  {\\b Script Cache Folder} \\emdash Where downloaded scripts are stored "
             "(defaults to {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\scripts}).\\par"
-            "\\bullet  {\\b GitHub Token} \\emdash optional Personal Access Token. "
+            "\\bullet  {\\b GitHub Token} \\emdash Optional Personal Access Token. "
             "Raises the API rate limit from 60 to 5000 req/hr. Required for private repositories.\\par\\par"
-            "{\\b Sync tab}\\par\\par"
-            "\\bullet  {\\b Sync on startup} \\emdash download latest scripts when the app starts.\\par"
-            "\\bullet  {\\b Always download latest before running} \\emdash fetch the newest version of a script before each launch.\\par"
-            "\\bullet  {\\b Check for updates} \\emdash notify when a newer app version is available.\\par"
-            "\\bullet  {\\b Auto-install updates} \\emdash download and install new versions automatically.\\par"
-            "\\bullet  {\\b Auto-refresh every N hours} \\emdash background sync interval (0 = disabled, default 6).\\par\\par"
-            "{\\b Console tab}\\par\\par"
-            "\\bullet  {\\b Show console} \\emdash open a visible Python console window when running scripts.\\par"
-            "\\bullet  {\\b Keep console open} \\emdash keep the window open after the script finishes "
+            "{\\b Sync Tab}\\par\\par"
+            "\\bullet  {\\b Sync on startup} \\emdash Download latest scripts when the app starts.\\par"
+            "\\bullet  {\\b Always download latest before running} \\emdash Fetch the newest version of a script before each launch.\\par"
+            "\\bullet  {\\b Check for updates} \\emdash Notify when a newer app version is available.\\par"
+            "\\bullet  {\\b Auto-install updates} \\emdash Download and install new versions automatically.\\par"
+            "\\bullet  {\\b Auto-refresh every N hours} \\emdash Background sync interval (0 = disabled, default 6).\\par\\par"
+            "{\\b Console Tab}\\par\\par"
+            "\\bullet  {\\b Show console} \\emdash Open a visible Python console window when running scripts.\\par"
+            "\\bullet  {\\b Keep console open} \\emdash Keep the window open after the script finishes "
             "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par"
-            "\\bullet  {\\b Keep Deps console open} \\emdash keep the dependency install window open until you close it.\\par\\par"
-            "{\\b Window tab}\\par\\par"
-            "\\bullet  {\\b Always on Top} \\emdash keep the main window above other applications such as CATIA.\\par"
-            "\\bullet  {\\b Minimize to Tray} \\emdash hide to the system tray instead of the taskbar when minimized.\\par"
-            "\\bullet  {\\b Start with Windows} \\emdash launch automatically at login.\\par"
-            "\\bullet  {\\b Start Minimized} \\emdash start hidden in the tray.\\par"
+            "\\bullet  {\\b Keep Deps Console Open} \\emdash Keep the dependency install window open until you close it.\\par\\par"
+            "{\\b Window Tab}\\par\\par"
+            "\\bullet  {\\b Always on Top} \\emdash Keep the main window above other applications such as CATIA.\\par"
+            "\\bullet  {\\b Minimize to Tray} \\emdash Hide to the system tray instead of the taskbar when minimized.\\par"
+            "\\bullet  {\\b Start with Windows} \\emdash Launch automatically at login.\\par"
+            "\\bullet  {\\b Start Minimized} \\emdash Start hidden in the tray.\\par"
             "\\bullet  {\\b Theme} \\emdash Dark, Light, or System (follows Windows setting).\\par"
             "\\bullet  {\\b Sort Scripts} \\emdash Default Order, Alphabetical, By Date, or Most Used.\\par\\par"
-            "{\\b Quick Bar tab}\\par\\par"
-            "\\bullet  {\\b Enable Quick Launch Bar} \\emdash show the floating icon toolbar for favourite scripts.\\par"
+            "{\\b Quick Bar Tab}\\par\\par"
+            "\\bullet  {\\b Enable Quick Launch Bar} \\emdash Show the floating icon toolbar for favourite scripts.\\par"
             "\\bullet  {\\b Orientation} \\emdash Vertical (stacked column) or Horizontal (row).\\par"
-            "\\bullet  {\\b Stay on Top with Target App} \\emdash auto-elevate the bar when the target application is in the foreground.\\par"
-            "\\bullet  {\\b Target App} \\emdash window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
+            "\\bullet  {\\b Stay on Top with Target App} \\emdash Auto-elevate the bar when the target application is in the foreground.\\par"
+            "\\bullet  {\\b Target App} \\emdash Window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
             "Leave empty for the bar to always remain visible.\\par\\par"
             "{\\b Reset to Defaults}\\par\\par"
             "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
@@ -251,14 +251,14 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\b\\fs28\\cf1 Sort & Hide Scripts}\\par\\par"
             "{\\b Sorting}\\par\\par"
             "{\\b Menu \\u8594?  View \\u8594?  Sort Scripts} offers four sort modes:\\par\\par"
-            "\\bullet  {\\b Default Order} \\emdash order from GitHub API or disk\\par"
+            "\\bullet  {\\b Default Order} \\emdash Order from GitHub API or disk\\par"
             "\\bullet  {\\b Alphabetical} \\emdash A to Z by script name\\par"
-            "\\bullet  {\\b By Date} \\emdash most recent scripts first (from script header Date field)\\par"
-            "\\bullet  {\\b Most Used} \\emdash scripts you run most often appear first\\par\\par"
+            "\\bullet  {\\b By Date} \\emdash Most recent scripts first (from script header Date field)\\par"
+            "\\bullet  {\\b Most Used} \\emdash Scripts you run most often appear first\\par\\par"
             "The sort mode is saved in Settings and applied to all tabs.\\par\\par"
             "{\\b Hiding Scripts}\\par\\par"
             "Right-click any script \\u8594?  {\\b Hide Script} removes it from view.\\par\\par"
-            "\\bullet  Hidden scripts are not deleted \\emdash they remain in the cache.\\par"
+            "\\bullet  Hidden scripts are not deleted \\emdash They remain in the cache.\\par"
             "\\bullet  Hidden scripts will not reappear after a sync.\\par"
             "\\bullet  To restore: {\\b Menu \\u8594?  File \\u8594?  Manage Hidden Scripts}\\par"
             "\\bullet  Select a script and click {\\b Unhide}, or click {\\b Unhide All}.\\par"
@@ -278,7 +278,7 @@ static const char *Help_GetRTF(HelpTopic topic)
             "2. Each extra GitHub repository's requirements\\par"
             "3. Each local folder's requirements\\par\\par"
             "Each source runs in its own console window sequentially.\\par\\par"
-            "{\\b Keep Deps console open}\\par\\par"
+            "{\\b Keep Deps Console Open}\\par\\par"
             "Enable this in Settings to keep each console window visible until you close it manually. "
             "Useful to read pip output and check for errors.\\par\\par"
             "{\\b Adding Dependencies to Your Scripts}\\par\\par"
@@ -297,13 +297,13 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\b Enabling}\\par\\par"
             "\\bullet  Open {\\b \\u2699?  Settings \\u8594?  Quick Bar tab} and check {\\b Enable Quick Launch Bar}.\\par"
             "\\bullet  Or use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Enable Quick Bar}.\\par\\par"
-            "{\\b Populating the bar}\\par\\par"
+            "{\\b Populating the Bar}\\par\\par"
             "Right-click any script \\u8594?  {\\b Add to Favourites}. "
             "Every script you mark as a favourite automatically appears on the Quick Bar.\\par\\par"
             "{\\b Orientation}\\par\\par"
             "Switch between {\\b Vertical} (stacked column) and {\\b Horizontal} (row) layouts "
             "from {\\b Settings \\u8594?  Quick Bar} or {\\b Menu \\u8594?  View \\u8594?  Quick Bar}.\\par\\par"
-            "{\\b Moving the bar}\\par\\par"
+            "{\\b Moving the Bar}\\par\\par"
             "Click and drag the bar to reposition it anywhere on screen. "
             "The position is saved automatically.\\par"
             "Use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Reset Position} to move it back to the default location.\\par\\par"
@@ -322,15 +322,14 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
             "\\f0\\fs20\\cf2"
             "{\\b\\fs28\\cf1 Keyboard Shortcuts}\\par\\par"
-            "\\trowd\\trgaph100\\trleft100"
-            "\\cellx2200\\cellx5000"
-            "{\\b Shortcut}\\intbl\\cell {\\b Action}\\intbl\\cell\\row"
-            "{\\f1\\cf3 F5}\\intbl\\cell Refresh + Sync\\intbl\\cell\\row"
-            "{\\f1\\cf3 F9}\\intbl\\cell Run last script\\intbl\\cell\\row"
-            "{\\f1\\cf3 F1}\\intbl\\cell Open Help\\intbl\\cell\\row"
-            "{\\f1\\cf3 Ctrl+Tab}\\intbl\\cell Next tab\\intbl\\cell\\row"
-            "{\\f1\\cf3 Ctrl+Shift+Tab}\\intbl\\cell Previous tab\\intbl\\cell\\row"
-            "\\pard\\par\\par"
+            "\\pard\\tx2160"
+            "{\\b Shortcut}\\tab{\\b Action}\\par"
+            "{\\f1\\cf3 F5}\\tab Refresh + Sync\\par"
+            "{\\f1\\cf3 F9}\\tab Run last script\\par"
+            "{\\f1\\cf3 F1}\\tab Open Help\\par"
+            "{\\f1\\cf3 Ctrl+Tab}\\tab Next tab\\par"
+            "{\\f1\\cf3 Ctrl+Shift+Tab}\\tab Previous tab\\par"
+            "\\pard\\par"
             "{\\b Right-click Menu}\\par\\par"
             "Right-clicking any script button shows:\\par"
             "\\bullet  Script Details...\\par"
@@ -454,8 +453,10 @@ static void Help_LoadTopic(HWND hEdit, HelpTopic topic)
 /* ================================================================== */
 /*  HelpDlgProc  (static)                                              */
 /*  Purpose: Dialog procedure for the in-app help window. On init it   */
-/*           creates a TreeView of topics and a RichEdit display pane, */
-/*           then handles resizing, topic selection, and dark mode.   */
+/*           creates a borderless, flat-select TreeView of topics and a */
+/*           RichEdit display pane.  Handles resizing, topic selection, */
+/*           dark mode, background painting (WM_ERASEBKGND fills with  */
+/*           COL_BG), and a COL_DIVIDER vertical separator (WM_PAINT). */
 /*  In:  hwnd — dialog window handle                                   */
 /*       msg  — window message identifier                              */
 /*       wp   — WPARAM (message-dependent)                             */
@@ -466,9 +467,9 @@ static HWND s_hwnd_help = NULL;
 
 static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
                                       WPARAM wp, LPARAM lp)
-{ (void)wp; /* suppress unused warning - required by dialog callback signature */
+{
     static HWND hTree = NULL, hEdit = NULL;
-    static int  splitter = 180; /* px */
+    static int  splitter = 200; /* px */
 
     switch (msg)
     {
@@ -477,33 +478,41 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
         /* Load RichEdit */
         LoadLibrary(L"RICHED20.DLL");
 
-        /* Set help window icon */
+        /* Icon */
         HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_HELP_ICON));
         if (!hIcon) hIcon = LoadIcon(NULL, IDI_QUESTION);
         SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
         SendMessage(hwnd, WM_SETICON, ICON_BIG,   (LPARAM)hIcon);
 
-        /* Create TreeView */
+        /* Clip children so the dialog background fill doesn't paint over controls */
+        SetWindowLongPtr(hwnd, GWL_STYLE,
+            GetWindowLongPtr(hwnd, GWL_STYLE) | WS_CLIPCHILDREN);
+
+        /* Create TreeView — no border, no expand/collapse indicators (flat list) */
         hTree = CreateWindowEx(0, WC_TREEVIEW, L"",
-            WS_CHILD | WS_VISIBLE | WS_BORDER |
-            TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
+            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS |
+            TVS_SHOWSELALWAYS | TVS_FULLROWSELECT | TVS_NOHSCROLL,
             0, 0, splitter, 400,
             hwnd, (HMENU)(UINT_PTR)IDC_HELP_TREE,
             GetModuleHandle(NULL), NULL);
 
+        /* Set TreeView colours to match app theme */
+        TreeView_SetBkColor(hTree,   COL_BG());
+        TreeView_SetTextColor(hTree, COL_TEXT());
+        SendMessage(hTree, WM_SETFONT, (WPARAM)g.font_ui, FALSE);
+
         /* Create RichEdit */
         hEdit = CreateWindowEx(0, RICHEDIT_CLASS, L"",
-            WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE |
-            ES_READONLY | ES_AUTOVSCROLL,
-            splitter + 2, 0, 400, 400,
+            WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPSIBLINGS |
+            ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
+            splitter + 1, 0, 400, 400,
             hwnd, (HMENU)(UINT_PTR)IDC_HELP_RICHEDIT,
             GetModuleHandle(NULL), NULL);
 
         /* Style RichEdit */
-        SendMessage(hEdit, EM_SETBKGNDCOLOR, 0,
-                    (LPARAM)RGB(28, 28, 35));
+        SendMessage(hEdit, EM_SETBKGNDCOLOR, 0, (LPARAM)COL_BG());
         SendMessage(hEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN,
-                    MAKELONG(10, 10));
+                    MAKELONG(14, 14));
 
         /* Populate TreeView */
         for (int i = 0; i < HELP_TOPIC_COUNT; i++) {
@@ -523,15 +532,38 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             Help_LoadTopic(hEdit, HELP_GETTING_STARTED);
         }
 
-        /* Apply dark mode to tree */
+        /* Apply dark mode */
         SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
         Window_ApplyDarkMode(hwnd);
 
         /* Size controls */
         RECT rc; GetClientRect(hwnd, &rc);
-        SendMessage(hwnd, WM_SIZE, 0,
-                    MAKELPARAM(rc.right, rc.bottom));
+        SendMessage(hwnd, WM_SIZE, 0, MAKELPARAM(rc.right, rc.bottom));
         return TRUE;
+    }
+
+    case WM_ERASEBKGND:
+    {
+        /* Fill dialog background with app theme colour */
+        RECT rc; GetClientRect(hwnd, &rc);
+        FillRect((HDC)wp, &rc, g.br_bg);
+        return TRUE;
+    }
+
+    case WM_PAINT:
+    {
+        /* Draw a subtle vertical divider between the tree and the content pane */
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rc; GetClientRect(hwnd, &rc);
+        HPEN pen = CreatePen(PS_SOLID, 1, COL_DIVIDER());
+        HPEN op  = SelectObject(hdc, pen);
+        MoveToEx(hdc, splitter, 0, NULL);
+        LineTo(hdc, splitter, rc.bottom);
+        SelectObject(hdc, op);
+        DeleteObject(pen);
+        EndPaint(hwnd, &ps);
+        return 0;
     }
 
     case WM_SIZE:
@@ -541,9 +573,12 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             SetWindowPos(hTree, NULL, 0, 0, splitter, h,
                          SWP_NOZORDER | SWP_NOACTIVATE);
         if (hEdit)
-            SetWindowPos(hEdit, NULL, splitter + 2, 0,
-                         w - splitter - 2, h,
+            SetWindowPos(hEdit, NULL, splitter + 1, 0,
+                         w - splitter - 1, h,
                          SWP_NOZORDER | SWP_NOACTIVATE);
+        /* Repaint the divider strip */
+        RECT div = { splitter - 1, 0, splitter + 2, h };
+        InvalidateRect(hwnd, &div, FALSE);
         return 0;
     }
 
@@ -562,8 +597,8 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
     case WM_GETMINMAXINFO:
     {
         MINMAXINFO *mm = (MINMAXINFO *)lp;
-        mm->ptMinTrackSize.x = 500;
-        mm->ptMinTrackSize.y = 400;
+        mm->ptMinTrackSize.x = 600;
+        mm->ptMinTrackSize.y = 420;
         return 0;
     }
 

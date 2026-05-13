@@ -129,12 +129,14 @@ void Tabs_DestroyButtons(void)
 /*           show the new selection, and rebuilds the script button    */
 /*           grid for the newly active folder.                         */
 /*  In:  idx — folder index to make active (validated before use)      */
-/*  Out: (void — sets g.active_tab, triggers repaint and button rebuild)*/
+/*  Out: (void — sets g.active_tab and g.active_folder_name,            */
+/*               triggers repaint and button rebuild)                   */
 /* ================================================================== */
 void Tabs_Switch(int idx)
 {
     if (idx < 0 || idx >= g.folder_count) return;
     g.active_tab = idx;
+    wcsncpy(g.active_folder_name, g.folders[idx].name, MAX_NAME - 1);
     InvalidateRect(g.hwnd_tab, NULL, FALSE); /* repaint custom tab bar */
     Tabs_RebuildButtons();
 }

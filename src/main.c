@@ -684,6 +684,13 @@ apply_theme:
             L"https://github.com/KaiUR/Pycatia_Scripts", NULL, NULL, SW_SHOW);
         break;
 
+    case IDM_CHECK_UPDATES:
+    {
+        HANDLE hU = CreateThread(NULL, 0, Updater_CheckThread, (LPVOID)1, 0, NULL);
+        if (hU) CloseHandle(hU);
+        break;
+    }
+
     case IDM_HELP_CONTENTS:
         Help_Show();
         break;
@@ -775,8 +782,10 @@ apply_theme:
 /*  Handle_SyncDone  (static)                                          */
 /*  Purpose: Processes the WM_SYNC_DONE message posted by Sync_Thread. */
 /*           Re-parses metadata, applies user prefs, rebuilds tabs and  */
-/*           buttons, and updates the status bar.  Frees the heap-     */
-/*           allocated SyncResult passed via WPARAM.                   */
+/*           buttons, then restores the active tab by folder name      */
+/*           (g.active_folder_name) to prevent index drift when        */
+/*           Tabs_BuildFavourites shifts folder indices.  Updates the  */
+/*           status bar and frees the heap-allocated SyncResult.       */
 /*  In:  sr — heap-allocated SyncResult from Sync_Thread (freed here)  */
 /*  Out: (void)                                                         */
 /* ================================================================== */
@@ -806,7 +815,20 @@ static void Handle_SyncDone(SyncResult *sr)
         InvalidateRect(g.hwnd_tab,    NULL, TRUE);
         InvalidateRect(g.hwnd_scroll, NULL, TRUE);
     } else {
-        Tabs_Switch(g.active_tab < g.folder_count ? g.active_tab : 0);
+        /* Restore the previously active folder by name so the tab doesn't drift
+           when Tabs_BuildFavourites inserts/removes the Favourites tab at index 0. */
+        int restore = 0;
+        if (g.active_folder_name[0]) {
+            for (int fi = 0; fi < g.folder_count; fi++) {
+                if (wcscmp(g.folders[fi].name, g.active_folder_name) == 0) {
+                    restore = fi;
+                    break;
+                }
+            }
+        } else {
+            restore = (g.active_tab < g.folder_count) ? g.active_tab : 0;
+        }
+        Tabs_Switch(restore);
     }
     SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
     free(sr);

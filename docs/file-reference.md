@@ -35,14 +35,14 @@ Entry point and main window procedure.
 - `wWinMain` — app startup: loads settings, creates window, starts sync and update threads, runs message loop
 - `MainWndProc` — handles `WM_PAINT`, `WM_SIZE`, `WM_COMMAND`, `WM_DRAWITEM`, `WM_SETTINGCHANGE`, `WM_TRAYICON`, `WM_SYNC_DONE`, `WM_UPDATE_AVAIL`, `WM_CLOSE`, `WM_DESTROY`
 - `Handle_Command` — routes all `WM_COMMAND` messages to appropriate actions
-- `Handle_SyncDone` — called on main thread when sync completes; rebuilds tabs
+- `Handle_SyncDone` — called on main thread when sync completes; rebuilds tabs and restores the active tab by folder name (via `g.active_folder_name`) to prevent drift when `Tabs_BuildFavourites` shifts indices
 - `App_InitGDI` / `App_FreeGDI` / `App_RebuildGDI` — create/destroy/recreate all GDI resources
 - `App_ResolveTheme` — sets `g.dark_mode` based on `cfg.theme` and Windows registry
 
 ### `resource.h`
 All `#define` IDs for menus, dialogs, and controls. Grouped by:
 - Icon: `IDI_APP_ICON`
-- Menu: `IDR_MAINMENU`, `IDM_*`
+- Menu: `IDR_MAINMENU`, `IDM_*` (includes `IDM_CHECK_UPDATES = 244` for Help → Check for Updates)
 - Dialogs: `IDD_SETTINGS`, `IDD_ABOUT`, `IDD_SOURCES`, `IDD_REPO_EDIT`
 - Controls: `IDC_*`
 - Script buttons: `IDC_SCRIPT_BTN_BASE = 1000` (script index added to base)
@@ -65,7 +65,7 @@ Window creation, tab bar, tray icon, and popup menu.
 Tab switching and script button management.
 
 - `Tabs_Build` — triggers tab bar repaint (tab bar reads `g.folders[]` directly)
-- `Tabs_Switch` — sets `g.active_tab`, repaints tab bar, calls `Tabs_RebuildButtons`
+- `Tabs_Switch` — sets `g.active_tab` and `g.active_folder_name`, repaints tab bar, calls `Tabs_RebuildButtons`
 - `Tabs_RebuildButtons` — destroys existing script buttons and creates new ones for active tab
 - `Tabs_DestroyButtons` — removes all `IDC_SCRIPT_BTN_BASE+n` child windows
 - `ScrollPanelProc` — scroll panel `WndProc`; handles `WM_VSCROLL`, `WM_MOUSEWHEEL`, `WM_DRAWITEM` for script buttons
@@ -142,8 +142,8 @@ Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library for CATIA 
 In-app help window implementation.
 
 - `Help_Show()` — opens the help window (or brings it to front if already open); called from F1 and Menu → Help → Help Contents
-- `HelpDlgProc` — modeless dialog proc; manages TreeView + RichEdit layout, resizing, and topic switching
-- `Help_GetRTF` — returns RTF-formatted content string for each of the 11 help topics
+- `HelpDlgProc` — modeless dialog proc; manages TreeView + RichEdit layout, resizing, and topic switching; paints the app-theme background (`WM_ERASEBKGND`) and a `COL_DIVIDER` vertical line between panes (`WM_PAINT`)
+- `Help_GetRTF` — returns RTF-formatted content string for each of the 12 help topics
 - `Help_TopicLabel` — returns the display name for each topic
 - `Help_LoadTopic` — streams RTF content into the RichEdit control via `EM_STREAMIN`
 
@@ -180,7 +180,7 @@ Settings persistence and dialogs.
 ### `updater.c`
 Checks GitHub Releases API for newer versions.
 
-- `Updater_CheckThread` — background thread: waits 3s for sync to finish, calls releases API, compares `major.minor.patch`
+- `Updater_CheckThread` — background thread: waits 3 s for sync to finish (skipped for manual checks), calls releases API, compares `major.minor.patch`; pass non-NULL `lpParam` to trigger a manual check that shows "up to date" status if no update is found
 - `Updater_AutoUpdate` — downloads the new `.exe` directly via WinINet, writes a batch script to replace the binary, then posts `WM_CLOSE`; falls back to `Updater_PromptAndInstall` on any failure
 - `Updater_PromptAndInstall` — shows the update dialog and opens the releases page if confirmed
 - `IsNewer` — compares remote and local versions (first 3 parts only, ignores build number)
@@ -244,7 +244,8 @@ typedef struct {
     int    tip_h;          /* cached tooltip height */
     WCHAR  last_run_path[MAX_APPPATH];
     WCHAR  appdata_dir[MAX_APPPATH];
-    WCHAR  latest_version[32];   /* from GitHub releases API */
+    WCHAR  latest_version[32];         /* from GitHub releases API */
+    WCHAR  active_folder_name[MAX_NAME]; /* folder name saved by Tabs_Switch for post-sync restoration */
     int    scroll_y, scroll_max;
     bool   tray_icon_added;
 
