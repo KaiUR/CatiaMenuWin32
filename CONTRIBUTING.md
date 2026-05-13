@@ -71,7 +71,7 @@ See the [Developer Guide](docs/developer-guide.md) for full build instructions.
 ### What We Won't Accept
 
 - External library dependencies (no Qt, no boost, no curl etc.)
-- MSVC-only code — must compile with MinGW-w64 GCC 13+
+- LLVM/Clang (with MSVC Windows SDK) — must compile with Clang 17+
 - Changes that break the dark/light theme system
 - Changes that remove existing settings without a migration path
 
