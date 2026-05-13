@@ -8,6 +8,7 @@ A lightweight, native **Win32 API / C** Python script launcher and manager
 Full documentation is available in the [`docs/`](docs/) folder:
 
 - [User Guide](docs/user-guide.md) — installation, settings, sources, running scripts
+- [FAQ](docs/faq.md) — common questions about installation, sync, scripts, and configuration
 - [Developer Guide](docs/developer-guide.md) — building from source, project structure, releasing
 - [File Reference](docs/file-reference.md) — source files, structs, functions, constants
 - [Changelog](docs/changelog.md) — release history

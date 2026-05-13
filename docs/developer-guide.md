@@ -42,7 +42,7 @@ Open a **Developer Command Prompt for VS** (or run `ilammy/msvc-dev-cmd` equival
 ```bash
 git clone https://github.com/KaiUR/CatiaMenuWin32
 cd CatiaMenuWin32
-cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl
 cmake --build build
 ```
 
@@ -54,7 +54,7 @@ The executable is output to `build/CatiaMenuWin32.exe`.
 
 1. Open `CMakeLists.txt` in Qt Creator
 2. Select a **Clang** kit (configured against the MSVC toolchain)
-3. Add `-DCMAKE_C_COMPILER=clang` to the CMake arguments
+3. Add `-DCMAKE_C_COMPILER=clang-cl` to the CMake arguments
 4. Configure the project
 5. **Build → Build All** (`Ctrl+B`)
 
@@ -176,7 +176,7 @@ It triggers on:
 2. Set up MSVC environment (`ilammy/msvc-dev-cmd`) and add LLVM to PATH
 3. Update `CONTRIBUTORS.md` from git log
 4. Extract `major.minor.patch` from the pushed tag
-5. Run `cmake -DCMAKE_C_COMPILER=clang -DVERSION_OVERRIDE=major.minor.patch` (increments `build_number.txt`)
+5. Run `cmake -DCMAKE_C_COMPILER=clang-cl -DVERSION_OVERRIDE=major.minor.patch` (increments `build_number.txt`)
 6. Build with Ninja
 7. **Code-sign** `CatiaMenuWin32.exe` via `skymatic/code-sign-action@v1` using the certificate stored in GitHub Secrets
 8. Commit `build_number.txt` and `CONTRIBUTORS.md` back to `main`
@@ -216,8 +216,21 @@ That's it. The workflow handles everything else automatically. The final release
 
 - **C11** — designated initialisers, `bool`, `stdbool.h`, `_Static_assert`
 - **Unicode throughout** — `WCHAR`, `L""` literals, `_snwprintf_s`, `wcslen` etc.
-- **Bounds-safe string ops** — always `wcsncpy`/`wcsncat` with explicit limits; never `wcscpy`/`wcscat`
-- **Safe formatted output** — always `_snwprintf_s` with `_TRUNCATE`; never `_snwprintf` or `swprintf`
+- **Memory-safe functions only** — always use the `_s` (C11 Annex K) or bounded variants; never use functions flagged by `clang-analyzer-security.insecureAPI`. The full substitution table:
+
+  | Never use | Use instead | Notes |
+  |-----------|-------------|-------|
+  | `strcpy`, `wcscpy` | `strcpy_s`, `wcscpy_s` | always pass `_countof(dest)` |
+  | `strcat`, `wcscat` | `strcat_s`, `wcscat_s` | always pass `_countof(dest)` |
+  | `strncpy`, `wcsncpy` | `strncpy_s`, `wcsncpy_s` | `_s` variant guarantees NUL termination |
+  | `sprintf`, `swprintf` | `sprintf_s`, `swprintf_s` | pass `_countof(buf)` |
+  | `snprintf`, `_snwprintf` | `_snprintf_s`, `_snwprintf_s` | use `_TRUNCATE` as the count argument |
+  | `fprintf` | `fprintf_s` | |
+  | `vsprintf`, `vswprintf` | `vsprintf_s`, `vswprintf_s` | |
+  | `gets` | `fgets` | |
+  | `memcpy` | `memcpy_s` | pass `destSize` then `count` |
+  | `memmove` | `memmove_s` | pass `destSize` then `count` |
+  | `memset` (zeroing secrets) | `SecureZeroMemory` | prevents compiler from eliding the zero |
 - **No CRT allocations in WndProcs** where possible — use stack buffers
 - **Heap allocations** — use `calloc`/`malloc` + matching `free`; for `ScriptFolder` use the `Folder_Alloc`/`Folder_Free`/`Folder_Push` helpers in `main.h`
 - **Double-buffered GDI** — all painting via memory DC, `BitBlt` to screen
