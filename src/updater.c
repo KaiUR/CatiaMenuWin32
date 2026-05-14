@@ -131,8 +131,8 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
             display_tag++;
         wcsncpy(g.latest_version, display_tag, 31);
 
-        if (g.cfg.auto_update && !manual) {
-            /* Auto-update: download and install on main thread */
+        if (g.cfg.auto_update) {
+            /* Auto-update: download and install (honoured for both auto and manual check) */
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0);  /* wParam=1 means auto */
         } else {
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);

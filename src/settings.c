@@ -70,7 +70,7 @@ void Settings_Load(Settings *s)
         _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i); s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
     }
     s->always_on_top       = GetPrivateProfileInt(L"Window",  L"AlwaysOnTop",       1, ini) != 0;
-    s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    0, ini) != 0;
+    s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    1, ini) != 0;
     s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  0, ini) != 0;
     s->start_minimized     = GetPrivateProfileInt(L"Window",  L"StartMinimized",    1, ini) != 0;
     s->theme               = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme",   0, ini);
@@ -234,7 +234,8 @@ static const int s_stab4[] = {   /* Quick Bar */
     IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
     IDC_CHK_QBAR_TOPMOST,
     IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
-    IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_LBL_QBAR_EXE_TIP,
+    IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_BTN_BROWSE_QBAR_EXE_S,
+    IDC_LBL_QBAR_EXE_TIP,
     -1
 };
 static const int *s_stabs[5] = {
@@ -272,7 +273,8 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
         IDC_GRP_QBAR_ORI, IDC_RAD_QBAR_VERT, IDC_RAD_QBAR_HORIZ,
         IDC_CHK_QBAR_TOPMOST,
         IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
-        IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_LBL_QBAR_EXE_TIP,
+        IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_BTN_BROWSE_QBAR_EXE_S,
+        IDC_LBL_QBAR_EXE_TIP,
         -1
     };
     for (const int *p = ids; *p != -1; p++)
@@ -411,6 +413,23 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
         }
 
+        case IDC_BTN_BROWSE_QBAR_EXE_S:
+        {
+            WCHAR path[MAX_APPPATH] = {0};
+            OPENFILENAME ofn = {
+                .lStructSize = sizeof(ofn), .hwndOwner = hwnd,
+                .lpstrFilter = L"Executables\0*.exe\0All Files\0*.*\0",
+                .lpstrFile = path, .nMaxFile = MAX_APPPATH,
+                .Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
+                .lpstrTitle = L"Select Target Application"
+            };
+            if (GetOpenFileName(&ofn)) {
+                WCHAR *slash = wcsrchr(path, L'\\');
+                SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, slash ? slash + 1 : path);
+            }
+            break;
+        }
+
         case IDC_CHK_CONSOLE:
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN),
                 IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE) == BST_CHECKED);
@@ -449,7 +468,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->auto_update             = false;
             s->refresh_interval        = 6;
             s->always_on_top           = true;
-            s->minimize_to_tray        = false;
+            s->minimize_to_tray        = true;
             s->start_with_windows      = false;
             s->start_minimized         = true;
             s->theme                   = THEME_SYSTEM;
@@ -481,7 +500,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), FALSE);
 
             CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_START_MIN,     BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_THEME_SYSTEM,  BST_CHECKED);

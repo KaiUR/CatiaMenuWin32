@@ -123,7 +123,7 @@ The Settings dialog is organised into five tabs:
 | Sync scripts automatically on startup | On | Downloads latest scripts when the app starts |
 | Always download latest before running | Off | Re-downloads the script every time before running |
 | Check for app updates on startup | On | Notifies you when a newer version is available |
-| Auto-install updates | Off | Downloads and installs new versions automatically |
+| Auto-install updates | Off | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually |
 | Auto-refresh every N hours | 6 | Background sync interval in hours; 0 = disabled |
 
 ### Console tab
@@ -139,7 +139,7 @@ The Settings dialog is organised into five tabs:
 | Option | Default | Description |
 |--------|---------|-------------|
 | Always on Top | On | Keep the main window above other applications |
-| Minimize to Tray | Off | Hide to system tray instead of taskbar when minimised |
+| Minimize to Tray | On | Hide to system tray instead of taskbar when minimised |
 | Start with Windows | Off | Launch automatically at login |
 | Start Minimized | On | Start hidden in the tray |
 | Theme | System | Dark, Light, or follow Windows setting |
@@ -153,7 +153,7 @@ The Settings dialog is organised into five tabs:
 | Orientation | Vertical | Vertical (column) or Horizontal (row) |
 | Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
-| Target Exe | (empty) | Process executable filename to match alongside **Target App** (e.g. `CNEXT.exe`). Prevents the bar from responding to other windows that share the same title substring. Leave empty to match any process. |
+| Target Exe | (empty) | Process executable filename to match alongside **Target App** (e.g. `CNEXT.exe`). Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -262,7 +262,7 @@ By default the target is **CATIA V5**. To use the bar with a different applicati
 
 1. Right-click the bar and select **Set Target App…** (or **☰ Menu → View → Quick Bar → Set Target App…**)
 2. Enter any substring that appears in the target application's window title (e.g. `Fusion 360`, `Blender`, `SolidWorks`)
-3. Optionally enter the **Target Exe** — the process executable filename (e.g. `CNEXT.exe`) — to prevent the bar from responding to other windows whose titles contain the same substring
+3. Optionally enter the **Target Exe** — the process executable filename (e.g. `CNEXT.exe`) — to prevent the bar from responding to other windows whose titles contain the same substring. Click **Browse…** to navigate to the executable with a file picker instead of typing the name manually
 4. Click **OK**
 
 To disable target tracking entirely — keeping the bar always visible with no topmost behaviour — clear both fields and click **OK**.
