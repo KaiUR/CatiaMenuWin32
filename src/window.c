@@ -155,6 +155,7 @@ void Window_ShowMenu(void)
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
     AppendMenu(hHelp, MF_STRING, IDM_ABOUT,          L"About");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB,         L"View App on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_GITHUB_PAGES,   L"GitHub Pages");
     AppendMenu(hHelp, MF_STRING, IDM_WIKI,           L"App Wiki");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB_SCRIPTS, L"View Scripts on GitHub");
     AppendMenu(hHelp, MF_STRING, IDM_WIKI_SCRIPTS,   L"Scripts Wiki");
@@ -287,13 +288,15 @@ static int TabBar_NaturalWidth(const WCHAR *label)
 /*       with_arrows — whether scroll arrows consume space             */
 /*  Out: number of tabs that fit                                        */
 /* ================================================================== */
-static int TabBar_CountFit(int bar_w, int offset, bool with_arrows)
+/* offset is an index into vtabs[], not into g.folders[]. */
+static int TabBar_CountFit(int bar_w, const int *vtabs, int vn,
+                            int offset, bool with_arrows)
 {
     int avail = with_arrows ? bar_w - 2 * TAB_ARROW_W : bar_w;
     int used  = 0;
     int count = 0;
-    for (int i = offset; i < g.folder_count; i++) {
-        int tw = TabBar_NaturalWidth(g.folders[i].display);
+    for (int v = offset; v < vn; v++) {
+        int tw = TabBar_NaturalWidth(g.folders[vtabs[v]].display);
         if (used + tw > avail) break;
         used += tw;
         count++;
@@ -308,13 +311,12 @@ static int TabBar_CountFit(int bar_w, int offset, bool with_arrows)
 /*  In:  bar_w — total pixel width of the tab bar                      */
 /*  Out: true if not all tabs fit (arrows needed); false otherwise      */
 /* ================================================================== */
-static bool TabBar_NeedsArrows(int bar_w)
+static bool TabBar_NeedsArrows(int bar_w, const int *vtabs, int vn)
 {
-    if (g.folder_count <= 0) return false;
-    /* Check if all tabs fit without arrows */
+    if (vn <= 0) return false;
     int total = 0;
-    for (int i = 0; i < g.folder_count; i++)
-        total += TabBar_NaturalWidth(g.folders[i].display);
+    for (int v = 0; v < vn; v++)
+        total += TabBar_NaturalWidth(g.folders[vtabs[v]].display);
     return total > bar_w;
 }
 
@@ -344,36 +346,34 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         HDC hdc = BeginPaint(hwnd, &ps);
         RECT rc; GetClientRect(hwnd, &rc);
         int w = rc.right, h = rc.bottom;
-        int n = g.folder_count;
 
         HBRUSH bg = CreateSolidBrush(COL_TOOLBAR());
         FillRect(hdc, &rc, bg);
         DeleteObject(bg);
 
-        if (n == 0) { EndPaint(hwnd, &ps); return 0; }
+        /* Build list of tabs that have at least one visible (non-hidden) script */
+        int vtabs[MAX_FOLDERS];
+        int vn = 0;
+        for (int i = 0; i < g.folder_count; i++)
+            if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
 
-        bool need_arrows = TabBar_NeedsArrows(w);
+        if (vn == 0) { EndPaint(hwnd, &ps); return 0; }
 
-        int left_x  = 0;
-        int right_x = w;
+        bool need_arrows = TabBar_NeedsArrows(w, vtabs, vn);
+        int left_x = 0, right_x = w;
 
-        /* Draw scroll arrows if needed */
         if (need_arrows) {
             left_x  = TAB_ARROW_W;
             right_x = w - TAB_ARROW_W;
 
-            /* Clamp offset so the last tab is always reachable.
-               Using CountFit(0) is wrong when tab widths differ — a wider
-               last tab may not fit even after scrolling past a narrower one.
-               Instead walk forward until all remaining tabs fit. */
+            /* Clamp g.tab_offset (index into vtabs) so the last page is reachable */
             int max_off = 0;
-            while (max_off < n - 1 &&
-                   max_off + TabBar_CountFit(w, max_off, true) < n)
+            while (max_off < vn - 1 &&
+                   max_off + TabBar_CountFit(w, vtabs, vn, max_off, true) < vn)
                 max_off++;
             if (g.tab_offset > max_off) g.tab_offset = max_off;
             if (g.tab_offset < 0)       g.tab_offset = 0;
 
-            /* Left arrow */
             bool la_hot = (g.tab_offset > 0);
             HBRUSH ab = CreateSolidBrush(la_hot ? COL_BTN_HOT() : COL_TOOLBAR());
             RECT ar = { 0, 0, TAB_ARROW_W, h };
@@ -381,20 +381,17 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, la_hot ? COL_ACCENT : COL_SUBTEXT());
             HFONT of2 = SelectObject(hdc, g.font_ui);
-            DrawText(hdc, L"◄", -1, &ar,
-                     DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawText(hdc, L"◄", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of2);
 
-            /* Right arrow - hot if there are tabs hidden to the right */
-            int visible_count = TabBar_CountFit(w, g.tab_offset, true);
-            bool ra_hot = (g.tab_offset + visible_count < n);
+            int visible_count = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
+            bool ra_hot = (g.tab_offset + visible_count < vn);
             ab = CreateSolidBrush(ra_hot ? COL_BTN_HOT() : COL_TOOLBAR());
             ar = (RECT){ right_x, 0, w, h };
             FillRect(hdc, &ar, ab); DeleteObject(ab);
             SetTextColor(hdc, ra_hot ? COL_ACCENT : COL_SUBTEXT());
             HFONT of3 = SelectObject(hdc, g.font_ui);
-            DrawText(hdc, L"►", -1, &ar,
-                     DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawText(hdc, L"►", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of3);
         } else {
             g.tab_offset = 0;
@@ -402,16 +399,14 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
         SetBkMode(hdc, TRANSPARENT);
 
-        /* Draw tabs at their natural widths starting from tab_offset */
         int x = left_x;
-        for (int fi = g.tab_offset; fi < n; fi++) {
+        for (int v = g.tab_offset; v < vn; v++) {
+            int fi = vtabs[v];
             int tw = TabBar_NaturalWidth(g.folders[fi].display);
-            /* Stop if this tab would overflow the available area */
             if (x + tw > right_x) break;
             bool sel = (fi == g.active_tab);
 
-            COLORREF bg_col = sel ? COL_BTN_NORM() : COL_TOOLBAR();
-            HBRUSH tbr = CreateSolidBrush(bg_col);
+            HBRUSH tbr = CreateSolidBrush(sel ? COL_BTN_NORM() : COL_TOOLBAR());
             RECT tr = { x, 0, x + tw, h };
             FillRect(hdc, &tr, tbr);
             DeleteObject(tbr);
@@ -425,8 +420,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(ap);
             }
 
-            /* Divider between tabs */
-            if (fi + 1 < n) {
+            if (v + 1 < vn) {
                 HPEN dp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
                 HPEN op = SelectObject(hdc, dp);
                 MoveToEx(hdc, x + tw - 1, 3, NULL);
@@ -435,18 +429,15 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(dp);
             }
 
-            /* Label - no ellipsis, full text always fits */
             SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
             HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
             RECT lr = { x + 14, 0, x + tw - 14, h };
             DrawText(hdc, g.folders[fi].display, -1, &lr,
                      DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of);
-
             x += tw;
         }
 
-        /* Bottom border */
         HPEN bp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
         HPEN op = SelectObject(hdc, bp);
         MoveToEx(hdc, 0, h - 1, NULL);
@@ -461,43 +452,39 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     case WM_LBUTTONDOWN:
     {
         RECT rc; GetClientRect(hwnd, &rc);
-        int w  = rc.right;
-        int n  = g.folder_count;
-        if (n == 0) break;
-        int mx = GET_X_LPARAM(lp);
+        int w = rc.right;
+        if (g.folder_count == 0) break;
 
-        bool need_arrows = TabBar_NeedsArrows(w);
+        int vtabs[MAX_FOLDERS];
+        int vn = 0;
+        for (int i = 0; i < g.folder_count; i++)
+            if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
+        if (vn == 0) break;
+
+        int mx = GET_X_LPARAM(lp);
+        bool need_arrows = TabBar_NeedsArrows(w, vtabs, vn);
 
         if (need_arrows) {
-            /* Left arrow click */
             if (mx < TAB_ARROW_W) {
-                if (g.tab_offset > 0) {
-                    g.tab_offset--;
-                    InvalidateRect(hwnd, NULL, FALSE);
-                }
+                if (g.tab_offset > 0) { g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE); }
                 return 0;
             }
-            /* Right arrow click */
             if (mx >= w - TAB_ARROW_W) {
-                int vis = TabBar_CountFit(w, g.tab_offset, true);
-                if (g.tab_offset + vis < n) {
-                    g.tab_offset++;
-                    InvalidateRect(hwnd, NULL, FALSE);
-                }
+                int vis = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
+                if (g.tab_offset + vis < vn) { g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE); }
                 return 0;
             }
         }
 
-        /* Hit test: walk tabs at natural widths */
         int left_x = need_arrows ? TAB_ARROW_W : 0;
         int right_x = need_arrows ? w - TAB_ARROW_W : w;
         int x = left_x;
-        for (int fi = g.tab_offset; fi < n; fi++) {
+        for (int v = g.tab_offset; v < vn; v++) {
+            int fi = vtabs[v];
             int tw = TabBar_NaturalWidth(g.folders[fi].display);
             if (x + tw > right_x) tw = right_x - x;
             if (mx >= x && mx < x + tw) {
-                if (fi != g.active_tab)
-                    Tabs_Switch(fi);
+                if (fi != g.active_tab) Tabs_Switch(fi);
                 return 0;
             }
             x += tw;
@@ -508,18 +495,21 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
     case WM_MOUSEWHEEL:
     {
-        int n = g.folder_count;
-        if (n == 0) break;
+        if (g.folder_count == 0) break;
         RECT rc; GetClientRect(hwnd, &rc);
-        if (!TabBar_NeedsArrows(rc.right)) break;
-        int vis   = TabBar_CountFit(rc.right, g.tab_offset, true);
+
+        int vtabs[MAX_FOLDERS];
+        int vn = 0;
+        for (int i = 0; i < g.folder_count; i++)
+            if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
+        if (!TabBar_NeedsArrows(rc.right, vtabs, vn)) break;
+
+        int vis   = TabBar_CountFit(rc.right, vtabs, vn, g.tab_offset, true);
         int delta = GET_WHEEL_DELTA_WPARAM(wp);
-        if (delta < 0 && g.tab_offset + vis < n) {
-            g.tab_offset++;
-            InvalidateRect(hwnd, NULL, FALSE);
+        if (delta < 0 && g.tab_offset + vis < vn) {
+            g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE);
         } else if (delta > 0 && g.tab_offset > 0) {
-            g.tab_offset--;
-            InvalidateRect(hwnd, NULL, FALSE);
+            g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE);
         }
         return 0;
     }

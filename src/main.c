@@ -580,6 +580,11 @@ apply_theme:
             L"https://github.com/KaiUR/CatiaMenuWin32", NULL, NULL, SW_SHOW);
         break;
 
+    case IDM_GITHUB_PAGES:
+        ShellExecute(NULL, L"open",
+            L"https://kaiur.github.io/CatiaMenuWin32/", NULL, NULL, SW_SHOW);
+        break;
+
     case IDM_WIKI:
         ShellExecute(NULL, L"open",
             L"https://github.com/KaiUR/CatiaMenuWin32/wiki", NULL, NULL, SW_SHOW);

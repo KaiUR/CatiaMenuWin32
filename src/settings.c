@@ -84,7 +84,7 @@ void Settings_Load(Settings *s)
     s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
     GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
                             s->qbar_target_app, MAX_NAME, ini);
-    GetPrivateProfileString(L"QuickBar", L"TargetExe", L"",
+    GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
                             s->qbar_target_exe, MAX_NAME, ini);
 
     if (!s->cache_dir[0])
@@ -476,8 +476,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_enabled            = false;
             s->qbar_horizontal         = false;
             s->qbar_topmost_with_catia = true;
-            wcsncpy(s->qbar_target_app, L"CATIA V5", MAX_NAME - 1);
-            s->qbar_target_exe[0]      = L'\0';
+            wcsncpy_s(s->qbar_target_app, MAX_NAME, L"CATIA V5",  _TRUNCATE);
+            wcsncpy_s(s->qbar_target_exe, MAX_NAME, L"CNEXT.exe", _TRUNCATE);
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
             Runner_FindPython(s->python_exe, MAX_APPPATH);
 
@@ -621,21 +621,59 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 /* ================================================================== */
 /*  AboutDlgProc                                                        */
 /*  Purpose: Dialog procedure for the About dialog (IDD_ABOUT).        */
-/*           No dynamic content; dismisses on OK or Cancel.            */
+/*           Loads the app icon, sets a bold title font, fills the     */
+/*           version string, and opens the GitHub Pages on button click.*/
 /*  In:  hwnd — dialog handle                                          */
 /*       msg  — Windows message                                        */
-/*       wp   — WPARAM (IDOK / IDCANCEL on WM_COMMAND)                 */
+/*       wp   — WPARAM (control ID on WM_COMMAND)                      */
 /*       lp   — LPARAM (unused)                                        */
 /*  Out: INT_PTR — TRUE for handled messages; FALSE otherwise          */
 /* ================================================================== */
 INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    static HFONT s_hFontTitle = NULL;
+    static HICON s_hIconApp   = NULL;
+
     (void)lp;
     switch (msg) {
-    case WM_INITDIALOG: return TRUE;
+    case WM_INITDIALOG:
+    {
+        /* App icon at 48×48 */
+        s_hIconApp = (HICON)LoadImage(GetModuleHandle(NULL),
+                                      MAKEINTRESOURCE(IDI_APP_ICON),
+                                      IMAGE_ICON, 48, 48, LR_DEFAULTCOLOR);
+        if (s_hIconApp)
+            SendDlgItemMessage(hwnd, IDC_ABOUT_ICON, STM_SETICON,
+                               (WPARAM)s_hIconApp, 0);
+
+        /* Bold title font (~14 pt) */
+        s_hFontTitle = CreateFont(
+            -18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+        if (s_hFontTitle)
+            SendDlgItemMessage(hwnd, IDC_ABOUT_TITLE, WM_SETFONT,
+                               (WPARAM)s_hFontTitle, TRUE);
+
+        /* Version line */
+        SetDlgItemTextW(hwnd, IDC_ABOUT_VER,
+                        L"Version " VERSION_DISPLAY_W);
+        return TRUE;
+    }
     case WM_COMMAND:
-        if (LOWORD(wp) == IDOK || LOWORD(wp) == IDCANCEL)
+        switch (LOWORD(wp)) {
+        case IDC_BTN_ABOUT_GITHUB:
+            ShellExecuteW(hwnd, L"open",
+                          L"https://kaiur.github.io/CatiaMenuWin32/",
+                          NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case IDOK:
+        case IDCANCEL:
+            if (s_hFontTitle) { DeleteObject(s_hFontTitle); s_hFontTitle = NULL; }
+            if (s_hIconApp)   { DestroyIcon(s_hIconApp);    s_hIconApp   = NULL; }
             EndDialog(hwnd, IDOK);
+            break;
+        }
         return TRUE;
     }
     return FALSE;

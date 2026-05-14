@@ -27,7 +27,7 @@ BEGIN
     EDITTEXT 403,                                                   44,  81, 262, 14, ES_AUTOHSCROLL
     PUSHBUTTON "Browse...",                                     404,310,  80,  40, 16
 
-    GROUPBOX "GitHub Token (optional — raises API rate limit)", 454, 10, 114, 344, 40
+    GROUPBOX "GitHub Token (optional — increases API rate limit; required for private repos)", 454, 10, 114, 344, 40
     AUTOCHECKBOX "Use token",                                   407, 16, 130,  60, 12
     EDITTEXT 408,                                                   82, 128, 266, 14, ES_PASSWORD | ES_AUTOHSCROLL
 
@@ -88,17 +88,20 @@ END
 /* ================================================================== */
 /*  About dialog  (IDD_ABOUT = 301)                                    */
 /* ================================================================== */
-301 DIALOG 0, 0, 220, 100
+301 DIALOG 0, 0, 260, 160
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About CatiaMenuWin32"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT "CatiaMenuWin32", -1, 10, 10, 200, 14
-    LTEXT "Native Win32 PyCATIA Script Launcher", -1, 10, 26, 200, 10
-    LTEXT "Author: Kai-Uwe Rathjen", -1, 10, 42, 200, 10
-    LTEXT "AI Assistance: Claude (Anthropic)", -1, 10, 54, 200, 10
-    LTEXT "License: MIT", -1, 10, 66, 200, 10
-    DEFPUSHBUTTON "OK", 1, 84, 80, 50, 14
+    CONTROL "",                                                          740, "STATIC", SS_ICON, 8, 10, 32, 28
+    LTEXT   "CatiaMenuWin32",                                            741, 48, 10, 204, 14
+    LTEXT   "",                                                          742, 48, 26, 204, 10
+    LTEXT   "Native Win32 PyCATIA Script Launcher",                       -1,  8, 50, 244, 10
+    LTEXT   "Author: Kai-Uwe Rathjen",                                    -1,  8, 62, 244, 10
+    LTEXT   "AI Assistance: Claude (Anthropic)",                          -1,  8, 74, 244, 10
+    LTEXT   "License: MIT",                                               -1,  8, 86, 244, 10
+    PUSHBUTTON    "GitHub Pages",                                         743,  8, 140, 72, 14
+    DEFPUSHBUTTON "OK",                                                     1,202, 140, 50, 14
 END
 
 /* ================================================================== */

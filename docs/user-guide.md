@@ -114,7 +114,7 @@ The Settings dialog is organised into five tabs:
 |--------|-------------|
 | **Python Interpreter** | Full path to `python.exe`. Click **Browse...** to locate it. Leave blank to auto-detect from PATH. |
 | **Script Cache Folder** | Where downloaded scripts are stored locally. Defaults to `%APPDATA%\CatiaMenuWin32\scripts`. |
-| **GitHub Token** | Optional Personal Access Token to raise the API rate limit from 60 to 5000 req/hr. Tick **Use token** and paste the token. See [GitHub Token](#github-token). |
+| **GitHub Token** | Optional Personal Access Token. Increases the API rate limit from 60 to 5,000 req/hr and is required for private repositories. Tick **Use token** and paste the token. See [GitHub Token](#github-token). |
 
 ### Sync tab
 
@@ -153,7 +153,7 @@ The Settings dialog is organised into five tabs:
 | Orientation | Vertical | Vertical (column) or Horizontal (row) |
 | Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
-| Target Exe | (empty) | Process executable filename to match alongside **Target App** (e.g. `CNEXT.exe`). Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
+| Target Exe | `CNEXT.exe` | Process executable filename to match alongside **Target App**. Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -304,7 +304,7 @@ Switch between dark, light, and system-default themes via **☰ Menu → View �
 
 The app uses the GitHub REST API to fetch script lists. Without a token, GitHub allows **60 requests per hour per IP address**.
 
-A token raises this to **5000 requests per hour** and is required for private repositories.
+A token increases this to **5,000 requests per hour** and is required for private repositories.
 
 **To create a token:**
 1. Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens

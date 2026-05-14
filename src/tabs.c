@@ -72,6 +72,23 @@ static int cmp_runs(const void *a, const void *b) {
 }
 
 /* ================================================================== */
+/*  Tabs_FolderHasVisible                                               */
+/*  Purpose: Returns true if folder fi contains at least one script     */
+/*           that is not hidden.  Used to decide whether a tab should  */
+/*           be shown in the tab bar.                                  */
+/*  In:  fi — folder index (bounds-checked)                             */
+/*  Out: true if any non-hidden script exists; false otherwise          */
+/* ================================================================== */
+bool Tabs_FolderHasVisible(int fi)
+{
+    if (fi < 0 || fi >= g.folder_count) return false;
+    ScriptFolder *f = &g.folders[fi];
+    for (int si = 0; si < f->count; si++)
+        if (!f->scripts[si].is_hidden) return true;
+    return false;
+}
+
+/* ================================================================== */
 /*  Tabs_ApplySort                                                      */
 /*  Purpose: Sorts the scripts array of folder fi in-place according   */
 /*           to the global sort mode (g.cfg.sort_mode).  SORT_ORDER   */
@@ -152,10 +169,11 @@ void Tabs_Switch(int idx)
 /* ================================================================== */
 void Tabs_RebuildButtons(void)
 {
+    SendMessage(g.hwnd_scroll, WM_SETREDRAW, FALSE, 0);
     Tabs_DestroyButtons();
 
     int fi = g.active_tab;
-    if (fi < 0 || fi >= g.folder_count) return;
+    if (fi < 0 || fi >= g.folder_count) goto done;
 
     ScriptFolder *f = &g.folders[fi];
 
@@ -210,7 +228,25 @@ update_scroll:;
         .nPos   = 0
     };
     SetScrollInfo(g.hwnd_scroll, SB_VERT, &si, TRUE);
-    InvalidateRect(g.hwnd_scroll, NULL, TRUE);
+
+done:
+    SendMessage(g.hwnd_scroll, WM_SETREDRAW, TRUE, 0);
+    RedrawWindow(g.hwnd_scroll, NULL, NULL,
+                 RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+
+    /* If active tab has no visible scripts (not a filter effect), switch
+       to the first tab that does so the empty tab doesn't stay selected. */
+    if (!g.filter_text[0] && !Tabs_FolderHasVisible(g.active_tab)) {
+        for (int _fi = 0; _fi < g.folder_count; _fi++) {
+            if (Tabs_FolderHasVisible(_fi)) {
+                g.active_tab = _fi;
+                wcsncpy(g.active_folder_name, g.folders[_fi].name, MAX_NAME - 1);
+                InvalidateRect(g.hwnd_tab, NULL, FALSE);
+                Tabs_RebuildButtons();
+                return;
+            }
+        }
+    }
 }
 
 /* ================================================================== */
@@ -267,8 +303,8 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
         RECT rc; GetClientRect(hwnd, &rc);
         HBRUSH _bg = CreateSolidBrush(COL_BG()); FillRect(hdc, &rc, _bg); DeleteObject(_bg);
 
-        /* "Syncing…" placeholder text */
-        if (g.syncing) {
+        /* "Syncing…" placeholder text — only when no buttons are present */
+        if (g.syncing && !GetWindow(hwnd, GW_CHILD)) {
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, COL_SUBTEXT());
             HFONT of = SelectObject(hdc, g.font_ui);

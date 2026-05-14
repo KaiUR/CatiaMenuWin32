@@ -214,7 +214,11 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     RECT arr = { 8, 0, 28, h };
     DrawText(mem, L"\u25BA", -1, &arr, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-    const WCHAR *label   = s ? s->name : L"";
+    WCHAR fallback[MAX_NAME] = {0};
+    if (!s || !s->name[0])
+        GetWindowText(hwnd_btn, fallback, MAX_NAME - 1);
+
+    const WCHAR *label   = (s && s->name[0]) ? s->name : fallback;
     const WCHAR *purpose = (s && s->meta_loaded && s->meta.purpose[0])
                            ? s->meta.purpose : NULL;
 

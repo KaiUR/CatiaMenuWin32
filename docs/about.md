@@ -59,6 +59,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
 | **Single instance** | Only one instance runs at a time — launching a second brings the existing window to the front |
 | **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
+| **Hidden-tab suppression** | Tabs whose every script has been hidden are removed from the tab bar automatically; reappear when any script in them is unhidden |
 | **Quick Launch Bar** | Floating button bar sourced from your Favourites — large icon buttons, drag anywhere, scroll arrows, hover tooltips, always-on-top with the target app |
 | **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; shows only when a visible target window exists; rises to TOPMOST when the target app gains focus |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
@@ -181,7 +182,7 @@ Local builds automatically detect the latest git tag for the version number and 
 |---------|---------|-------------|
 | `Python\Executable` | auto-detect | Full path to `python.exe` |
 | `Scripts\CacheDir` | `%APPDATA%\CatiaMenuWin32\scripts` | Local script cache |
-| `GitHub\Token` | empty | Optional PAT — raises API rate limit from 60 to 5000 req/hr |
+| `GitHub\Token` | empty | Optional PAT — increases API rate limit from 60 to 5,000 req/hr; required for private repos |
 | `Options\AutoSync` | on | Sync scripts from GitHub on startup |
 | `Options\DownloadBeforeRun` | off | Always fetch latest before running |
 | `Options\ShowConsole` | off | Show Python console window when running a script |
@@ -197,11 +198,12 @@ Local builds automatically detect the latest git tag for the version number and 
 | `QuickBar\Horizontal` | off | Bar orientation: 0 = vertical, 1 = horizontal |
 | `QuickBar\TopmostWithCatia` | on | Rise to TOPMOST when the target app is in the foreground |
 | `QuickBar\TargetApp` | `CATIA V5` | Window-title substring to track; empty = always visible, no topmost |
+| `QuickBar\TargetExe` | `CNEXT.exe` | Process executable name filter; empty = match any process |
 | `QuickBar\X` / `QuickBar\Y` | auto | Saved position of the floating bar |
 
 ## 🔑 GitHub Token (optional)
 
-The app uses the GitHub REST API to fetch the script list. Without a token, GitHub allows 60 requests per hour per IP — usually plenty. If you hit the limit, add a **Personal Access Token**:
+The app uses the GitHub REST API to fetch the script list. Without a token, GitHub allows 60 requests per hour per IP. A token increases this to 5,000 req/hr and is also required for private repositories. If you hit the limit, or if you want to add a private repo source, add a **Personal Access Token**:
 
 1. Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
 2. Create a token with **read-only** access to public repositories
