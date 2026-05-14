@@ -80,7 +80,7 @@ static void AppendDesc(WCHAR *buf, const WCHAR *text)
     if (cur >= DESC_MAX) return;
     /* Add a space separator if buffer not empty */
     if (cur > 0 && cur < DESC_MAX) { buf[cur++]=L' '; buf[cur]=L'\0'; }
-    wcsncat(buf, text, DESC_MAX - cur);
+    wcsncat_s(buf, DESC_MAX + 1, text, _TRUNCATE);
 }
 
 /* ================================================================== */
@@ -150,7 +150,6 @@ void Meta_Parse(Script *s)
         if (line[0] == L'\0') continue;
 
         const WCHAR *val = NULL;
-        bool in_reqs = false;  /* local flag for this line */
 
         if (MatchKey(line, L"Script name") != NULL) {
             /* Script name not displayed — just stop description mode */
@@ -188,10 +187,8 @@ void Meta_Parse(Script *s)
             /* requirements: may have content on same line or next lines */
             val = MatchKey(line, L"requirements");
             if (val) wcsncpy(m.requirements, val, 511);
-            found_any = true; in_desc = false; in_reqs = true;
-            (void)in_reqs; /* suppress unused warning - used as state below */
-            /* Switch from desc mode to reqs mode */
-            /* We reuse in_desc=false and handle continuation below */
+            found_any = true; in_desc = false;
+            /* Continuation lines are collected below via m.requirements[0] check */
 
         } else if (_wcsnicmp(line, L"dependencies", 12) == 0) {
             in_desc = false;
@@ -218,7 +215,7 @@ void Meta_Parse(Script *s)
                     m.requirements[cur++] = L'\r';
                     m.requirements[cur++] = L'\n';
                     m.requirements[cur]   = L'\0';
-                    wcsncat(m.requirements, line, 511 - cur);
+                    wcsncat_s(m.requirements, 512, line, _TRUNCATE);
                 }
             }
         }

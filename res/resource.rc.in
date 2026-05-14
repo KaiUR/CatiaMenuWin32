@@ -27,7 +27,7 @@ BEGIN
     EDITTEXT 403,                                                   44,  81, 262, 14, ES_AUTOHSCROLL
     PUSHBUTTON "Browse...",                                     404,310,  80,  40, 16
 
-    GROUPBOX "GitHub Token (optional — increases API rate limit; required for private repos)", 454, 10, 114, 344, 40
+    GROUPBOX "GitHub Token (optional - increases API rate limit; required for private repos)", 454, 10, 114, 344, 40
     AUTOCHECKBOX "Use token",                                   407, 16, 130,  60, 12
     EDITTEXT 408,                                                   82, 128, 266, 14, ES_PASSWORD | ES_AUTOHSCROLL
 

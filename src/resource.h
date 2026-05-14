@@ -35,7 +35,7 @@
 #define IDC_CHK_AUTOSYNC        409
 
 #define IDC_TAB_CTRL            501
-#define IDC_STATUS_BAR          502
+#define IDC_STATUS_BAR          507   /* was 502, conflicted with IDC_BTN_MENU */
 #define IDC_BTN_MENU            502
 #define IDC_BTN_REFRESH         503
 #define IDC_BTN_SETTINGS        504
@@ -48,12 +48,6 @@
 #define IDC_BTN_UPDATE_DEPS     506
 
 #define IDC_SCRIPT_BTN_BASE     1000
-
-/* System tray message */
-#define WM_TRAYICON             (WM_USER + 10)
-#define TRAY_ID                 1
-
-#endif
 
 /* Sources dialog */
 #define IDM_SOURCES             217
@@ -216,3 +210,5 @@
 
 /* Settings Quick Bar tab — browse button for exe field */
 #define IDC_BTN_BROWSE_QBAR_EXE_S   467
+
+#endif /* RESOURCE_H */
