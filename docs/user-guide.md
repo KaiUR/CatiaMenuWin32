@@ -153,6 +153,7 @@ The Settings dialog is organised into five tabs:
 | Orientation | Vertical | Vertical (column) or Horizontal (row) |
 | Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
+| Target Exe | (empty) | Process executable filename to match alongside **Target App** (e.g. `CNEXT.exe`). Prevents the bar from responding to other windows that share the same title substring. Leave empty to match any process. |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -261,9 +262,10 @@ By default the target is **CATIA V5**. To use the bar with a different applicati
 
 1. Right-click the bar and select **Set Target App…** (or **☰ Menu → View → Quick Bar → Set Target App…**)
 2. Enter any substring that appears in the target application's window title (e.g. `Fusion 360`, `Blender`, `SolidWorks`)
-3. Click **OK**
+3. Optionally enter the **Target Exe** — the process executable filename (e.g. `CNEXT.exe`) — to prevent the bar from responding to other windows whose titles contain the same substring
+4. Click **OK**
 
-To disable target tracking entirely — keeping the bar always visible with no topmost behaviour — clear the field and click **OK**.
+To disable target tracking entirely — keeping the bar always visible with no topmost behaviour — clear both fields and click **OK**.
 
 ### Right-click menu options
 
