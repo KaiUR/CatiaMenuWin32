@@ -777,7 +777,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     Sync_SaveManifest();
 
 
-    /* ── Step 6: Build human-readable result message ────────────── */
+    /* ── Step 9: Build human-readable result message ────────────── */
     if (sr->status == SR_OK) {
         if (sr->scripts_updated == 0 && sr->folders_added == 0
             && sr->folders_removed == 0 && sr->scripts_added == 0

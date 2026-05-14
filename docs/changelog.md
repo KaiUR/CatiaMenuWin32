@@ -9,6 +9,19 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.7 — Code quality and workflow fixes
+
+### Fixed
+- **`resource.h` include guard** — the `#endif` guard closed at line 56 leaving ~160 defines outside the guard; moved to the end of the file
+- **Duplicate control ID** — `IDC_STATUS_BAR` and `IDC_BTN_MENU` both had ID `502`; `IDC_STATUS_BAR` reassigned to `507`
+- **Duplicate macro definitions** — `WM_TRAYICON` and `TRAY_ID` were defined in both `resource.h` and `main.h`; removed from `resource.h` (canonical definitions remain in `main.h`)
+- **`wcsncat` → `wcsncat_s`** — replaced four remaining `wcsncat` calls in `meta.c` and `updater.c` with C11 Annex K `wcsncat_s` to match the project's safe-string policy
+- **Dead variable in `meta.c`** — `in_reqs` was set then immediately suppressed with `(void)in_reqs`; variable and workaround comment removed
+- **Duplicate step label in `sync.c`** — two sections were both labelled "Step 6"; the result-message-building section corrected to "Step 9"
+- **CI: PR builds compiled `main` instead of PR branch** — the "Update Contributors File" step ran on all triggers and executed `git checkout main`, causing subsequent build steps to compile the `main` branch on PR runs; step now gated to tag pushes only
+
+---
+
 ## v2.0.6 — Tab hiding, About dialog, GitHub Pages link, sync visual fixes
 
 ### Added

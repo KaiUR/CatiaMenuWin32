@@ -165,7 +165,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Download to temp file */
     WCHAR temp_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, temp_path);
-    wcsncat(temp_path, L"CatiaMenuWin32_update.exe", MAX_APPPATH - 1 - wcslen(temp_path));
+    wcsncat_s(temp_path, MAX_APPPATH, L"CatiaMenuWin32_update.exe", _TRUNCATE);
 
     /* Delete any leftover temp file from a previous attempt */
     DeleteFile(temp_path);
@@ -237,7 +237,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Write batch script to replace exe and restart */
     WCHAR bat_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, bat_path);
-    wcsncat(bat_path, L"CatiaMenuWin32_update.bat", MAX_APPPATH - 1 - wcslen(bat_path));
+    wcsncat_s(bat_path, MAX_APPPATH, L"CatiaMenuWin32_update.bat", _TRUNCATE);
 
     char temp_path_a[MAX_APPPATH] = {0};
     char exe_path_a[MAX_APPPATH]  = {0};
