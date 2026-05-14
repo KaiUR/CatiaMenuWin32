@@ -495,6 +495,7 @@ void Tabs_DestroyButtons(void);
 void Tabs_ApplyFilter(void);
 bool Tabs_ScriptMatchesFilter(const Script *s);
 void Tabs_ApplySort(int fi);
+bool Tabs_FolderHasVisible(int fi);
 LRESULT CALLBACK ScrollPanelProc(HWND, UINT, WPARAM, LPARAM);
 
 /* github.c */

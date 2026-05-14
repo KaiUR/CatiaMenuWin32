@@ -187,11 +187,18 @@
 #define IDM_WIKI            242
 #define IDM_WIKI_SCRIPTS    243
 #define IDM_CHECK_UPDATES   244
+#define IDM_GITHUB_PAGES    245
 #define IDD_HELP            308
 #define IDC_HELP_TREE       840
 #define IDC_HELP_RICHEDIT   841
 #define IDC_HELP_SEARCH     842
 #define IDI_HELP_ICON       102
+
+/* About dialog controls */
+#define IDC_ABOUT_ICON          740
+#define IDC_ABOUT_TITLE         741
+#define IDC_ABOUT_VER           742
+#define IDC_BTN_ABOUT_GITHUB    743
 
 /* Quick Launch Bar */
 #define IDM_QBAR_TOGGLE      250

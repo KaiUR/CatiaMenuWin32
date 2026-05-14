@@ -9,6 +9,23 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.6 — Tab hiding, About dialog, GitHub Pages link, sync visual fixes
+
+### Added
+- **Hidden-tab suppression** — tabs whose every script has been hidden are automatically removed from the tab bar. When the last visible script in a tab is hidden, the tab disappears and the app auto-switches to the first tab that still has visible scripts. Tabs reappear instantly if any script in them is unhidden
+- **GitHub Pages link** — `☰ Menu → Help → GitHub Pages` opens the app's GitHub Pages site in the browser
+- **Redesigned About dialog** — the About dialog now displays the app icon as a 48×48 logo, a bold title with the current version number, and a **GitHub Pages** button
+
+### Fixed
+- **White flash on tab switch** — switching between tabs no longer causes a white flash; the destroy-and-rebuild cycle is wrapped in `WM_SETREDRAW FALSE/TRUE` and the panel is redrawn in a single atomic pass
+- **Sync visual glitches** — the "Checking for updates…" placeholder text no longer bleeds through gaps between script buttons during a sync; script buttons retain their name text while the background sync thread temporarily clears folder data
+
+### Changed
+- **GitHub token label** — the Settings groupbox now reads "increases API rate limit; required for private repos" (was the ambiguous "raises API rate limit")
+- **Quick Bar target process default** — the **Target Exe** field now defaults to `CNEXT.exe` on fresh installs and after **Reset to Defaults**
+
+---
+
 ## v2.0.5 — Minimize to tray default, auto-update on manual check, Quick Bar exe browse
 
 ### Added
