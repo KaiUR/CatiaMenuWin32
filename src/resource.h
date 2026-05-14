@@ -202,6 +202,10 @@
 #define IDM_QBAR_SET_TARGET  255
 
 /* Target App dialog */
-#define IDD_QBAR_TARGET          309
-#define IDC_EDIT_QBAR_TARGET     760
-#define IDC_EDIT_QBAR_TARGET_EXE 761
+#define IDD_QBAR_TARGET              309
+#define IDC_EDIT_QBAR_TARGET         760
+#define IDC_EDIT_QBAR_TARGET_EXE     761
+#define IDC_BTN_BROWSE_TARGET_EXE    762
+
+/* Settings Quick Bar tab — browse button for exe field */
+#define IDC_BTN_BROWSE_QBAR_EXE_S   467

@@ -9,6 +9,17 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.5 — Minimize to tray default, auto-update on manual check, Quick Bar exe browse
+
+### Added
+- **Browse button for Quick Bar target exe** — the **Set Target App…** dialog and the **Settings → Quick Bar** tab now include a **Browse…** button next to the "Target process executable name" field, letting users pick the executable via a standard file picker instead of typing the filename manually
+- **Auto-update honoured on manual check** — if **Auto-install updates** is enabled in Settings, choosing **Help → Check for Updates…** now also triggers the automatic download-and-replace flow (previously it always fell back to opening the releases page on a manual check)
+
+### Changed
+- **Default for Minimize to Tray changed to On** — new installations now start with Minimize to Tray enabled; the **Reset to Defaults** button also sets it to On
+
+---
+
 ## v2.0.4 — Quick Bar process executable filter
 
 ### Added

@@ -1063,6 +1063,22 @@ static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
         return TRUE;
     case WM_COMMAND:
         switch (LOWORD(wp)) {
+        case IDC_BTN_BROWSE_TARGET_EXE:
+        {
+            WCHAR path[MAX_APPPATH] = {0};
+            OPENFILENAME ofn = {
+                .lStructSize = sizeof(ofn), .hwndOwner = hwnd,
+                .lpstrFilter = L"Executables\0*.exe\0All Files\0*.*\0",
+                .lpstrFile = path, .nMaxFile = MAX_APPPATH,
+                .Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
+                .lpstrTitle = L"Select Target Application"
+            };
+            if (GetOpenFileName(&ofn)) {
+                WCHAR *slash = wcsrchr(path, L'\\');
+                SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, slash ? slash + 1 : path);
+            }
+            return TRUE;
+        }
         case IDOK:
         {
             /* Helper lambda-equivalent: trim spaces from a buffer in-place */

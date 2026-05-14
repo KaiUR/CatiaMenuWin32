@@ -75,7 +75,8 @@ BEGIN
     EDITTEXT 432,                                                   10, 118, 344, 14, ES_AUTOHSCROLL
     LTEXT "(empty = Quick Bar is always visible on screen)",    464, 10, 136, 280, 10
     LTEXT "Target process executable name (e.g. CNEXT.exe):",  465, 10, 154, 260, 10
-    EDITTEXT 433,                                                   10, 166, 344, 14, ES_AUTOHSCROLL
+    EDITTEXT 433,                                                   10, 166, 294, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...",                                     467,308, 165,  46, 16
     LTEXT "(empty = match any process)",                        466, 10, 184, 200, 10
 
     /* ── Close-group sentinel + bottom buttons ──────────────────── */
@@ -259,7 +260,8 @@ BEGIN
     LTEXT "Window title substring (empty = always visible):",  -1,  7, 10, 286, 10
     EDITTEXT 760,                                                    7, 24, 286, 14, ES_AUTOHSCROLL
     LTEXT "Process executable name (e.g. CNEXT.exe):",         -1,  7, 46, 286, 10
-    EDITTEXT 761,                                                    7, 60, 286, 14, ES_AUTOHSCROLL
+    EDITTEXT 761,                                                    7, 60, 236, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...",                                      762,247, 59,  46, 16
     DEFPUSHBUTTON "OK",     1, 188, 86, 50, 14
     PUSHBUTTON    "Cancel", 2, 244, 86, 50, 14
 END
