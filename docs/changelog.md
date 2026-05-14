@@ -19,6 +19,7 @@ All notable changes to CatiaMenuWin32 are documented here.
 - **Dead variable in `meta.c`** — `in_reqs` was set then immediately suppressed with `(void)in_reqs`; variable and workaround comment removed
 - **Duplicate step label in `sync.c`** — two sections were both labelled "Step 6"; the result-message-building section corrected to "Step 9"
 - **CI: PR builds compiled `main` instead of PR branch** — the "Update Contributors File" step ran on all triggers and executed `git checkout main`, causing subsequent build steps to compile the `main` branch on PR runs; step now gated to tag pushes only
+- **CI: build number not incrementing between releases** — the workflow read the incremented `build_number.txt` from the CI workspace but never committed it back; added a commit step (after GPG import, before tag creation) that writes `build_number.txt` and `CONTRIBUTORS.md` back to `main` with `[skip ci]`
 
 ---
 
