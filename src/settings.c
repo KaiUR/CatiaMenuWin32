@@ -24,7 +24,8 @@ static void IniPath(WCHAR *out, int max) {
 /*  Settings_Load                                                       */
 /*  Purpose: Reads all application settings from settings.ini into the */
 /*           provided Settings struct.  Applies defaults for missing   */
-/*           keys (auto-sync on, 6-hour refresh, system theme, etc.)  */
+/*           keys (auto-sync on, auto-update on, start-with-windows on, */
+/*           quickbar enabled, CNEXT.exe target, 6-hour refresh, etc.) */
 /*           and auto-detects Python if no path is stored.             */
 /*  In:  s — pointer to the Settings struct to populate                */
 /*  Out: (void — s is fully initialised on return)                     */
@@ -44,7 +45,7 @@ void Settings_Load(Settings *s)
     s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0;
     s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
     s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
-    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         0, ini) != 0;
+    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
     s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
     s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
     s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0;
@@ -71,13 +72,13 @@ void Settings_Load(Settings *s)
     }
     s->always_on_top       = GetPrivateProfileInt(L"Window",  L"AlwaysOnTop",       1, ini) != 0;
     s->minimize_to_tray    = GetPrivateProfileInt(L"Window",  L"MinimizeToTray",    1, ini) != 0;
-    s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  0, ini) != 0;
+    s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  1, ini) != 0;
     s->start_minimized     = GetPrivateProfileInt(L"Window",  L"StartMinimized",    1, ini) != 0;
     s->theme               = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme",   0, ini);
     if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
 
     /* Quick Launch Bar */
-    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          0, ini) != 0;
+    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0;
     s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
     s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
     s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
@@ -465,15 +466,15 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->console_keep_open       = true;
             s->deps_keep_open          = false;
             s->check_updates           = true;
-            s->auto_update             = false;
+            s->auto_update             = true;
             s->refresh_interval        = 6;
             s->always_on_top           = true;
             s->minimize_to_tray        = true;
-            s->start_with_windows      = false;
+            s->start_with_windows      = true;
             s->start_minimized         = true;
             s->theme                   = THEME_SYSTEM;
             s->sort_mode               = SORT_ORDER;
-            s->qbar_enabled            = false;
+            s->qbar_enabled            = true;
             s->qbar_horizontal         = false;
             s->qbar_topmost_with_catia = true;
             wcsncpy_s(s->qbar_target_app, MAX_NAME, L"CATIA V5",  _TRUNCATE);
@@ -491,7 +492,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   BST_CHECKED);
             SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, L"6");
 
             CheckDlgButton(hwnd, IDC_CHK_CONSOLE,        BST_UNCHECKED);
@@ -501,7 +502,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
             CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_START_MIN,     BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_THEME_SYSTEM,  BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_THEME_DARK,    BST_UNCHECKED);
@@ -511,13 +512,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_RAD_SORT_DATE,     BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_RAD_SORT_USED,     BST_UNCHECKED);
 
-            CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,    BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_QBAR_HORIZ,   BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, BST_CHECKED);
             SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     L"CATIA V5");
-            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, L"");
-            Settings_QBarEnableControls(hwnd, false);
+            SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, L"CNEXT.exe");
+            Settings_QBarEnableControls(hwnd, true);
             break;
         }
 

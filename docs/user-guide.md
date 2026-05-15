@@ -123,7 +123,7 @@ The Settings dialog is organised into five tabs:
 | Sync scripts automatically on startup | On | Downloads latest scripts when the app starts |
 | Always download latest before running | Off | Re-downloads the script every time before running |
 | Check for app updates on startup | On | Notifies you when a newer version is available |
-| Auto-install updates | Off | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually |
+| Auto-install updates | On | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually |
 | Auto-refresh every N hours | 6 | Background sync interval in hours; 0 = disabled |
 
 ### Console tab
@@ -140,7 +140,7 @@ The Settings dialog is organised into five tabs:
 |--------|---------|-------------|
 | Always on Top | On | Keep the main window above other applications |
 | Minimize to Tray | On | Hide to system tray instead of taskbar when minimised |
-| Start with Windows | Off | Launch automatically at login |
+| Start with Windows | On | Launch automatically at login |
 | Start Minimized | On | Start hidden in the tray |
 | Theme | System | Dark, Light, or follow Windows setting |
 | Sort Scripts | Default Order | Default, Alphabetical, By Date, or Most Used |
@@ -149,7 +149,7 @@ The Settings dialog is organised into five tabs:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| Enable Quick Launch Bar | Off | Show the floating icon toolbar |
+| Enable Quick Launch Bar | On | Show the floating icon toolbar |
 | Orientation | Vertical | Vertical (column) or Horizontal (row) |
 | Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |

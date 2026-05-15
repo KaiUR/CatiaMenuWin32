@@ -9,6 +9,15 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.0.8 — Default settings update
+
+### Changed
+- **Default for Start with Windows changed to On** — new installations and **Reset to Defaults** now enable Start with Windows out of the box
+- **Default for Quick Launch Bar changed to On** — the Quick Bar is now enabled by default; **Reset to Defaults** also restores it to enabled with `CNEXT.exe` as the target executable
+- **Default for Auto-install updates changed to On** — new installations now automatically download and apply updates; **Reset to Defaults** sets it to On
+
+---
+
 ## v2.0.7 — Code quality and workflow fixes
 
 ### Fixed
