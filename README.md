@@ -195,19 +195,19 @@ All settings are configurable in the **⚙ Settings** dialog (five tabs: General
 | `Options\ConsoleKeepOpen` | on | Keep console open after script finishes so you can read errors |
 | `Options\DepsKeepOpen` | off | Keep Update Deps console open until manually closed |
 | `Options\CheckUpdates` | on | Check GitHub Releases for a newer app version on startup |
-| `Options\AutoUpdate` | off | Download and install new versions automatically |
+| `Options\AutoUpdate` | on | Download and install new versions automatically |
 | `Options\RefreshInterval` | 6 | Background sync interval in hours (0 = disabled) |
 | `Options\SortMode` | 0 (Default) | 0 = default order, 1 = alphabetical, 2 = by date, 3 = most used |
 | `Window\AlwaysOnTop` | on | Keep window above other windows |
 | `Window\MinimizeToTray` | off | Hide to system tray on minimize/close |
-| `Window\StartWithWindows` | off | Add to Windows autorun registry key |
+| `Window\StartWithWindows` | on | Add to Windows autorun registry key |
 | `Window\StartMinimized` | on | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
-| `QuickBar\Enabled` | off | Show the Quick Launch Bar |
+| `QuickBar\Enabled` | on | Show the Quick Launch Bar |
 | `QuickBar\Horizontal` | off | Bar orientation: 0 = vertical, 1 = horizontal |
 | `QuickBar\TopmostWithCatia` | on | Rise to TOPMOST when the target app is in the foreground |
 | `QuickBar\TargetApp` | `CATIA V5` | Window-title substring to track; empty = always visible, no topmost |
-| `QuickBar\TargetExe` | `` (empty) | Process executable name to match alongside TargetApp (e.g. `CNEXT.exe`); empty = any process |
+| `QuickBar\TargetExe` | `CNEXT.exe` | Process executable name to match alongside TargetApp; empty = any process |
 | `QuickBar\X` / `QuickBar\Y` | auto | Saved position of the floating bar |
 
 ## 🔑 GitHub Token (optional)
