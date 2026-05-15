@@ -40,7 +40,7 @@ jobs:
         echo "" >> CONTRIBUTORS.md
         echo "Thanks to everyone who has helped with CatiaMenuWin32:" >> CONTRIBUTORS.md
         echo "" >> CONTRIBUTORS.md
-        git shortlog -sn --all | cut -f2- | sed 's/^/* /' >> CONTRIBUTORS.md
+        git shortlog -sn --all | cut -f2- | grep -v '\[bot\]' | sed 's/^/* /' >> CONTRIBUTORS.md
         echo "CONTRIBUTORS.md updated from Git history."
 
     - name: Extract version from tag
