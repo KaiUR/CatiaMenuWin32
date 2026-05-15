@@ -119,6 +119,14 @@ jobs:
         git_committer_email: kairathjen@yahoo.com
         git_tag_gpgsign: true
 
+    - name: Generate bot token
+      if: startsWith(github.ref, 'refs/tags/v')
+      id: bot-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.BOT_APP_ID }}
+        private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
     - name: Commit build number and contributors
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
@@ -126,7 +134,7 @@ jobs:
         git add build_number.txt CONTRIBUTORS.md
         git diff --cached --quiet && echo "Nothing to commit" && exit 0
         git commit -m "chore: build ${{ env.BUILD_NUM }} — increment build number [skip ci]"
-        git push https://x-access-token:${{ secrets.BYPASS_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+        git push https://x-access-token:${{ steps.bot-token.outputs.token }}@github.com/${{ github.repository }}.git HEAD:main
 
     - name: Push signed tag with build number
       if: startsWith(github.ref, 'refs/tags/v')
