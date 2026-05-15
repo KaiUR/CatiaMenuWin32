@@ -134,6 +134,7 @@ jobs:
         git add build_number.txt CONTRIBUTORS.md
         git diff --cached --quiet && echo "Nothing to commit" && exit 0
         git commit -m "chore: build ${{ env.BUILD_NUM }} — increment build number [skip ci]"
+        git config --unset-all http.https://github.com/.extraheader || true
         git push https://x-access-token:${{ steps.bot-token.outputs.token }}@github.com/${{ github.repository }}.git HEAD:main
 
     - name: Push signed tag with build number
