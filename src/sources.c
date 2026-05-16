@@ -154,11 +154,11 @@ static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
                     L"Sources", MB_ICONWARNING | MB_OK);
                 return TRUE;
             }
-            wcsncpy(arg->repo->url, url, 511);
+            wcsncpy_s(arg->repo->url, 512, url, _TRUNCATE);
             GetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH,
                            arg->repo->branch, 63);
             if (!arg->repo->branch[0])
-                wcsncpy(arg->repo->branch, L"main", 63);
+                wcsncpy_s(arg->repo->branch, 64, L"main", _TRUNCATE);
             if (IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED)
                 GetDlgItemText(hwnd, IDC_EDIT_REPO_TOKEN,
                                arg->repo->token, 255);
@@ -247,7 +247,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             {
                 ExtraRepo tmp = {0};
                 tmp.enabled = true;
-                wcsncpy(tmp.branch, L"main", 63);
+                wcsncpy_s(tmp.branch, 64, L"main", _TRUNCATE);
                 RepoEditArg arg = { &tmp, true };
                 if (DialogBoxParam(GetModuleHandle(NULL),
                         MAKEINTRESOURCE(IDD_REPO_EDIT),
@@ -357,7 +357,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
                     CoTaskMemFree(pidl);
                     if (path[0]) {
                         LocalDir d = {0};
-                        wcsncpy(d.path, path, MAX_APPPATH - 1);
+                        wcsncpy_s(d.path, MAX_APPPATH, path, _TRUNCATE);
                         d.enabled = true;
                         g.cfg.local_dirs[g.cfg.local_dir_count++] = d;
                         Locals_Populate(GetDlgItem(hwnd, IDC_LST_LOCAL));

@@ -57,7 +57,7 @@ bool Sync_GetLocalSHA(const WCHAR *gh_path, WCHAR *sha_out)
     const WCHAR *slash = wcschr(gh_path, L'/');
     if (!slash) return false;
     size_t n = (size_t)(slash - gh_path);
-    wcsncpy(section, gh_path, n < MAX_NAME ? n : MAX_NAME - 1);
+    wcsncpy_s(section, MAX_NAME, gh_path, n < MAX_NAME ? n : MAX_NAME - 1);
 
     WCHAR manifest[MAX_APPPATH];
     ManifestPath(manifest, MAX_APPPATH);
@@ -132,8 +132,8 @@ void Sync_LoadManifest(void)
 
         ScriptFolder *f = &g.folders[g.folder_count++];
         ZeroMemory(f, sizeof(*f));
-        wcsncpy(f->name, fd.cFileName, MAX_NAME - 1);
-        wcsncpy(f->display, f->name, MAX_NAME - 1);
+        wcsncpy_s(f->name,    MAX_NAME, fd.cFileName, _TRUNCATE);
+        wcsncpy_s(f->display, MAX_NAME, f->name,      _TRUNCATE);
         Util_SnakeToTitle(f->display);
         Folder_Alloc(f, 64);
 
@@ -160,7 +160,7 @@ void Sync_LoadManifest(void)
                        g.cfg.cache_dir, f->name, sf.cFileName);
 
             /* display name: strip .py and format */
-            wcsncpy(s->name, sf.cFileName, MAX_NAME - 1);
+            wcsncpy_s(s->name, MAX_NAME, sf.cFileName, _TRUNCATE);
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
 
@@ -213,7 +213,7 @@ static void DeleteLocalScript(const WCHAR *local_path)
 
     /* Remove parent folder if empty */
     WCHAR dir[MAX_APPPATH];
-    wcsncpy(dir, local_path, MAX_APPPATH - 1);
+    wcsncpy_s(dir, MAX_APPPATH, local_path, _TRUNCATE);
     PathRemoveFileSpec(dir);
     RemoveDirectory(dir);  /* silently fails if not empty - that's fine */
 }
@@ -258,8 +258,8 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
     if (g.folder_count >= MAX_FOLDERS) return;
     ScriptFolder *f = &g.folders[g.folder_count++];
     ZeroMemory(f, sizeof(*f));
-    wcsncpy(f->name, folder_name, MAX_NAME - 1);
-    wcsncpy(f->display, f->name, MAX_NAME - 1);
+    wcsncpy_s(f->name,    MAX_NAME, folder_name, _TRUNCATE);
+    wcsncpy_s(f->display, MAX_NAME, f->name,     _TRUNCATE);
     Util_SnakeToTitle(f->display);
     if (!Folder_Alloc(f, count > 0 ? count : 64)) { g.folder_count--; return; }
     for (int i = 0; i < count; i++) {
@@ -471,11 +471,11 @@ static void Sync_LocalDir(const LocalDir *dir)
             /* Local scripts have no gh_path or sha */
             _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\%s",
                        dir->path, fd.cFileName, sf.cFileName);
-            wcsncpy(s->name, sf.cFileName, MAX_NAME-1);
+            wcsncpy_s(s->name,    MAX_NAME,    sf.cFileName, _TRUNCATE);
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
             /* Use local path as gh_path for uniqueness */
-            wcsncpy(s->gh_path, s->local, MAX_APPPATH-1);
+            wcsncpy_s(s->gh_path, MAX_APPPATH, s->local,     _TRUNCATE);
         } while (FindNextFileW(hs, &sf));
         FindClose(hs);
 
@@ -530,14 +530,18 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) {
         sr->status = SR_API_ERROR;
-        wcsncpy(sr->message, L"Out of memory.", 255);
+        wcsncpy_s(sr->message, 256, L"Out of memory.", _TRUNCATE);
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         return 1;
     }
 
-    /* Clear all folders before sync so disabled sources don't linger */
+    /* Clear all folders before sync so disabled sources don't linger.
+       Hold cs_folders while modifying the shared array to prevent a concurrent
+       UI-thread paint from reading freed scripts pointers. */
+    EnterCriticalSection(&g.cs_folders);
     for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
+    LeaveCriticalSection(&g.cs_folders);
 
         if (g.cfg.main_repo_enabled) {
     /* ── Step 1: Fetch root to get current folder list ───────────── */
@@ -554,8 +558,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             _snwprintf_s(sr->message, 255, _TRUNCATE, L"Showing %d cached folder(s). Connect to internet to sync.",
                        g.folder_count);
         } else {
-            wcsncpy(sr->message,
-                    L"No internet connection. No cached scripts found.", 255);
+            wcsncpy_s(sr->message, 256,
+                    L"No internet connection. No cached scripts found.", _TRUNCATE);
         }
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         free(buf);
@@ -568,7 +572,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     WCHAR old_names[MAX_FOLDERS][MAX_NAME];
     int   old_count = g.folder_count;
     for (int i = 0; i < old_count; i++)
-        wcsncpy(old_names[i], g.folders[i].name, MAX_NAME - 1);
+        wcsncpy_s(old_names[i], MAX_NAME, g.folders[i].name, _TRUNCATE);
 
     /* Parse new folder list from API */
     GitHub_ParseRoot(buf);
@@ -702,7 +706,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                        stored value so the manifest keeps the old SHA.
                        This prevents the tamper warning next run — the script
                        will simply retry downloading on the next sync. */
-                    wcsncpy(s->sha, stored_sha, MAX_SHA - 1);
+                    wcsncpy_s(s->sha, MAX_SHA, stored_sha, _TRUNCATE);
                     sr->status = SR_PARTIAL;
                 }
             }
@@ -782,7 +786,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         if (sr->scripts_updated == 0 && sr->folders_added == 0
             && sr->folders_removed == 0 && sr->scripts_added == 0
             && sr->scripts_removed == 0) {
-            wcsncpy(sr->message, L"All scripts are up to date.", 255);
+            wcsncpy_s(sr->message, 256, L"All scripts are up to date.", _TRUNCATE);
         } else {
             _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync complete. "
                 L"+%d/-%d folders, "

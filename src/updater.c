@@ -77,7 +77,7 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
     const char *p = strstr(json, "\"tag_name\"");
     if (!p) return false;
     p += strlen("\"tag_name\"");
-    while (*p == ' ' || *p == ':' || *p == ' ') p++;
+    while (*p == ' ' || *p == ':' || *p == '\t') p++;
     if (*p != '"') return false;
     p++;
     int i = 0;
@@ -129,7 +129,7 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
         const WCHAR *display_tag = tag;
         if (display_tag[0] == L'v' || display_tag[0] == L'V')
             display_tag++;
-        wcsncpy(g.latest_version, display_tag, 31);
+        wcsncpy_s(g.latest_version, 32, display_tag, _TRUNCATE);
 
         if (g.cfg.auto_update) {
             /* Auto-update: download and install (honoured for both auto and manual check) */
@@ -234,33 +234,28 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 
     PostStatus(L"Update downloaded. Closing to install...");
 
-    /* Write batch script to replace exe and restart */
+    /* Write batch script to replace exe and restart.
+       Use _wfopen_s + fwprintf_s with a UTF-16 BOM so cmd.exe can handle
+       paths that contain non-ASCII characters (e.g. non-Latin user profiles). */
     WCHAR bat_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, bat_path);
     wcsncat_s(bat_path, MAX_APPPATH, L"CatiaMenuWin32_update.bat", _TRUNCATE);
 
-    char temp_path_a[MAX_APPPATH] = {0};
-    char exe_path_a[MAX_APPPATH]  = {0};
-    char bat_path_a[MAX_APPPATH]  = {0};
-    WideCharToMultiByte(CP_ACP, 0, temp_path, -1, temp_path_a, MAX_APPPATH-1, NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, exe_path,  -1, exe_path_a,  MAX_APPPATH-1, NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, bat_path,  -1, bat_path_a,  MAX_APPPATH-1, NULL, NULL);
-
     FILE *f = NULL;
-    if (fopen_s(&f, bat_path_a, "w") != 0 || !f) {
+    if (_wfopen_s(&f, bat_path, L"w,ccs=UTF-16LE") != 0 || !f) {
         Updater_PromptAndInstall(latest_tag); return;
     }
-    fprintf_s(f, "@echo off\n");
-    fprintf_s(f, "timeout /t 2 /nobreak >nul\n");
-    fprintf_s(f, "copy /y \"%s\" \"%s\"\n", temp_path_a, exe_path_a);
-    fprintf_s(f, "if errorlevel 1 goto fail\n");
-    fprintf_s(f, "start \"\" \"%s\"\n", exe_path_a);
-    fprintf_s(f, "del \"%s\"\n", temp_path_a);
-    fprintf_s(f, "del \"%%~f0\"\n");
-    fprintf_s(f, "exit\n");
-    fprintf_s(f, ":fail\n");
-    fprintf_s(f, "echo Update failed - could not copy file.\n");
-    fprintf_s(f, "pause\n");
+    fwprintf_s(f, L"@echo off\n");
+    fwprintf_s(f, L"timeout /t 2 /nobreak >nul\n");
+    fwprintf_s(f, L"copy /y \"%s\" \"%s\"\n", temp_path, exe_path);
+    fwprintf_s(f, L"if errorlevel 1 goto fail\n");
+    fwprintf_s(f, L"start \"\" \"%s\"\n", exe_path);
+    fwprintf_s(f, L"del \"%s\"\n", temp_path);
+    fwprintf_s(f, L"del \"%%~f0\"\n");
+    fwprintf_s(f, L"exit\n");
+    fwprintf_s(f, L":fail\n");
+    fwprintf_s(f, L"echo Update failed - could not copy file.\n");
+    fwprintf_s(f, L"pause\n");
     fclose(f);
 
     ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);

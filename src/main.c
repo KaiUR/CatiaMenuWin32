@@ -58,6 +58,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     Settings_Load(&g.cfg);
     App_ResolveTheme();
 
+    InitializeCriticalSection(&g.cs_folders);
+
     Window_Create(hInst);
 
     /* Check command line for /minimized flag from autorun */
@@ -122,6 +124,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
         DispatchMessage(&msg);
     }
 
+    CloseHandle(hMutex);
     App_FreeGDI();
     return (int)msg.wParam;
 }
@@ -354,7 +357,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (id == IDC_BTN_MENU ||
                 id == IDC_BTN_REFRESH ||
                 id == IDC_BTN_SETTINGS ||
-                id == IDC_BTN_UPDATE_DEPS) {
+                id == IDC_BTN_UPDATE_DEPS ||
+                id == IDC_BTN_STOP) {
                 Paint_ToolbarButton(dis);
                 return TRUE;
             }
@@ -420,6 +424,14 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
+    case WM_SCRIPT_STARTED:
+        EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), TRUE);
+        return 0;
+
+    case WM_SCRIPT_STOPPED:
+        EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), FALSE);
+        return 0;
+
     /* Re-apply always-on-top every time the window becomes visible
        (e.g. restored from tray) so it never gets lost */
     case WM_SHOWWINDOW:
@@ -441,6 +453,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
+        DeleteCriticalSection(&g.cs_folders);
         PostQuitMessage(0);
         return 0;
     }
@@ -738,22 +751,33 @@ apply_theme:
             python[0] ? python : L"Not found",
             g.dark_mode ? L"Dark" : L"Light");
 
-        /* URL-encode the body */
+        /* URL-encode the body (percent-encode all chars that are unsafe in a query value) */
         WCHAR encoded[3072] = {0};
         WCHAR *dst = encoded;
-        for (const WCHAR *src = body; *src && dst < encoded + 3070; src++) {
+        for (const WCHAR *src = body; *src && dst < encoded + 3067; src++) {
             WCHAR ch = *src;
-            if (ch == L' ')  { *dst++ = L'+'; }
-            else if (ch == 13) { /* skip CR */ }
-            else if (ch == 10) { *dst++ = L'%'; *dst++ = L'0'; *dst++ = L'A'; }
-            else if (ch == L'#') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'3'; }
-            else if (ch == L'*') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'A'; }
-            else if (ch == L':') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'A'; }
-            else if (ch == L'/') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'F'; }
-            else if (ch == L'?') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'F'; }
-            else if (ch == L'=') { *dst++ = L'%'; *dst++ = L'3'; *dst++ = L'D'; }
-            else if (ch == L'&') { *dst++ = L'%'; *dst++ = L'2'; *dst++ = L'6'; }
+            /* Encode each unsafe character as %XX (using 3 output slots). */
+            #define PENC(hi, lo) do { *dst++=L'%'; *dst++=(hi); *dst++=(lo); } while(0)
+            if      (ch == L' ')  { *dst++ = L'+'; }
+            else if (ch == 13)    { /* skip CR */ }
+            else if (ch == 10)    { PENC(L'0',L'A'); }
+            else if (ch == L'%')  { PENC(L'2',L'5'); }
+            else if (ch == L'"')  { PENC(L'2',L'2'); }
+            else if (ch == L'#')  { PENC(L'2',L'3'); }
+            else if (ch == L'&')  { PENC(L'2',L'6'); }
+            else if (ch == L'+')  { PENC(L'2',L'B'); }
+            else if (ch == L'/')  { PENC(L'2',L'F'); }
+            else if (ch == L':')  { PENC(L'3',L'A'); }
+            else if (ch == L'<')  { PENC(L'3',L'C'); }
+            else if (ch == L'=')  { PENC(L'3',L'D'); }
+            else if (ch == L'>')  { PENC(L'3',L'E'); }
+            else if (ch == L'?')  { PENC(L'3',L'F'); }
+            else if (ch == L'[')  { PENC(L'5',L'B'); }
+            else if (ch == L']')  { PENC(L'5',L'D'); }
+            else if (ch == L'*')  { PENC(L'2',L'A'); }
+            else if (ch == L'|')  { PENC(L'7',L'C'); }
             else { *dst++ = ch; }
+            #undef PENC
         }
         *dst = L'\0';
 
@@ -774,6 +798,10 @@ apply_theme:
     case IDM_UPDATE_DEPS:
     case IDC_BTN_UPDATE_DEPS:
         Runner_UpdateDeps();
+        break;
+
+    case IDC_BTN_STOP:
+        Runner_Stop();
         break;
 
     case IDM_EXIT:

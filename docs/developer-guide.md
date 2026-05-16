@@ -223,6 +223,55 @@ That's it. The workflow handles everything else automatically. The final release
 
 ---
 
+## Thread Safety
+
+The app uses two background threads (sync and updater) plus the UI thread. Thread-safe communication follows two patterns:
+
+### Posting to the UI thread
+Never call Win32 UI functions from a background thread. Use `PostMessage` to marshal work to the UI thread:
+
+```c
+// From any thread — allocate a buffer, format, post:
+PostStatus(L"Sync done.");  // inline helper in main.h
+
+// Custom messages (defined in main.h):
+PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)result, 0);
+PostMessage(g.hwnd, WM_SCRIPT_STARTED, 0, 0);
+PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
+```
+
+`WM_STATUS_SET` frees the heap buffer after displaying it. All other custom messages use simple `wParam`/`lParam` values.
+
+### Protecting shared state
+`g.folders[]` and `g.folder_count` are written by the sync thread and read by the UI thread. Guard every access with `g.cs_folders`:
+
+```c
+EnterCriticalSection(&g.cs_folders);
+// read or write g.folders[] here
+LeaveCriticalSection(&g.cs_folders);
+```
+
+### Atomic handle ownership (`g.run_process`)
+The running-script process handle is shared between `Runner_Thread` (writer) and `Runner_Stop` / `MainWndProc` (readers). Use `InterlockedExchangePointer` for ownership transfer — exactly one caller gets the non-NULL handle:
+
+```c
+// Runner_Thread — store a duplicate after CreateProcess:
+DuplicateHandle(..., pi.hProcess, ..., &dup, ...);
+InterlockedExchangePointer((void **)&g.run_process, dup);
+
+// Runner_Stop — atomically claim it:
+HANDLE h = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
+if (h) { TerminateProcess(h, 1); CloseHandle(h); }
+
+// Runner_Thread cleanup — take back if Stop hasn't claimed it:
+HANDLE old = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
+if (old) CloseHandle(old);  // normal completion path
+```
+
+This pattern guarantees no double-close and no double-terminate regardless of which side wins the race.
+
+---
+
 ## Code Style
 
 - **C11** — designated initialisers, `bool`, `stdbool.h`, `_Static_assert`

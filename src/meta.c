@@ -116,7 +116,7 @@ void Meta_Parse(Script *s)
     {
         lineno++;
         TrimRight(raw);
-        wcsncpy(line, raw, 1023);
+        wcsncpy_s(line, 1024, raw, _TRUNCATE);
         StripLeading(line);
         TrimRight(line);
 
@@ -156,37 +156,37 @@ void Meta_Parse(Script *s)
             in_desc = false;
 
         } else if ((val = MatchKey(line, L"Version")) != NULL) {
-            wcsncpy(m.version, val, 31);
+            wcsncpy_s(m.version, 32, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Author")) != NULL) {
-            wcsncpy(m.author, val, 63);
+            wcsncpy_s(m.author, 64, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Date")) != NULL) {
-            wcsncpy(m.date, val, 31);
+            wcsncpy_s(m.date, 32, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Purpose")) != NULL) {
-            wcsncpy(m.purpose, val, 127);
+            wcsncpy_s(m.purpose, 128, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Code")) != NULL) {
-            wcsncpy(m.code, val, 63);
+            wcsncpy_s(m.code, 64, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Release")) != NULL) {
-            wcsncpy(m.release, val, 31);
+            wcsncpy_s(m.release, 32, val, _TRUNCATE);
             found_any = true; in_desc = false;
 
         } else if ((val = MatchKey(line, L"Description")) != NULL) {
-            wcsncpy(m.description, val, DESC_MAX);
+            wcsncpy_s(m.description, DESC_MAX + 1, val, _TRUNCATE);
             found_any = true; in_desc = true;
 
         } else if (_wcsnicmp(line, L"requirements", 12) == 0) {
             /* requirements: may have content on same line or next lines */
             val = MatchKey(line, L"requirements");
-            if (val) wcsncpy(m.requirements, val, 511);
+            if (val) wcsncpy_s(m.requirements, 512, val, _TRUNCATE);
             found_any = true; in_desc = false;
             /* Continuation lines are collected below via m.requirements[0] check */
 

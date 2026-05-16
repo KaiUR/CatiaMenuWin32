@@ -9,9 +9,6 @@
  * License: MIT
  */
 
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS
-#endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -111,6 +108,8 @@
 #define WM_TRAYICON        (WM_USER + 10)
 #define WM_UPDATE_AVAIL    (WM_USER + 11)
 #define WM_AUTO_REFRESH    (WM_USER + 12)
+#define WM_SCRIPT_STARTED  (WM_USER + 13)  /* posted by Runner_Thread when a bg script starts */
+#define WM_SCRIPT_STOPPED  (WM_USER + 14)  /* posted when bg script exits or is terminated   */
 #define TRAY_ID            1
 #define TIMER_AUTO_REFRESH 1001
 #define TIMER_QBAR         1002
@@ -414,6 +413,11 @@ typedef struct {
     int    scroll_max;
     bool   tray_icon_added;
 
+    CRITICAL_SECTION cs_folders; /* guards g.folders[] and g.folder_count */
+
+    /* Running script — NULL when idle; set/cleared atomically via InterlockedExchangePointer */
+    volatile HANDLE run_process;
+
     /* Filter */
     WCHAR  filter_text[MAX_NAME]; /* current search/filter string       */
 
@@ -527,6 +531,7 @@ bool Runner_Run(int fi, int si);
 bool Runner_RunWithArgs(int fi, int si, const WCHAR *args);
 bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
+void Runner_Stop(void);
 
 /* updater.c */
 DWORD WINAPI Updater_CheckThread(LPVOID);

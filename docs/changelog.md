@@ -9,6 +9,27 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.0 — Security hardening and Stop Script button
+
+### Added
+- **Stop Script button** — a new **■ Stop** toolbar button terminates a running background script instantly. The button is grayed out when idle and turns red when a script is active. Only background (no-console) runs are tracked; console-mode scripts can be stopped by closing the console window directly.
+
+### Fixed
+- **Race condition on sync** — the sync thread clearing `g.folders[]` while the UI thread reads it could cause a use-after-free crash; all access to `g.folders[]` and `g.folder_count` is now guarded by a `CRITICAL_SECTION cs_folders` added to `AppState`
+- **Shell injection in runner** — paths containing `"`, `^`, or `%` could break out of `cmd.exe` command lines; the `cmd.exe /c` code path is eliminated (Python is now launched directly via `CreateProcess`), and the `cmd.exe /k` keep-open path escapes those characters via a new `EscapeForCmd` helper
+- **HTTP indefinite hang** — `GitHub_HttpGet` had no timeouts; a 15-second limit is now set for connect, send, and receive via `InternetSetOption`
+- **Batch file encoding for non-ASCII paths** — the auto-updater batch script was written as CP_ACP narrow chars, silently corrupting paths that contain non-Latin characters; switched to `_wfopen_s` with `ccs=UTF-16LE` and `fwprintf_s` wide-char output
+- **Mutex handle leak in `wWinMain`** — `hMutex` was never closed; `CloseHandle(hMutex)` added before `App_FreeGDI()`
+- **Integer overflow in `cmp_runs` sort comparator** — subtraction-based comparator could overflow for large `run_count` values; replaced with explicit three-way comparison
+- **GDI brush leak in `Paint_Tab`** — `CreateSolidBrush` result passed directly to `FrameRect` without storing or deleting the handle; handle is now stored in a local and deleted after use
+- **Dead `TipWndProc` function in `paint.c`** — removed an unreachable `TipWndProc` function; the active tooltip window procedure is `TipWndProcInternal` in `window.c`
+- **Redundant `SetWindowPos` call in `Window_ApplyAlwaysOnTop`** — duplicate no-op call removed
+- **`ParseLatestTag` duplicate whitespace condition** — `while (*p == ' ' || *p == ':' || *p == ' ')` had `' '` duplicated; corrected to `while (*p == ' ' || *p == ':' || *p == '\t')`
+- **`wcsncpy` → `wcsncpy_s` throughout** — replaced every remaining `wcsncpy` call across `runner.c`, `tabs.c`, `sync.c`, `github.c`, `prefs.c`, `meta.c`, `sources.c`, `settings.c`, `updater.c`, and `window.c` with C11 Annex K `wcsncpy_s` to match the project safe-string policy and eliminate truncation-without-null-termination risk
+- **Removed `_CRT_SECURE_NO_WARNINGS`** — suppressor macro removed from `main.h`; all previously suppressed warnings are now addressed by the `_s` function migration
+
+---
+
 ## v2.0.8 — Default settings update
 
 ### Changed
