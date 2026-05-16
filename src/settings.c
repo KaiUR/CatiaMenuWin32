@@ -59,7 +59,7 @@ void Settings_Load(Settings *s)
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
-        if (!s->extra_repos[i].branch[0]) wcsncpy(s->extra_repos[i].branch, L"main", 63);
+        if (!s->extra_repos[i].branch[0]) wcsncpy_s(s->extra_repos[i].branch, 64, L"main", _TRUNCATE);
     }
 
     /* Local dirs */
@@ -187,7 +187,7 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
         if (minimized)
             _snwprintf_s(cmd, MAX_APPPATH + 15, _TRUNCATE, L"\"%s\" /minimized", exe);
         else
-            wcsncpy(cmd, exe, MAX_APPPATH + 15);
+            wcsncpy_s(cmd, MAX_APPPATH + 16, exe, _TRUNCATE);
 
         RegSetValueEx(hk, AUTORUN_NAME, 0, REG_SZ,
                       (BYTE *)cmd, (DWORD)((wcslen(cmd) + 1) * sizeof(WCHAR)));

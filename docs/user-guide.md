@@ -51,8 +51,8 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 ## The Interface
 
 ```
-┌─ Menu ──┬─ Refresh ──┬─ Settings ──┬─ Deps ──┐   CATIA Macro Menu  v1.2.0.31
-│         │            │             │         │
+┌─ Menu ──┬─ Refresh ──┬─ Settings ──┬─ Deps ──┬─ Stop ──┐   CATIA Macro Menu  v2.1.0
+│         │            │             │         │  (gray) │
 ├─ Any Document Scripts ──┬─ Part Document Scripts ──┬─ ...
 │                         │                          │
 │  ► Hide Planes And Axis Systems                [i] │
@@ -74,6 +74,7 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 - **↺ Refresh** — re-sync scripts from all sources
 - **⚙ Settings** — open the settings dialog
 - **↓ Deps** — install/update Python dependencies
+- **■ Stop** — terminate the currently running background script (grayed out when idle; red when active)
 
 **Tab bar:**
 - Each tab corresponds to a script folder
@@ -99,6 +100,12 @@ Click any script button to run it. The app will:
 - **Keep console open** — keeps the console window open after the script finishes so you can read output and errors (`cmd /k` mode)
 
 Without **Show console**, scripts run silently in the background.
+
+### Stopping a Running Script
+
+Click the **■ Stop** toolbar button to immediately terminate the running script. The button is grayed out when no script is running and turns red when one is active.
+
+> **Note:** Only background (no-console) runs can be stopped this way. If **Show console** is enabled, close the console window directly, or press `Ctrl+C` inside it.
 
 ---
 

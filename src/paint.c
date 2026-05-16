@@ -88,27 +88,27 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
         /* Two-line layout: title top half, update badge bottom half */
         SetTextColor(mem, COL_ACCENT);
         SelectObject(mem, g.font_bold);
-        RECT tr = { 365, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
         WCHAR upd[64];
         _snwprintf_s(upd, 63, _TRUNCATE, L"\u2B06 Update %s available", g.latest_version);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
-        RECT ur = { 370, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
+        RECT ur = { 444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
         DrawText(mem, upd, -1, &ur, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     } else if (g.syncing) {
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 365, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
-        RECT sr = { 370, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
+        RECT sr = { 444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
         DrawText(mem, L"\u25CF Syncing\u2026", -1, &sr,
                  DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     } else {
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 365, 0, w - 8, TOOLBAR_H };
+        RECT tr = { 440, 0, w - 8, TOOLBAR_H };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     }
 
@@ -119,9 +119,10 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 
 /* ================================================================== */
 /*  Paint_ToolbarButton                                                 */
-/*  Purpose: Owner-draw handler for the four toolbar buttons (Menu,    */
-/*           Refresh, Settings, Deps).  Draws a rounded rectangle with */
-/*           pressed/hot/normal background and matching text colour.   */
+/*  Purpose: Owner-draw handler for toolbar buttons (Menu, Refresh,    */
+/*           Settings, Deps, Stop).  Draws a rounded rectangle with    */
+/*           pressed/hot/normal/disabled background and text colour.   */
+/*           The Stop button uses a red accent when enabled.           */
 /*  In:  dis — DRAWITEMSTRUCT provided by WM_DRAWITEM (contains DC,    */
 /*             item state, and button label text)                       */
 /*  Out: (void)                                                         */
@@ -137,14 +138,28 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
-    bool pressed = (dis->itemState & ODS_SELECTED) != 0;
-    bool hot     = (dis->itemState & ODS_HOTLIGHT)  != 0;
-    bool focused = (dis->itemState & ODS_FOCUS)      != 0;
+    bool pressed  = (dis->itemState & ODS_SELECTED) != 0;
+    bool hot      = (dis->itemState & ODS_HOTLIGHT)  != 0;
+    bool focused  = (dis->itemState & ODS_FOCUS)      != 0;
+    bool disabled = (dis->itemState & ODS_DISABLED)   != 0;
+    bool is_stop  = ((int)dis->CtlID == IDC_BTN_STOP);
 
-    COLORREF bg  = pressed ? COL_BTN_PRESS()
-                 : hot     ? COL_BTN_HOT()
-                 :            COL_BTN_NORM();
-    COLORREF bdr = (hot || focused) ? COL_ACCENT : COL_DIVIDER();
+#define COL_STOP_ACTIVE  RGB(200, 60, 60)
+#define COL_STOP_HOT     RGB(230, 90, 90)
+
+    COLORREF bg  = (pressed && !disabled) ? COL_BTN_PRESS()
+                 : (hot && !disabled)      ? COL_BTN_HOT()
+                 :                           COL_BTN_NORM();
+    COLORREF bdr = disabled          ? COL_DIVIDER()
+                 : (hot || focused)  ? (is_stop ? COL_STOP_ACTIVE : COL_ACCENT)
+                 :                      COL_DIVIDER();
+    COLORREF txt = disabled          ? COL_SUBTEXT()
+                 : (hot || pressed)  ? (is_stop ? COL_STOP_HOT : COL_ACCENT)
+                 : is_stop           ? COL_STOP_ACTIVE
+                 :                     COL_TEXT();
+
+#undef COL_STOP_ACTIVE
+#undef COL_STOP_HOT
 
     DrawRoundRect(mem, 0, 0, w, h, 6, bg, bdr);
 
@@ -153,7 +168,7 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
     GetWindowText(dis->hwndItem, text, 63);
 
     SetBkMode(mem, TRANSPARENT);
-    SetTextColor(mem, hot || pressed ? COL_ACCENT : COL_TEXT());
+    SetTextColor(mem, txt);
     HFONT of = SelectObject(mem, g.font_ui);
     RECT tr = { 0, 0, w, h };
     DrawText(mem, text, -1, &tr,
@@ -358,24 +373,6 @@ done:
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
     SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
     EndPaint(hwnd, &ps);
-}
-
-/* ================================================================== */
-/*  TipWndProc                                                          */
-/*  Purpose: Redundant tooltip window procedure — kept for symmetry.   */
-/*           The active tooltip WndProc is TipWndProcInternal in       */
-/*           window.c; this proc is not registered but may be used if  */
-/*           the class is re-registered in a different code path.      */
-/*  In:  hwnd — tooltip window; msg/wp/lp — standard WndProc params   */
-/*  Out: 0 for WM_PAINT / WM_ERASEBKGND; DefWindowProc for others     */
-/* ================================================================== */
-LRESULT CALLBACK TipWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
-{
-    switch (msg) {
-    case WM_PAINT:      Paint_Tooltip(hwnd); return 0;
-    case WM_ERASEBKGND: return 1;
-    }
-    return DefWindowProc(hwnd, msg, wp, lp);
 }
 
 /* ================================================================== */
@@ -618,7 +615,6 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
     } else {
         /* Unselected: full border + bottom line */
         RECT border = rc;
-        FrameRect(hdc, &border, CreateSolidBrush(bdr));
         HBRUSH tb = CreateSolidBrush(bdr);
         FrameRect(hdc, &border, tb);
         DeleteObject(tb);

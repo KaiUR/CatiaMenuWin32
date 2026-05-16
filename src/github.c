@@ -105,6 +105,12 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hInet) return false;
 
+    /* Set connection and receive timeouts (15 s each) so sync never hangs */
+    DWORD timeout_ms = 15000;
+    InternetSetOption(hInet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
+    InternetSetOption(hInet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
+    InternetSetOption(hInet, INTERNET_OPTION_SEND_TIMEOUT,    &timeout_ms, sizeof(timeout_ms));
+
     HINTERNET hConn = InternetConnect(
         hInet, host, INTERNET_DEFAULT_HTTPS_PORT,
         NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
@@ -304,7 +310,7 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
         bool  ok  = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url, token, buf, &len);
         if (ok && len > 0) {
             WCHAR dir[MAX_APPPATH];
-            wcsncpy(dir, local_path, MAX_APPPATH - 1);
+            wcsncpy_s(dir, MAX_APPPATH, local_path, _TRUNCATE);
             PathRemoveFileSpec(dir);
             SHCreateDirectoryEx(NULL, dir, NULL);
 
@@ -347,15 +353,13 @@ bool GitHub_ParseOwnerRepo(const WCHAR *url, WCHAR *owner, WCHAR *repo)
     if (!slash) return false;
     int olen = (int)(slash - p);
     if (olen <= 0 || olen >= MAX_NAME) return false;
-    wcsncpy(owner, p, olen);
-    owner[olen] = L'\0';
+    wcsncpy_s(owner, MAX_NAME, p, olen);
     /* repo is after slash, up to next '/' or end */
     p = slash + 1;
     const WCHAR *end = wcschr(p, L'/');
     int rlen = end ? (int)(end - p) : (int)wcslen(p);
     if (rlen <= 0 || rlen >= MAX_NAME) return false;
-    wcsncpy(repo, p, rlen);
-    repo[rlen] = L'\0';
+    wcsncpy_s(repo, MAX_NAME, p, rlen);
     return true;
 }
 
@@ -381,7 +385,7 @@ bool GitHub_DownloadRawFull(const WCHAR *host, const WCHAR *path,
     bool  ok  = GitHub_HttpGet(host, path, token, buf, &len);
     if (ok && len > 0) {
         WCHAR dir[MAX_APPPATH];
-        wcsncpy(dir, local_path, MAX_APPPATH - 1);
+        wcsncpy_s(dir, MAX_APPPATH, local_path, _TRUNCATE);
         PathRemoveFileSpec(dir);
         SHCreateDirectoryEx(NULL, dir, NULL);
 
@@ -468,7 +472,7 @@ void GitHub_ParseRoot(const char *json)
             ZeroMemory(f, sizeof(*f));
 
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, f->name, MAX_NAME);
-            wcsncpy(f->display, f->name, MAX_NAME - 1);
+            wcsncpy_s(f->display, MAX_NAME, f->name, _TRUNCATE);
             Util_SnakeToTitle(f->display);
         }
         p = after;
@@ -489,9 +493,13 @@ void GitHub_ParseRoot(const char *json)
 void GitHub_ParseFolder(const char *json, int fi)
 {
     ScriptFolder *f = &g.folders[fi];
-    /* Free existing scripts and start fresh */
+    /* Free existing scripts and start fresh.
+       Hold cs_folders during the free so a concurrent UI paint cannot
+       dereference the scripts pointer between free and re-allocation. */
+    EnterCriticalSection(&g.cs_folders);
     Folder_Free(f);
     Folder_Alloc(f, 64);
+    LeaveCriticalSection(&g.cs_folders);
 
     const char *p = json;
     while ((p = strstr(p, "\"type\"")) != NULL) {

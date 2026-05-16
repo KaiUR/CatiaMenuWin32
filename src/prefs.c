@@ -33,7 +33,7 @@ static void Prefs_GetPath(WCHAR *out, int max)
 /* ================================================================== */
 static void PathToKey(const WCHAR *path, WCHAR *key, int max)
 {
-    wcsncpy(key, path, max - 1);
+    wcsncpy_s(key, max, path, _TRUNCATE);
     for (WCHAR *p = key; *p; p++) {
         if (*p == L'\\' || *p == L'/') *p = L'_';
     }
@@ -254,8 +254,8 @@ void Tabs_BuildFavourites(void)
        Do NOT free it — g.folders[1] still owns that memory.
        Just zero out this slot and allocate fresh for the favourites. */
     ZeroMemory(fav, sizeof(*fav));
-    wcsncpy(fav->name,    L"Favourites",       MAX_NAME - 1);
-    wcsncpy(fav->display, L"\u2605 Favourites", MAX_NAME - 1);
+    wcsncpy_s(fav->name,    MAX_NAME, L"Favourites",       _TRUNCATE);
+    wcsncpy_s(fav->display, MAX_NAME, L"\u2605 Favourites", _TRUNCATE);
     fav->loaded = true;
     Folder_Alloc(fav, fav_count > 0 ? fav_count : 8);
 
@@ -326,7 +326,7 @@ INT_PTR CALLBACK ScriptDetailsDlgProc(HWND hwnd, UINT msg,
             /* Save note */
             WCHAR note[MAX_NOTE_LEN] = {0};
             GetDlgItemText(hwnd, IDC_DETAIL_NOTE, note, MAX_NOTE_LEN - 1);
-            wcsncpy(s->note, note, MAX_NOTE_LEN - 1);
+            wcsncpy_s(s->note, MAX_NOTE_LEN, note, _TRUNCATE);
             Prefs_SetNote(s->gh_path, note);
 
             /* Save favourite */

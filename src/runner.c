@@ -36,12 +36,12 @@ bool Runner_FindPython(WCHAR *out, int max)
 {
     if (g.cfg.python_exe[0] &&
         GetFileAttributes(g.cfg.python_exe) != INVALID_FILE_ATTRIBUTES) {
-        wcsncpy(out, g.cfg.python_exe, max - 1);
+        wcsncpy_s(out, max, g.cfg.python_exe, _TRUNCATE);
         return true;
     }
     WCHAR found[MAX_APPPATH];
     if (SearchPath(NULL, L"python.exe", NULL, MAX_APPPATH, found, NULL)) {
-        wcsncpy(out, found, max - 1);
+        wcsncpy_s(out, max, found, _TRUNCATE);
         return true;
     }
     static const WCHAR *candidates[] = {
@@ -57,7 +57,7 @@ bool Runner_FindPython(WCHAR *out, int max)
     };
     for (int i = 0; candidates[i]; i++) {
         if (GetFileAttributes(candidates[i]) != INVALID_FILE_ATTRIBUTES) {
-            wcsncpy(out, candidates[i], max - 1);
+            wcsncpy_s(out, max, candidates[i], _TRUNCATE);
             return true;
         }
     }
@@ -118,14 +118,28 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
     if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE,
                        flags, NULL, NULL, &si, &pi)) {
         if (!ra->show_console) {
-            /* Background run - wait and report exit code */
-            WaitForSingleObject(pi.hProcess, INFINITE);
-            DWORD exit_code = 0;
-            GetExitCodeProcess(pi.hProcess, &exit_code);
-            if (exit_code == 0)
-                PostStatus(L"Script finished successfully.");
-            else
-                PostStatus(L"Script exited with code %lu.", exit_code);
+            /* Background run: duplicate handle into g.run_process so Runner_Stop can kill it */
+            HANDLE dup = NULL;
+            DuplicateHandle(GetCurrentProcess(), pi.hProcess,
+                            GetCurrentProcess(), &dup, 0, FALSE, DUPLICATE_SAME_ACCESS);
+            InterlockedExchangePointer((void **)&g.run_process, dup);
+            PostMessage(g.hwnd, WM_SCRIPT_STARTED, 0, 0);
+
+            WaitForSingleObject(pi.hProcess, 30 * 60 * 1000);
+
+            /* Atomically take back the handle. If NULL, Runner_Stop already claimed it. */
+            HANDLE old = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
+            if (old) {
+                CloseHandle(old);
+                DWORD exit_code = 0;
+                GetExitCodeProcess(pi.hProcess, &exit_code);
+                PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
+                if (exit_code == 0)
+                    PostStatus(L"Script finished successfully.");
+                else
+                    PostStatus(L"Script exited with code %lu.", exit_code);
+            }
+            /* else: Runner_Stop already posted WM_SCRIPT_STOPPED and its own status */
         } else {
             PostStatus(L"Script launched in console.");
         }
@@ -179,7 +193,7 @@ bool Runner_Run(int fi, int si)
                        L"Download Error", MB_ICONERROR | MB_OK);
             return false;
         }
-        wcsncpy(s->local, local, MAX_APPPATH - 1);
+        wcsncpy_s(s->local, MAX_APPPATH, local, _TRUNCATE);
     }
 
     /* SHA verification - confirm local file matches GitHub blob SHA */
@@ -210,15 +224,15 @@ bool Runner_Run(int fi, int si)
         }
     }
 
-    wcsncpy(g.last_run_path, s->gh_path, MAX_APPPATH - 1);
+    wcsncpy_s(g.last_run_path, MAX_APPPATH, s->gh_path, _TRUNCATE);
     Prefs_IncrementRunCount(s->gh_path);
     s->run_count++;
     PostStatus(L"Running: %s", s->name);
 
     RunArg *ra = (RunArg *)malloc(sizeof(RunArg));
     if (!ra) return false;
-    wcsncpy(ra->python, python, MAX_APPPATH - 1);
-    wcsncpy(ra->script, local,  MAX_APPPATH - 1);
+    wcsncpy_s(ra->python, MAX_APPPATH, python, _TRUNCATE);
+    wcsncpy_s(ra->script, MAX_APPPATH, local,  _TRUNCATE);
     ra->show_console = g.cfg.show_console;
     ra->keep_open    = g.cfg.show_console && g.cfg.console_keep_open;
 
@@ -226,6 +240,25 @@ bool Runner_Run(int fi, int si)
     if (hT) { CloseHandle(hT); return true; }
     free(ra);
     return false;
+}
+
+/* ================================================================== */
+/*  Runner_Stop                                                         */
+/*  Purpose: Terminates the currently running background script, if    */
+/*           any.  Atomically claims g.run_process so only one caller  */
+/*           can win; the other gets NULL and does nothing.  Posts     */
+/*           WM_SCRIPT_STOPPED so the UI disables the Stop button.    */
+/*  In:  (reads/clears g.run_process)                                  */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+void Runner_Stop(void)
+{
+    HANDLE h = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
+    if (!h) return;
+    TerminateProcess(h, 1);
+    CloseHandle(h);
+    PostStatus(L"Script stopped.");
+    PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
 }
 
 /* ================================================================== */
@@ -281,6 +314,19 @@ static void RunPipInstall(const WCHAR *python, const WCHAR *req,
 /*       args — extra argument string appended after the script path   */
 /*  Out: true if CreateProcessW succeeded; false on any error          */
 /* ================================================================== */
+/* Escapes cmd.exe shell metacharacters so user-supplied args cannot inject commands. */
+static void EscapeForCmd(const WCHAR *src, WCHAR *dst, int dst_max)
+{
+    int i = 0;
+    for (; *src && i < dst_max - 3; src++) {
+        if      (*src == L'^') { dst[i++] = L'^'; dst[i++] = L'^'; }
+        else if (*src == L'"') { dst[i++] = L'^'; dst[i++] = L'"'; }
+        else if (*src == L'%') { dst[i++] = L'%'; dst[i++] = L'%'; }
+        else                   { dst[i++] = *src; }
+    }
+    dst[i] = L'\0';
+}
+
 bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
 {
     if (fi < 0 || fi >= g.folder_count) return false;
@@ -291,20 +337,24 @@ bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
     if (!Runner_FindPython(python, MAX_APPPATH)) return false;
 
     WCHAR cmd[MAX_APPPATH * 2];
+    DWORD flags;
     if (g.cfg.show_console && g.cfg.console_keep_open) {
-        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"cmd.exe /k \"\\\"%s\\\" \\\"%s\\\" %s\"",
-                   python, s->local, args ? args : L"");
-    } else if (g.cfg.show_console) {
-        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"cmd.exe /c \"%s\" \"%s\" %s",
-                   python, s->local, args ? args : L"");
+        /* cmd.exe /k keeps the window open: escape args to prevent shell injection */
+        WCHAR esc[MAX_APPPATH] = {0};
+        EscapeForCmd(args ? args : L"", esc, MAX_APPPATH);
+        _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE,
+                     L"cmd.exe /k \"\\\"%s\\\" \\\"%s\\\" %s\"",
+                     python, s->local, esc);
+        flags = CREATE_NEW_CONSOLE;
     } else {
+        /* Run Python directly — no cmd.exe shell, so no shell injection possible */
         _snwprintf_s(cmd, MAX_APPPATH*2-1, _TRUNCATE, L"\"%s\" \"%s\" %s",
-                   python, s->local, args ? args : L"");
+                     python, s->local, args ? args : L"");
+        flags = g.cfg.show_console ? CREATE_NEW_CONSOLE : 0;
     }
 
     STARTUPINFOW si2; PROCESS_INFORMATION pi;
     ZeroMemory(&si2, sizeof(si2)); si2.cb = sizeof(si2);
-    DWORD flags = g.cfg.show_console ? CREATE_NEW_CONSOLE : 0;
 
     if (!CreateProcessW(NULL, cmd, NULL, NULL, FALSE,
                         flags, NULL, NULL, &si2, &pi))
@@ -314,7 +364,7 @@ bool Runner_RunWithArgs(int fi, int si, const WCHAR *args)
     CloseHandle(pi.hThread);
     Prefs_IncrementRunCount(s->gh_path);
     s->run_count++;
-    wcsncpy(g.last_run_path, s->gh_path, MAX_APPPATH - 1);
+    wcsncpy_s(g.last_run_path, MAX_APPPATH, s->gh_path, _TRUNCATE);
     PostStatus(L"Running: %s (with args)", s->name);
     return true;
 }

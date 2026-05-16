@@ -78,8 +78,6 @@ void Window_ApplyAlwaysOnTop(void)
     HWND z = g.cfg.always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST;
     SetWindowPos(g.hwnd, z, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    SetWindowPos(g.hwnd, z, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
 }
 
 /* ================================================================== */
@@ -217,7 +215,7 @@ void Window_AddTrayIcon(void)
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon            = LoadIcon(GetModuleHandle(NULL),
                                     MAKEINTRESOURCE(IDI_APP_ICON));
-    wcsncpy(nid.szTip, APP_TITLE, _countof(nid.szTip) - 1);
+    wcsncpy_s(nid.szTip, _countof(nid.szTip), APP_TITLE, _TRUNCATE);
     Shell_NotifyIcon(NIM_ADD, &nid);
     g.tray_icon_added = true;
 }
@@ -354,8 +352,10 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         /* Build list of tabs that have at least one visible (non-hidden) script */
         int vtabs[MAX_FOLDERS];
         int vn = 0;
+        EnterCriticalSection(&g.cs_folders);
         for (int i = 0; i < g.folder_count; i++)
             if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
+        LeaveCriticalSection(&g.cs_folders);
 
         if (vn == 0) { EndPaint(hwnd, &ps); return 0; }
 
@@ -688,10 +688,14 @@ void Window_Create(HINSTANCE hInst)
         WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
         282, 5, 76, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_UPDATE_DEPS, hInst, NULL);
+    CreateWindow(L"BUTTON", L"\u25A0  Stop",
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_DISABLED,
+        364, 5, 70, 28, g.hwnd,
+        (HMENU)(UINT_PTR)IDC_BTN_STOP, hInst, NULL);
 
     int ids[] = { IDC_BTN_MENU, IDC_BTN_REFRESH,
-                  IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS };
-    for (int i = 0; i < 4; i++)
+                  IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP };
+    for (int i = 0; i < 5; i++)
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 

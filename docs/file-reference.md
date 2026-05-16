@@ -50,7 +50,7 @@ All `#define` IDs for menus, dialogs, and controls. Grouped by:
 ### `window.c`
 Window creation, tab bar, tray icon, and popup menu.
 
-- `Window_Create` — registers all window classes, creates main window and all child controls
+- `Window_Create` — registers all window classes, creates main window and all child controls (Menu, Refresh, Settings, Deps, Stop); Stop button starts disabled and is enabled/disabled by `WM_SCRIPT_STARTED`/`WM_SCRIPT_STOPPED`
 - `Window_OnSize` — repositions tab bar, scroll panel, and status bar on resize
 - `Window_ApplyDarkMode` — calls `DwmSetWindowAttribute` for title bar dark mode
 - `Window_ApplyAlwaysOnTop` — calls `SetWindowPos` with `HWND_TOPMOST`/`HWND_NOTOPMOST`
@@ -74,7 +74,7 @@ Tab switching and script button management.
 All GDI rendering. Every function uses double-buffering (memory DC + `BitBlt`).
 
 - `Paint_MainWindow` — draws toolbar background, title, version, syncing indicator, update badge
-- `Paint_ToolbarButton` — owner-draw for `BS_OWNERDRAW` toolbar buttons (Menu, Refresh, Settings, Deps)
+- `Paint_ToolbarButton` — owner-draw for `BS_OWNERDRAW` toolbar buttons (Menu, Refresh, Settings, Deps, Stop); renders pressed/hot/normal/disabled states; the Stop button uses a red accent when enabled
 - `Paint_ScriptButton` — draws a script button with accent bar, arrow, label, purpose text, and `i` info badge
 - `Paint_Tooltip` — draws the script info tooltip popup
 - `Tip_ComputeHeight` — measures tooltip height using `DT_CALCRECT` with correct font
@@ -109,8 +109,11 @@ GitHub sync thread and local directory scanning.
 Script execution and dependency management.
 
 - `Runner_Run` — verifies SHA, finds Python, launches script in a thread
-- `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper)
+- `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper); for background runs, duplicates the process handle into `g.run_process`, posts `WM_SCRIPT_STARTED`, waits up to 30 minutes, then atomically clears the handle and posts `WM_SCRIPT_STOPPED`
+- `Runner_Stop` — atomically claims `g.run_process` via `InterlockedExchangePointer`, calls `TerminateProcess`, and posts `WM_SCRIPT_STOPPED` to disable the Stop button
 - `Runner_FindPython` — searches PATH, `cfg.python_exe`, and common install locations
+- `Runner_RunWithArgs` — runs a script with additional command-line arguments; uses `EscapeForCmd` to prevent shell injection in the `cmd.exe /k` keep-open path
+- `EscapeForCmd` — escapes `^`, `"`, and `%` so user-supplied arguments cannot inject commands into `cmd.exe`
 - `Runner_UpdateDeps` — upgrades pip then runs `pip install --upgrade -r requirements.txt` for each source sequentially
 - `RunPipInstall` — runs one pip install command and waits for it to complete
 
@@ -249,6 +252,9 @@ typedef struct {
     int    scroll_y, scroll_max;
     bool   tray_icon_added;
 
+    CRITICAL_SECTION cs_folders;  /* guards folders[] and folder_count between sync and UI threads */
+    volatile HANDLE run_process;  /* duplicated handle of bg script process; NULL when idle */
+
     /* Filter */
     WCHAR  filter_text[MAX_NAME]; /* current search/filter string */
 
@@ -373,6 +379,8 @@ typedef struct {
 | `WM_TRAYICON` | `WM_USER+10` | System → Main | Tray icon mouse event |
 | `WM_UPDATE_AVAIL` | `WM_USER+11` | Thread → Main | Newer version found |
 | `WM_AUTO_REFRESH` | `WM_USER+12` | Timer → Main | Auto-refresh interval elapsed |
+| `WM_SCRIPT_STARTED` | `WM_USER+13` | Runner → Main | Background script launched; enables the Stop button |
+| `WM_SCRIPT_STOPPED` | `WM_USER+14` | Runner → Main | Background script exited or was terminated; disables the Stop button |
 
 ---
 

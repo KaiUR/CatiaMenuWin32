@@ -43,9 +43,9 @@ bool Tabs_ScriptMatchesFilter(const Script *s)
     WCHAR purp_lower[128]        = {0};
     WCHAR filt_lower[MAX_NAME]   = {0};
 
-    wcsncpy(name_lower, s->name,         MAX_NAME - 1);
-    wcsncpy(purp_lower, s->meta.purpose, 127);
-    wcsncpy(filt_lower, g.filter_text,   MAX_NAME - 1);
+    wcsncpy_s(name_lower, MAX_NAME, s->name,         _TRUNCATE);
+    wcsncpy_s(purp_lower, 128,     s->meta.purpose, _TRUNCATE);
+    wcsncpy_s(filt_lower, MAX_NAME, g.filter_text,  _TRUNCATE);
 
     for (WCHAR *p = name_lower; *p; p++) *p = towlower(*p);
     for (WCHAR *p = purp_lower; *p; p++) *p = towlower(*p);
@@ -68,7 +68,8 @@ static int cmp_date(const void *a, const void *b) {
     return wcscmp(((Script*)b)->meta.date, ((Script*)a)->meta.date);
 }
 static int cmp_runs(const void *a, const void *b) {
-    return ((Script*)b)->run_count - ((Script*)a)->run_count;
+    int br = ((Script*)b)->run_count, ar = ((Script*)a)->run_count;
+    return (br > ar) ? 1 : (br < ar) ? -1 : 0;  /* descending: highest count first */
 }
 
 /* ================================================================== */
@@ -153,7 +154,7 @@ void Tabs_Switch(int idx)
 {
     if (idx < 0 || idx >= g.folder_count) return;
     g.active_tab = idx;
-    wcsncpy(g.active_folder_name, g.folders[idx].name, MAX_NAME - 1);
+    wcsncpy_s(g.active_folder_name, MAX_NAME, g.folders[idx].name, _TRUNCATE);
     InvalidateRect(g.hwnd_tab, NULL, FALSE); /* repaint custom tab bar */
     Tabs_RebuildButtons();
 }
@@ -240,7 +241,7 @@ done:
         for (int _fi = 0; _fi < g.folder_count; _fi++) {
             if (Tabs_FolderHasVisible(_fi)) {
                 g.active_tab = _fi;
-                wcsncpy(g.active_folder_name, g.folders[_fi].name, MAX_NAME - 1);
+                wcsncpy_s(g.active_folder_name, MAX_NAME, g.folders[_fi].name, _TRUNCATE);
                 InvalidateRect(g.hwnd_tab, NULL, FALSE);
                 Tabs_RebuildButtons();
                 return;
