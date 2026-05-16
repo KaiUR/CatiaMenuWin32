@@ -60,6 +60,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Hide scripts** | Right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts |
 | **Sort scripts** | Sort by Default, Alphabetical, By Date, or Most Used |
 | **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments |
+| **Stop running script** | ■ Stop toolbar button terminates a running background script instantly via `TerminateProcess` |
 | **Script notes** | Per-script user notes stored locally in `prefs.ini` |
 | **Auto-refresh** | Background sync every N hours (default 6); configurable in Settings |
 | **Auto-update** | Optionally download and install new versions automatically |
