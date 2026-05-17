@@ -22,10 +22,12 @@ Full documentation is available in the [`docs/`](docs/) folder:
 ## 📸 Screenshots
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.3.8.82.JPG)
+
+![CatiaMenuWin32 Dark Mode](images/Main_App_DarkMode_V2.1.0.128.PNG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.3.8.82.JPG)
+
+![CatiaMenuWin32 Light Mode](images/Main_App_LightMode_V2.1.0.128.PNG)
 
 ---
 
@@ -46,6 +48,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | Part Document Scripts | `Part_Document_Scripts/` |
 | Process Document Scripts | `Process_Document_Scripts/` |
 | Product Document Scripts | `Product_Document_Scripts/` |
+| Shape Generation Scripts | `Shape_Generation_Scripts/` |
 
 ## 🚀 Features
 
@@ -54,18 +57,26 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Live GitHub sync** | Fetches repo structure and compares SHA hashes — only downloads changed files |
 | **Offline cache** | Scripts load from local cache immediately on startup — works without internet |
 | **Dynamic tabs** | Folder additions/removals detected automatically; no recompile needed |
+| **Favourites tab** | Star any script; a dedicated ⭐ Favourites tab appears automatically |
+| **Search/filter** | Real-time filter bar — find scripts by name or purpose instantly |
 | **Script info tooltip** | Hover over the `i` badge on any button to see Purpose, Author, Version, Date, and full Description parsed from the script header |
+| **Script details** | Right-click → Script Details shows all header fields, notes, favourite/hidden controls |
+| **Hide scripts** | Right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts |
+| **Sort scripts** | Sort by Default, Alphabetical, By Date, or Most Used |
+| **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments |
+| **Stop running script** | ■ Stop toolbar button terminates a running background script instantly |
+| **Script notes** | Per-script user notes stored locally in `prefs.ini` |
 | **Certificate validation** | Every HTTPS connection validates the server certificate subject and issuer — blocks MITM attacks |
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
 | **Single instance** | Only one instance runs at a time — launching a second brings the existing window to the front |
-| **AppData settings** | All settings in `%APPDATA%\CatiaMenuWin32\settings.ini` |
-| **Hidden-tab suppression** | Tabs whose every script has been hidden are removed from the tab bar automatically; reappear when any script in them is unhidden |
-| **Quick Launch Bar** | Floating button bar sourced from your Favourites — large icon buttons, drag anywhere, scroll arrows, hover tooltips, always-on-top with the target app |
-| **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; shows only when a visible target window exists; rises to TOPMOST when the target app gains focus |
+| **Hidden-tab suppression** | Tabs whose every script has been hidden are removed automatically; reappear when any script is unhidden |
+| **Quick Launch Bar** | Floating button bar sourced from your Favourites — drag anywhere, scroll arrows, hover tooltips, always-on-top with the target app |
+| **Target app tracking** | Bar hides when the target app is not open or all its windows are minimised; rises to TOPMOST when it gains focus |
 | **Always on Top** | Window stays above CATIA so you can click scripts without alt-tabbing |
 | **System Tray** | Minimize to tray; restore with double-click |
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
-| **Update checker** | Checks GitHub Releases on startup and notifies if a newer version is available |
+| **Auto-refresh** | Background sync every N hours (default 6); configurable in Settings |
+| **Auto-update** | Optionally download and install new versions automatically |
 | **Update Dependencies** | Runs `setup/update.bat` or falls back to upgrading pip then `pip install --upgrade -r requirements.txt` |
 | **Dark / Light / System theme** | Follows Windows theme by default; toggle via Menu → View → Theme |
 | **Auto-versioning** | CMake increments `build_number.txt` on every configure; CI appends it to the release tag |
@@ -191,7 +202,7 @@ Local builds automatically detect the latest git tag for the version number and 
 | `Options\CheckUpdates` | on | Check GitHub Releases for a newer app version on startup |
 | `Options\AutoUpdate` | on | Download and install new versions automatically |
 | `Window\AlwaysOnTop` | on | Keep window above other windows |
-| `Window\MinimizeToTray` | off | Hide to system tray on minimize/close |
+| `Window\MinimizeToTray` | on | Hide to system tray on minimize/close |
 | `Window\StartWithWindows` | on | Add to Windows autorun registry key |
 | `Window\StartMinimized` | on | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
