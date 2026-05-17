@@ -22,6 +22,7 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 - **No setup per script** — no manual path configuration, no copy-pasting, no CATIA macro editor
 - **Works offline** — scripts load from local cache immediately even without an internet connection
 - **Add your own sources** — connect additional GitHub repositories or local folders alongside the built-in scripts
+- **Quick Launch Bar** — floating button bar sourced from your Favourites; stays above CATIA and hides when CATIA is not open
 - **Secure** — every HTTPS connection validates the server certificate; every script is SHA-verified before running
 
 ---
@@ -53,15 +54,29 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 | Feature | Detail |
 |---------|--------|
 | Live GitHub sync | Fetches repo structure and compares SHA hashes — only downloads changed files |
-| Offline cache | Scripts load from disk immediately on startup |
+| Offline cache | Scripts load from disk immediately on startup — works without internet |
+| Dynamic tabs | Folder additions and removals in the repo are detected automatically; no recompile needed |
 | Search/filter | Real-time filter bar — find scripts by name or purpose instantly |
 | Favourites tab | Star any script; a dedicated Favourites tab appears automatically |
+| Quick Launch Bar | Floating button bar sourced from your Favourites — drag anywhere, always on top, hides when target app is not open |
+| Target app tracking | Bar rises to topmost when CATIA gains focus; hides when CATIA is closed or minimised |
 | Script details | Right-click any script to see full header info, add notes, hide, or favourite |
+| Script info tooltip | Hover the `i` badge on any button to see Purpose, Author, Version, Date, and Description |
+| Script notes | Per-script user notes stored locally |
+| Hide scripts | Right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts |
+| Sort scripts | Sort by Default, Alphabetical, By Date, or Most Used |
+| Run with arguments | Right-click → Run with Arguments to pass custom CLI arguments |
+| Stop running script | ■ Stop toolbar button terminates a running background script instantly |
 | Multiple sources | Add extra GitHub repos or local folders; same-named folders merge into one tab |
-| Security | Certificate pinning + SHA verification on every script before execution |
+| Security | Certificate validation + SHA verification on every script before execution |
+| Single instance | Launching a second copy brings the existing window to the front |
 | Always on Top | Window stays above CATIA — click scripts without alt-tabbing |
-| Dark / Light theme | Follows Windows theme or set manually |
+| System Tray | Minimise to tray; restore with a double-click |
+| Start with Windows | Autorun via registry with optional start-minimised flag |
+| Auto-refresh | Background sync every N hours (default 6); configurable in Settings |
 | Auto-update | Optionally download and install new versions automatically |
+| Update Dependencies | One-click install of all script dependencies via the built-in Deps button |
+| Dark / Light / System theme | Follows Windows theme by default; toggle via Menu → View → Theme |
 
 ---
 

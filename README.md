@@ -42,6 +42,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | Part Document Scripts | `Part_Document_Scripts/` |
 | Process Document Scripts | `Process_Document_Scripts/` |
 | Product Document Scripts | `Product_Document_Scripts/` |
+| Shape Generation Scripts | `Shape_Generation_Scripts/` |
 
 ## 🚀 Features
 
