@@ -61,19 +61,19 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  CATIA Macro Menu                                     –  □  ×    │
+│  CATIA Macro Menu                                      -  [ ]  x │
 ├──────────────────────────────────────────────────────────────────┤
-│  ☰ Menu   ↺ Refresh   ⚙ Settings   ↓ Deps   ■ Stop   v2.1.0.128 │
+│  [Menu] [Refresh] [Settings] [Deps] [Stop]          v2.1.0.128   │
 ├──────────────────────────────────────────────────────────────────┤
 │  Filter scripts...                                               │
 ├──────────────────────────────────────────────────────────────────┤
-│ ◄  ★ Favourites  │  Any Document Scripts  │  Part Doc Scripts  ► │
+│ <  * Favourites  |  Any Document Scripts  |  Part Doc Scripts  > │
 ├──────────────────────────────────────────────────────────────────┤
-│  ▶  Rename Hybrid Shapes                                    [i]  │
+│  >  Rename Hybrid Shapes                                    [i]  │
 │     Renames multiple hybrid shapes in one go.                    │
-│  ▶  Batch Isolate Geometric Set                             [i]  │
+│  >  Batch Isolate Geometric Set                             [i]  │
 │     Isolate every element in a geometric set as a datum.         │
-│  ▶  Check Duplicate Names In Geometric Set                  [i]  │
+│  >  Check Duplicate Names In Geometric Set                  [i]  │
 │     Scan a geometric set for elements that share a name.         │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
