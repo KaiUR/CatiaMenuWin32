@@ -10,10 +10,14 @@ description: Build CatiaMenuWin32 from source. Covers prerequisites, project str
 - [Building from Source](#building-from-source)
 - [Project Structure](#project-structure)
 - [Versioning System](#versioning-system)
-- [Adding a New Script Source](#adding-a-new-script-source)
 - [Adding a New Setting](#adding-a-new-setting)
+- [Adding a New Menu Item](#adding-a-new-menu-item)
+- [Adding a New Dialog](#adding-a-new-dialog)
+- [Adding a New Script Source](#adding-a-new-script-source-type)
+- [Filter and Sort System](#filter-and-sort-system)
 - [CI/CD Workflow](#cicd-workflow)
 - [Releasing a New Version](#releasing-a-new-version)
+- [Thread Safety](#thread-safety)
 - [Code Style](#code-style)
 
 ---
@@ -142,6 +146,60 @@ The workflow passes `-DVERSION_OVERRIDE=1.2.0` to CMake (extracted from your tag
 4. **`src/resource.h`** — add `#define IDC_*` for the new control
 5. **`settings.c` `SettingsDlgProc`** — handle in `WM_INITDIALOG` (populate) and `IDOK` (read back)
 6. Use the setting wherever needed in the relevant `.c` file
+
+---
+
+## Adding a New Menu Item
+
+The hamburger menu is built entirely in `Window_ShowMenu` (`window.c`) and commands are dispatched in `Handle_Command` (`main.c`).
+
+1. **`src/resource.h`** — add a `#define IDM_MY_ACTION <value>` (use the next available number in the `IDM_*` range)
+2. **`window.c` `Window_ShowMenu`** — add `AppendMenu(hSubMenu, MF_STRING, IDM_MY_ACTION, L"My Action")` to the appropriate sub-menu
+3. **`main.c` `Handle_Command`** — add a `case IDM_MY_ACTION:` branch; keep it short — call a dedicated function if the logic is non-trivial
+4. If the item should show a checkmark, pass the current state to `AppendMenu` with `MF_CHECKED` / `MF_UNCHECKED` flags, and toggle `g.cfg.*` + call `Settings_Save` in the handler
+
+> **Tray menu:** if the item should also appear in the system tray right-click menu, add it to `Window_ShowTrayMenu` in the same way.
+
+---
+
+## Adding a New Dialog
+
+All modal dialogs are defined in `res/resource.rc.in` and handled by an `INT_PTR CALLBACK` dialog proc in the appropriate `.c` file.
+
+1. **`src/resource.h`** — add `#define IDD_MY_DIALOG <value>` and any `IDC_*` control IDs
+2. **`res/resource.rc.in`** — add the `IDD_MY_DIALOG DIALOGEX` block with controls
+3. **Appropriate `.c` file** — implement `MyDlgProc(HWND, UINT, WPARAM, LPARAM)` handling at minimum `WM_INITDIALOG` (populate) and `IDOK` / `IDCANCEL` (read back / dismiss)
+4. **`main.h`** — declare `INT_PTR CALLBACK MyDlgProc(HWND, UINT, WPARAM, LPARAM);`
+5. **Caller** — open with `DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_MY_DIALOG), g.hwnd, MyDlgProc)`
+
+**Theme-aware dialogs:** to match the app theme, handle `WM_ERASEBKGND` and return a brush of `COL_BG()`, and call `Window_ApplyDarkMode(hwnd)` and `Window_ApplyThemeToChildren(hwnd)` in `WM_INITDIALOG`.
+
+---
+
+## Filter and Sort System
+
+### Filter
+
+The search box (`hwnd_search`, `IDC_SEARCH`) posts `EN_CHANGE` notifications to `MainWndProc`. The handler copies the edit text to `g.filter_text` and calls `Tabs_ApplyFilter()`.
+
+`Tabs_ApplyFilter` → `Tabs_RebuildButtons` — which calls `Tabs_ScriptMatchesFilter` for every non-hidden script. A script is shown only when the filter is empty or its `name` / `meta.purpose` contains `g.filter_text` (case-insensitive substring match via `wcsstr`).
+
+Clearing the search box sets `g.filter_text[0] = L'\0'` and rebuilds — all non-hidden scripts reappear.
+
+### Sort
+
+`SortMode` values are stored in `g.cfg.sort_mode` (global default, settable in Settings) and in each `ScriptFolder.sort_mode` (per-tab override, not yet exposed in UI).
+
+`Tabs_ApplySort(fi)` is called after every sync and after each manual sort change. It calls `qsort` on `g.folders[fi].scripts[]` with the matching comparator:
+
+| `SortMode` | Comparator | Notes |
+|------------|------------|-------|
+| `SORT_ORDER` | (none) | GitHub API / disk order — `qsort` not called |
+| `SORT_ALPHA` | `_wcsicmp(a->name, b->name)` | Case-insensitive A-Z |
+| `SORT_DATE` | `wcscmp(b->date, a->date)` | Descending: newest first |
+| `SORT_MOST_USED` | `b->run_count - a->run_count` | Descending: most runs first |
+
+After `Tabs_ApplySort`, call `Tabs_RebuildButtons` (or `Tabs_Switch`) to reflect the new order in the UI.
 
 ---
 

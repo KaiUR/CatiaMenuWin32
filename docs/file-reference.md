@@ -37,6 +37,7 @@ Entry point and main window procedure.
 - `Handle_Command` — routes all `WM_COMMAND` messages to appropriate actions
 - `Handle_SyncDone` — called on main thread when sync completes; rebuilds tabs and restores the active tab by folder name (via `g.active_folder_name`) to prevent drift when `Tabs_BuildFavourites` shifts indices
 - `App_InitGDI` / `App_FreeGDI` / `App_RebuildGDI` — create/destroy/recreate all GDI resources
+- `App_BuildAppDataPath` — builds `g.appdata_dir` from `%APPDATA%\CatiaMenuWin32` and creates the directory if it does not exist
 - `App_ResolveTheme` — sets `g.dark_mode` based on `cfg.theme` and Windows registry
 
 ### `resource.h`
@@ -56,6 +57,10 @@ Window creation, tab bar, tray icon, and popup menu.
 - `Window_ApplyAlwaysOnTop` — calls `SetWindowPos` with `HWND_TOPMOST`/`HWND_NOTOPMOST`
 - `Window_ShowMenu` — builds and shows the hamburger popup menu via `TrackPopupMenu`
 - `Window_AddTrayIcon` / `Window_RemoveTrayIcon` — manage `NOTIFYICONDATA`
+- `Window_ShowTrayMenu` — builds and shows the right-click context menu for the system tray icon
+- `Window_ApplyThemeToChildren` — resets the status bar visual style and invalidates the tab bar, status bar, and all child windows after a theme change
+- `Window_OpenExeFolder` — opens the folder containing the running `.exe` in Windows Explorer via `ShellExecute`
+- `Window_ApplyDarkMenu` — placeholder for future dark-mode popup menu colouring (currently a no-op)
 - `TabBarProc` — fully custom tab bar `WndProc`; draws tabs at natural text width, handles scroll arrows and mouse wheel
 - `TabBar_NaturalWidth` — measures tab label width with `GetTextExtentPoint32W`
 - `TabBar_NeedsArrows` — returns true when total tab width exceeds bar width
@@ -66,8 +71,12 @@ Tab switching and script button management.
 
 - `Tabs_Build` — triggers tab bar repaint (tab bar reads `g.folders[]` directly)
 - `Tabs_Switch` — sets `g.active_tab` and `g.active_folder_name`, repaints tab bar, calls `Tabs_RebuildButtons`
-- `Tabs_RebuildButtons` — destroys existing script buttons and creates new ones for active tab
+- `Tabs_RebuildButtons` — destroys existing script buttons and creates new ones for active tab; skips hidden and filtered-out scripts
 - `Tabs_DestroyButtons` — removes all `IDC_SCRIPT_BTN_BASE+n` child windows
+- `Tabs_ApplyFilter` — rebuilds the button grid for the active tab showing only scripts matching `g.filter_text`; delegates to `Tabs_RebuildButtons`
+- `Tabs_ScriptMatchesFilter` — returns true if the script's name or purpose contains `g.filter_text` (case-insensitive); always returns true when filter is empty
+- `Tabs_ApplySort` — sorts `folder.scripts[]` in-place via `qsort` using the active `SortMode`; `SORT_ORDER` is a no-op (preserves API/disk order)
+- `Tabs_FolderHasVisible` — returns true if the folder contains at least one non-hidden script; used to suppress empty tabs
 - `ScrollPanelProc` — scroll panel `WndProc`; handles `WM_VSCROLL`, `WM_MOUSEWHEEL`, `WM_DRAWITEM` for script buttons
 
 ### `paint.c`
@@ -216,6 +225,71 @@ Internal key functions:
 
 ## Key Structs
 
+### `SortMode` / `ThemeMode` (enums)
+
+```c
+typedef enum {
+    SORT_ORDER    = 0,  /* order from GitHub API / disk                */
+    SORT_ALPHA    = 1,  /* alphabetical A-Z                            */
+    SORT_DATE     = 2,  /* by script header Date: field                */
+    SORT_MOST_USED = 3  /* by run count descending                     */
+} SortMode;
+
+typedef enum { THEME_SYSTEM = 0, THEME_DARK = 1, THEME_LIGHT = 2 } ThemeMode;
+```
+
+### `SyncStatus` / `SyncResult`
+Communicates the outcome of a background sync from `Sync_Thread` to the main window via `WM_SYNC_DONE`. The `SyncResult` pointer is passed as `wParam`; `Handle_SyncDone` reads it and `free`s it.
+
+```c
+typedef enum { SR_OK=0, SR_NO_INTERNET, SR_API_ERROR, SR_PARTIAL } SyncStatus;
+
+typedef struct {
+    SyncStatus status;
+    int folders_added, folders_removed;
+    int scripts_updated, scripts_added, scripts_removed;
+    WCHAR message[256];
+} SyncResult;
+```
+
+### `ExtraRepo`
+One user-added GitHub repository script source. Loaded from `settings.ini` and passed to `Sync_ExtraRepo`.
+
+```c
+typedef struct {
+    WCHAR url[512];
+    WCHAR branch[64];
+    WCHAR token[256];
+    bool  enabled;
+} ExtraRepo;
+```
+
+### `LocalDir`
+One user-added local folder script source. Loaded from `settings.ini` and passed to `Sync_LocalDir`.
+
+```c
+typedef struct {
+    WCHAR path[MAX_APPPATH];
+    bool  enabled;
+} LocalDir;
+```
+
+### `ScriptMeta`
+Parsed header fields from a script file. Populated by `Meta_Parse`; read by `Paint_Tooltip`, `ScriptDetailsDlgProc`, and `Tabs_ApplySort`.
+
+```c
+typedef struct {
+    WCHAR purpose[128];
+    WCHAR author[64];
+    WCHAR version[32];
+    WCHAR date[32];
+    WCHAR description[1024];
+    WCHAR code[64];        /* e.g. "Python3.10.4, Pycatia 0.8.3"       */
+    WCHAR release[32];     /* e.g. "V5R32"                              */
+    WCHAR requirements[512];
+} ScriptMeta;
+```
+
 ### `AppState` (`g`)
 The single global state struct. All state lives here.
 
@@ -304,6 +378,7 @@ typedef struct {
     bool      qbar_topmost_with_catia;
     int       qbar_x, qbar_y;
     WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
+    WCHAR     qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
 } Settings;
 ```
 
@@ -346,27 +421,47 @@ typedef struct {
 
 ## Constants and Limits
 
+### String / buffer limits
+
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `MAX_FOLDERS` | 64 | Maximum number of tabs |
 | `MAX_SCRIPTS` | 1024 | Default initial capacity per folder (heap grows dynamically) |
 | `MAX_EXTRA_REPOS` | 8 | Maximum extra GitHub repos |
 | `MAX_LOCAL_DIRS` | 8 | Maximum local folders |
+| `MAX_FAVOURITES` | 256 | Maximum entries in the favourites list in `prefs.ini` |
+| `MAX_HIDDEN` | 256 | Maximum entries in the hidden-scripts list in `prefs.ini` |
+| `MAX_NAME` | 128 | Wide character buffer for names, tab labels, filter text |
+| `MAX_SHA` | 64 | Wide character buffer for a Git blob SHA1 hex string |
+| `MAX_APPPATH` | 520 | Wide character buffer for file-system paths |
+| `MAX_NOTE_LEN` | 512 | Wide character buffer for per-script user notes |
+| `HTTP_BUF_SIZE` | 512 KB | HTTP response read buffer |
+
+### Layout constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `WIN_MIN_W` | 820 | Minimum window width in pixels |
+| `WIN_MIN_H` | 420 | Minimum window height in pixels |
 | `TOOLBAR_H` | 38 | Toolbar height in pixels |
 | `TAB_H` | 26 | Tab bar height in pixels |
 | `TAB_ARROW_W` | 22 | Tab scroll arrow width |
 | `STATUS_H` | 22 | Status bar height |
 | `SEARCH_H` | 26 | Search/filter box height |
+| `BTN_H` | 40 | Script button height |
+| `BTN_GAP` | 6 | Vertical gap between script buttons |
+| `BTN_MX` | 12 | Script button horizontal margin |
+| `BTN_MY` | 10 | Script button vertical margin |
 | `INFO_BTN_W` | 28 | Width of the `i` info badge |
 | `STAR_BTN_W` | 28 | Width of the favourite star badge |
 | `TIP_W` | 320 | Script tooltip popup width |
-| `HTTP_BUF_SIZE` | 512KB | HTTP response buffer |
-| `WIN_MIN_W` | 820 | Minimum window width |
 | `QBAR_BTN_SIZE` | 52 | Quick bar button face square (px) |
 | `QBAR_PAD` | 4 | Margin from bar edge to buttons |
 | `QBAR_GAP` | 4 | Gap between adjacent bar buttons |
 | `QBAR_ARROW_W` | 18 | Quick bar scroll arrow click area |
 | `QBAR_TIP_W` | 240 | Quick bar tooltip popup width |
+| `QBAR_TIP_PAD` | 8 | Quick bar tooltip internal padding |
+| `QBAR_TIP_ROW` | 18 | Quick bar tooltip row height |
 
 ---
 
@@ -374,13 +469,20 @@ typedef struct {
 
 | Message | Value | Direction | Description |
 |---------|-------|-----------|-------------|
-| `WM_SYNC_DONE` | `WM_USER+1` | Thread → Main | Sync completed; `wParam` is `SyncResult*` |
-| `WM_STATUS_SET` | `WM_USER+2` | Thread → Main | Update status bar; `lParam` is heap `WCHAR*` |
+| `WM_SYNC_DONE` | `WM_USER+1` | Thread → Main | Sync completed; `wParam` is heap `SyncResult*` (freed by handler) |
+| `WM_STATUS_SET` | `WM_USER+2` | Thread → Main | Update status bar; `lParam` is heap `WCHAR*` (freed by handler) |
 | `WM_TRAYICON` | `WM_USER+10` | System → Main | Tray icon mouse event |
 | `WM_UPDATE_AVAIL` | `WM_USER+11` | Thread → Main | Newer version found |
 | `WM_AUTO_REFRESH` | `WM_USER+12` | Timer → Main | Auto-refresh interval elapsed |
 | `WM_SCRIPT_STARTED` | `WM_USER+13` | Runner → Main | Background script launched; enables the Stop button |
 | `WM_SCRIPT_STOPPED` | `WM_USER+14` | Runner → Main | Background script exited or was terminated; disables the Stop button |
+
+### Timer IDs
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `TIMER_AUTO_REFRESH` | 1001 | `SetTimer` ID for the periodic auto-sync interval |
+| `TIMER_QBAR` | 1002 | `SetTimer` ID used by the Quick Launch Bar for visibility polling |
 
 ---
 
@@ -399,6 +501,8 @@ static inline COLORREF COL_BG(void) {
 }
 ```
 
+Runtime accessor functions (dark/light):
+
 | Function | Dark | Light | Used for |
 |----------|------|-------|----------|
 | `COL_BG()` | `#1C1C23` | `#F0F0F5` | Main window background |
@@ -406,8 +510,19 @@ static inline COLORREF COL_BG(void) {
 | `COL_BTN_NORM()` | `#2C2E40` | `#DCDEED` | Script button normal |
 | `COL_BTN_HOT()` | `#3E415A` | `#BEC3DC` | Script button hover |
 | `COL_BTN_PRESS()` | `#1C1E30` | `#AAAFCD` | Script button pressed |
-| `COL_ACCENT` | `RGB(82,155,245)` | same | Highlights, selected tabs |
+| `COL_INFO_ZONE()` | `#24263A` | `#C8CAD8` | Script button info badge zone |
 | `COL_TEXT()` | `#D2D7F0` | `#1E1E28` | Primary text |
 | `COL_SUBTEXT()` | `#6E7494` | `#646478` | Secondary text, purposes |
 | `COL_DIVIDER()` | `#2E3042` | `#BEC0D2` | Separators and borders |
 | `COL_TIP_BG()` | `#161620` | `#F5F5FC` | Tooltip background |
+
+Fixed-colour constants (no theme variant):
+
+| Constant | Value | Used for |
+|----------|-------|----------|
+| `COL_ACCENT` | `RGB(82, 155, 245)` | Highlights, selected tabs, accent bars |
+| `COL_ACCENT_DIM` | `RGB(48, 92, 160)` | Dimmed accent for pressed states |
+| `COL_SUCCESS` | `RGB(80, 200, 120)` | Success/OK status indicators |
+| `COL_WARN` | `RGB(240, 190, 60)` | Warning status indicators |
+| `COL_STAR` | `RGB(255, 200, 60)` | Favourite star badge |
+| `COL_TIP_BORDER` | `RGB(82, 155, 245)` | Tooltip popup border |
