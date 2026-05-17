@@ -24,18 +24,23 @@ Full documentation is available in the [`docs/`](docs/) folder:
 ![CatiaMenuWin32 Light Mode](docs/images/Main_App_LightMode_V2.1.0.128.PNG)
 
 **Quick Launch Bar**
+
 ![Quick Launch Bar Dark](docs/images/Quick_Launch_Bar_DarkMode_v2.1.0.128.PNG) ![Quick Launch Bar Light](docs/images/Quick_Launch_Bar_LightMode_v2.1.0.128.PNG)
 
 **Search / Filter**
+
 ![Search](docs/images/Search_V2.1.0.128.PNG)
 
 **Script Details**
+
 ![Script Details](docs/images/Script_Details_V2.1.0.128.PNG)
 
 **Settings**
+
 ![Settings Dialog](docs/images/Settings_Dialog_V2.1.0.128.PNG)
 
 **Script Sources**
+
 ![Script Sources Dialog](docs/images/Script_Sources_Dialog_V2.1.0.128.PNG)
 
 ---

@@ -48,15 +48,18 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 ![CatiaMenuWin32 Light Mode](images/Main_App_LightMode_V2.1.0.128.PNG)
 
 **Quick Launch Bar**
+
 ![Quick Launch Bar Dark](images/Quick_Launch_Bar_DarkMode_v2.1.0.128.PNG) ![Quick Launch Bar Light](images/Quick_Launch_Bar_LightMode_v2.1.0.128.PNG)
 
 **Search / Filter**
 ![Search](images/Search_V2.1.0.128.PNG)
 
 **Script Details**
+
 ![Script Details](images/Script_Details_V2.1.0.128.PNG)
 
 **Settings**
+
 ![Settings Dialog](images/Settings_Dialog_V2.1.0.128.PNG)
 
 **Script Sources**
