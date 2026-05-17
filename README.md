@@ -36,7 +36,7 @@ Full documentation is available in the [`docs/`](docs/) folder:
 ![Settings Dialog](docs/images/Settings_Dialog_V2.1.0.128.PNG)
 
 **Script Sources**
-![Script Sources Dialog](docs/images/Scripr_Sources_Dialog_V2.1.0.128.PNG)
+![Script Sources Dialog](docs/images/Script_Sources_Dialog_V2.1.0.128.PNG)
 
 ---
 

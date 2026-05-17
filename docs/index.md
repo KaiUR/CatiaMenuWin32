@@ -60,7 +60,7 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 ![Settings Dialog](images/Settings_Dialog_V2.1.0.128.PNG)
 
 **Script Sources**
-![Script Sources Dialog](images/Scripr_Sources_Dialog_V2.1.0.128.PNG)
+![Script Sources Dialog](images/Script_Sources_Dialog_V2.1.0.128.PNG)
 
 ---
 
