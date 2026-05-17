@@ -10,6 +10,13 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [First Launch](#first-launch)
 - [The Interface](#the-interface)
 - [Running Scripts](#running-scripts)
+- [Favourites](#favourites)
+- [Search / Filter](#search--filter)
+- [Script Details](#script-details)
+- [Hiding Scripts](#hiding-scripts)
+- [Script Notes](#script-notes)
+- [Run with Arguments](#run-with-arguments)
+- [Sorting Scripts](#sorting-scripts)
 - [Settings](#settings)
 - [Script Sources](#script-sources)
 - [Update Dependencies](#update-dependencies)
@@ -17,6 +24,8 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [System Tray](#system-tray)
 - [Themes](#themes)
 - [GitHub Token](#github-token)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Writing Your Own Scripts](#writing-your-own-scripts)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -52,22 +61,25 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 
 ```
 ┌─ Menu ──┬─ Refresh ──┬─ Settings ──┬─ Deps ──┬─ Stop ──┐   CATIA Macro Menu  v2.1.0
-│         │            │             │         │  (gray) │
-├─ Any Document Scripts ──┬─ Part Document Scripts ──┬─ ...
-│                         │                          │
-│  ► Hide Planes And Axis Systems                [i] │
-│  ► Rename Hybrid Shapes                        [i] │
-│  ► Replace Name Hybrid Shapes                  [i] │
-│                                                    │
-└────────────────────────────────────────────────────┘
+├─────────────────────────────────────────────────────────┤
+│ Filter scripts...                                       │
+├◄─ ★ Favourites ──┬─ Any Document Scripts ──┬─ Part ... ►
+│                   │                         │
+│  ► Rename Hybrid Shapes                 [i] │
+│  ► Batch Isolate Geometric Set          [i] │
+│  ► Check Duplicate Names               [i]  │
+│                                             │
+└─────────────────────────────────────────────┘
  Status bar — sync messages and script output
 ```
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](images/Darkmode_ScreenshotV1.3.8.82.JPG)
+
+![CatiaMenuWin32 Dark Mode](images/Main_App_DarkMode_V2.1.0.128.PNG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](images/Lightmode_ScreenshotV1.3.8.82.JPG)
+
+![CatiaMenuWin32 Light Mode](images/Main_App_LightMode_V2.1.0.128.PNG)
 
 **Toolbar buttons:**
 - **☰ Menu** — access all app functions via dropdown menus
@@ -458,7 +470,19 @@ with open(SETTINGS_FILE, 'w') as f:
 
 ## ⭐ Favourites
 
-Right-click any script button and select **Add to Favourites** to add it to a dedicated **⭐ Favourites** tab at the top of the tab bar. The tab only appears when you have at least one favourite and disappears automatically when all favourites are removed.
+Favourites give you quick access to the scripts you use most often.
+
+**To add a favourite:**
+- Right-click any script button → **Add to Favourites**
+- Or open **Script Details...** → tick the **Favourite** checkbox → click OK
+
+A dedicated **⭐ Favourites** tab appears at the far left of the tab bar as soon as you have at least one favourite. It disappears automatically when all favourites are removed.
+
+**To remove a favourite:**
+- Right-click the script → **Remove from Favourites**
+- Or open **Script Details...** → untick the **Favourite** checkbox → click OK
+
+Favourites are also the source for the [Quick Launch Bar](#quick-launch-bar) — every script you favourite automatically appears as a button on the floating bar.
 
 Favourites are stored in `%APPDATA%\CatiaMenuWin32\prefs.ini` and persist across restarts and syncs.
 
@@ -487,9 +511,20 @@ Changes to the note, favourite, and hidden state are saved when you click OK.
 
 ## 🙈 Hiding Scripts
 
-Right-click any script → **Hide Script** removes it from view. Hidden scripts are not deleted — they remain in the cache and will not reappear after a sync.
+Hiding a script removes it from view without deleting it from the cache.
 
-To restore hidden scripts: **☰ Menu → File → Manage Hidden Scripts** — select a script and click **Unhide**, or click **Unhide All**.
+**To hide a script:**
+- Right-click any script → **Hide Script**
+- Or open **Script Details...** → tick the **Hidden** checkbox → click OK
+
+Hidden scripts are not deleted — they remain in the cache and will not reappear after a sync. If every script in a tab is hidden, the tab itself disappears from the tab bar automatically.
+
+**To unhide scripts:**
+1. Go to **☰ Menu → File → Manage Hidden Scripts**
+2. Select one or more scripts from the list
+3. Click **Unhide** to restore the selected scripts, or **Unhide All** to restore everything
+
+The tab reappears automatically as soon as any script in it is unhidden.
 
 ---
 
