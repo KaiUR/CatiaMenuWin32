@@ -231,6 +231,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v1.3.8 — Wiki links in help menu
+
+### Added
+- **Wiki links in help menu** — `☰ Menu → Help` now includes links to the relevant GitHub Wiki pages
+
+---
+
 ## v1.3.7 — Report a Bug, Wiki
 
 ### Added
@@ -239,10 +246,25 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
-## v1.3.4 — In-app help, bounds-checking functions
+## v1.3.6 — Auto-update, download buffer
 
 ### Fixed
-- Auto-Updae option failing copy/paste operation in generated bat file. The path generated was incorrect.
+- **Auto-update closes app correctly** — the app now exits cleanly before the updater batch file runs
+- **Larger download buffer** — HTTP download buffer increased for more reliable large file transfers
+
+---
+
+## v1.3.5 — SHA verification fix
+
+### Fixed
+- **SHA verification after failed downloads** — a failed or partial download no longer leaves a corrupt cached file that passes the SHA check on the next run
+
+---
+
+## v1.3.4 — Auto-update batch file path fix
+
+### Fixed
+- Auto-Update option failing — the path generated for the updater batch file was incorrect, causing copy/paste to fail
 
 ---
 
@@ -267,25 +289,17 @@ All notable changes to CatiaMenuWin32 are documented here.
 ## v1.3.2 — New machine tooltip fix, default settings
 
 ### Changed
+- Default settings changed: **Start with Windows** on, **Minimize to Tray** on, **Start Minimized** off
 - Replaced all `_snwprintf` with `_snwprintf_s` using `_TRUNCATE` across all source files
 - Replaced `memset` with `ZeroMemory` throughout
 - Replaced `memmove` with `memmove_s` in `meta.c`
 - Replaced `snprintf` with `_snprintf_s` in `github.c`
 
 ### Fixed
-- Fixed two static analysis warnings in `meta.c` — dead code and unused variable
-- Suppressed unavoidable `GetProcAddress` cast warning with `#pragma GCC diagnostic`
-
----
-
-## v1.3.2 — New machine tooltip fix, default settings
-
-### Changed
-- Default settings changed: **Start with Windows** on, **Minimize to Tray** on, **Start Minimized** off
-
-### Fixed
 - Tooltips and Script Details blank on first launch on a new machine — meta retries after sync downloads files
 - Auto-update download URL fixed — missing `v` prefix caused download failure
+- Two static analysis warnings in `meta.c` — dead code and unused variable
+- Suppressed unavoidable `GetProcAddress` cast warning with `#pragma GCC diagnostic`
 
 ---
 

@@ -24,8 +24,9 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [System Tray](#system-tray)
 - [Themes](#themes)
 - [GitHub Token](#github-token)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Writing Your Own Scripts](#writing-your-own-scripts)
+- [In-App Help](#in-app-help)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -126,6 +127,93 @@ Without **Show console**, scripts run silently in the background.
 Click the **■ Stop** toolbar button to immediately terminate the running script. The button is grayed out when no script is running and turns red when one is active.
 
 > **Note:** Only background (no-console) runs can be stopped this way. If **Show console** is enabled, close the console window directly, or press `Ctrl+C` inside it.
+
+---
+
+## ⭐ Favourites
+
+Favourites give you quick access to the scripts you use most often.
+
+**To add a favourite:**
+- Right-click any script button → **Add to Favourites**
+- Or open **Script Details...** → tick the **Favourite** checkbox → click OK
+
+A dedicated **⭐ Favourites** tab appears at the far left of the tab bar as soon as you have at least one favourite. It disappears automatically when all favourites are removed.
+
+**To remove a favourite:**
+- Right-click the script → **Remove from Favourites**
+- Or open **Script Details...** → untick the **Favourite** checkbox → click OK
+
+Favourites are also the source for the [Quick Launch Bar](#quick-launch-bar) — every script you favourite automatically appears as a button on the floating bar.
+
+Favourites are stored in `%APPDATA%\CatiaMenuWin32\prefs.ini` and persist across restarts and syncs.
+
+---
+
+## 🔍 Search / Filter
+
+A filter bar sits below the toolbar. Type any text to instantly filter the scripts in the current tab by name or purpose. Clear the box to show all scripts again.
+
+---
+
+## 📋 Script Details
+
+Right-click any script button and select **Script Details...** to open a full details dialog showing:
+
+- Script name, purpose, author, version, date
+- Code environment and CATIA release
+- Full description and requirements
+- Local cache path
+- Your personal note
+- Favourite and Hidden toggles
+
+Changes to the note, favourite, and hidden state are saved when you click OK.
+
+---
+
+## 🙈 Hiding Scripts
+
+Hiding a script removes it from view without deleting it from the cache.
+
+**To hide a script:**
+- Right-click any script → **Hide Script**
+- Or open **Script Details...** → tick the **Hidden** checkbox → click OK
+
+Hidden scripts are not deleted — they remain in the cache and will not reappear after a sync. If every script in a tab is hidden, the tab itself disappears from the tab bar automatically.
+
+**To unhide scripts:**
+1. Go to **☰ Menu → File → Manage Hidden Scripts**
+2. Select one or more scripts from the list
+3. Click **Unhide** to restore the selected scripts, or **Unhide All** to restore everything
+
+The tab reappears automatically as soon as any script in it is unhidden.
+
+---
+
+## 📝 Script Notes
+
+Right-click any script → **Add Note...** (or **Edit Note...**) to attach a personal note to a script. Notes are visible in the Script Details dialog and stored in `prefs.ini`.
+
+---
+
+## ▶️ Run with Arguments
+
+Right-click any script → **Run with Arguments...** to pass custom command line arguments when running the script.
+
+---
+
+## 🔢 Sorting Scripts
+
+**☰ Menu → View → Sort Scripts** offers four sort modes:
+
+| Mode | Description |
+|------|-------------|
+| Default Order | Order from GitHub API or disk |
+| Alphabetical | A–Z by script name |
+| By Date | Most recent scripts first (from script header Date field) |
+| Most Used | Scripts you run most often appear first |
+
+The sort mode is saved in Settings and applied to all tabs.
 
 ---
 
@@ -476,93 +564,6 @@ with open(SETTINGS_FILE, 'w') as f:
 
 ---
 
-## ⭐ Favourites
-
-Favourites give you quick access to the scripts you use most often.
-
-**To add a favourite:**
-- Right-click any script button → **Add to Favourites**
-- Or open **Script Details...** → tick the **Favourite** checkbox → click OK
-
-A dedicated **⭐ Favourites** tab appears at the far left of the tab bar as soon as you have at least one favourite. It disappears automatically when all favourites are removed.
-
-**To remove a favourite:**
-- Right-click the script → **Remove from Favourites**
-- Or open **Script Details...** → untick the **Favourite** checkbox → click OK
-
-Favourites are also the source for the [Quick Launch Bar](#quick-launch-bar) — every script you favourite automatically appears as a button on the floating bar.
-
-Favourites are stored in `%APPDATA%\CatiaMenuWin32\prefs.ini` and persist across restarts and syncs.
-
----
-
-## 🔍 Search / Filter
-
-A filter bar sits below the toolbar. Type any text to instantly filter the scripts in the current tab by name or purpose. Clear the box to show all scripts again.
-
----
-
-## 📋 Script Details
-
-Right-click any script button and select **Script Details...** to open a full details dialog showing:
-
-- Script name, purpose, author, version, date
-- Code environment and CATIA release
-- Full description and requirements
-- Local cache path
-- Your personal note
-- Favourite and Hidden toggles
-
-Changes to the note, favourite, and hidden state are saved when you click OK.
-
----
-
-## 🙈 Hiding Scripts
-
-Hiding a script removes it from view without deleting it from the cache.
-
-**To hide a script:**
-- Right-click any script → **Hide Script**
-- Or open **Script Details...** → tick the **Hidden** checkbox → click OK
-
-Hidden scripts are not deleted — they remain in the cache and will not reappear after a sync. If every script in a tab is hidden, the tab itself disappears from the tab bar automatically.
-
-**To unhide scripts:**
-1. Go to **☰ Menu → File → Manage Hidden Scripts**
-2. Select one or more scripts from the list
-3. Click **Unhide** to restore the selected scripts, or **Unhide All** to restore everything
-
-The tab reappears automatically as soon as any script in it is unhidden.
-
----
-
-## 📝 Script Notes
-
-Right-click any script → **Add Note...** (or **Edit Note...**) to attach a personal note to a script. Notes are visible in the Script Details dialog and stored in `prefs.ini`.
-
----
-
-## ▶️ Run with Arguments
-
-Right-click any script → **Run with Arguments...** to pass custom command line arguments when running the script.
-
----
-
-## 🔢 Sorting Scripts
-
-**☰ Menu → View → Sort Scripts** offers four sort modes:
-
-| Mode | Description |
-|------|-------------|
-| Default Order | Order from GitHub API or disk |
-| Alphabetical | A–Z by script name |
-| By Date | Most recent scripts first (from script header Date field) |
-| Most Used | Scripts you run most often appear first |
-
-The sort mode is saved in Settings and applied to all tabs.
-
----
-
 ## ❓ In-App Help
 
 Press **F1** or go to **☰ Menu → Help → Help Contents** to open the built-in help window.
@@ -580,8 +581,6 @@ The help window has a table of contents on the left and formatted topic content 
 | `F9` | Run last script |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
-
----
 
 ---
 
