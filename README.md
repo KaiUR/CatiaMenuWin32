@@ -18,10 +18,25 @@ Full documentation is available in the [`docs/`](docs/) folder:
 ## 📸 Screenshots
 
 **Dark Mode**
-![CatiaMenuWin32 Dark Mode](docs/images/Darkmode_ScreenshotV1.3.8.82.JPG)
+![CatiaMenuWin32 Dark Mode](docs/images/Main_App_DarkMode_V2.1.0.128.PNG)
 
 **Light Mode**
-![CatiaMenuWin32 Light Mode](docs/images/Lightmode_ScreenshotV1.3.8.82.JPG)
+![CatiaMenuWin32 Light Mode](docs/images/Main_App_LightMode_V2.1.0.128.PNG)
+
+**Quick Launch Bar**
+![Quick Launch Bar Dark](docs/images/Quick_Launch_Bar_DarkMode_v2.1.0.128.PNG) ![Quick Launch Bar Light](docs/images/Quick_Launch_Bar_LightMode_v2.1.0.128.PNG)
+
+**Search / Filter**
+![Search](docs/images/Search_V2.1.0.128.PNG)
+
+**Script Details**
+![Script Details](docs/images/Script_Details_V2.1.0.128.PNG)
+
+**Settings**
+![Settings Dialog](docs/images/Settings_Dialog_V2.1.0.128.PNG)
+
+**Script Sources**
+![Script Sources Dialog](docs/images/Scripr_Sources_Dialog_V2.1.0.128.PNG)
 
 ---
 
@@ -201,7 +216,7 @@ All settings are configurable in the **⚙ Settings** dialog (five tabs: General
 | `Options\RefreshInterval` | 6 | Background sync interval in hours (0 = disabled) |
 | `Options\SortMode` | 0 (Default) | 0 = default order, 1 = alphabetical, 2 = by date, 3 = most used |
 | `Window\AlwaysOnTop` | on | Keep window above other windows |
-| `Window\MinimizeToTray` | off | Hide to system tray on minimize/close |
+| `Window\MinimizeToTray` | on | Hide to system tray on minimize/close |
 | `Window\StartWithWindows` | on | Add to Windows autorun registry key |
 | `Window\StartMinimized` | on | Start hidden/minimized |
 | `Window\Theme` | 0 (System) | 0 = follow Windows, 1 = dark, 2 = light |
