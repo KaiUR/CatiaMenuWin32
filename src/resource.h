@@ -203,6 +203,10 @@
 #define IDM_QBAR_RESET_POS   254
 #define IDM_QBAR_SET_TARGET  255
 
+/* Double-click repeat */
+#define IDM_REPEAT_MAINAPP   256   /* toggle repeat-on-dblclick for main window */
+#define IDM_REPEAT_QBAR      257   /* toggle repeat-on-dblclick for Quick Bar   */
+
 /* Target App dialog */
 #define IDD_QBAR_TARGET              309
 #define IDC_EDIT_QBAR_TARGET         760
@@ -211,5 +215,9 @@
 
 /* Settings Quick Bar tab — browse button for exe field */
 #define IDC_BTN_BROWSE_QBAR_EXE_S   467
+
+/* Settings dialog — repeat-on-double-click checkboxes */
+#define IDC_CHK_REPEAT_MAIN   468   /* Console tab: repeat main-window scripts  */
+#define IDC_CHK_REPEAT_QBAR   469   /* Quick Bar tab: repeat Quick Bar scripts  */
 
 #endif /* RESOURCE_H */

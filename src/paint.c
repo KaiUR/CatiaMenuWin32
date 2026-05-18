@@ -194,7 +194,7 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 /*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
-                         bool hot, bool pressed, bool info_hot,
+                         bool hot, bool pressed, bool info_hot, bool repeat,
                          const Script *s)
 {
     RECT rc; GetClientRect(hwnd_btn, &rc);
@@ -206,7 +206,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     HBITMAP old = SelectObject(mem, bmp);
 
     COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : COL_BTN_NORM();
-    COLORREF bdr = hot ? COL_ACCENT : COL_DIVIDER();
+    COLORREF bdr = repeat ? COL_WARN : hot ? COL_ACCENT : COL_DIVIDER();
     DrawRoundRect(mem, 0,      0, main_w,     h, 7, bg, bdr);
     DrawRoundRect(mem, main_w, 0, INFO_BTN_W, h, 7,
                   info_hot ? COL_ACCENT_DIM : COL_INFO_ZONE(), bdr);
@@ -217,17 +217,24 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     RECT ir = { main_w, 0, w, h };
     DrawText(mem, L"i", -1, &ir, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-    if (hot || pressed) {
+    if (repeat) {
+        HBRUSH ab = CreateSolidBrush(COL_WARN);
+        RECT   ar = { 0, 5, 4, h - 5 };
+        FillRect(mem, &ar, ab);
+        DeleteObject(ab);
+    } else if (hot || pressed) {
         HBRUSH ab = CreateSolidBrush(pressed ? COL_ACCENT_DIM : COL_ACCENT);
         RECT   ar = { 0, 5, 4, h - 5 };
         FillRect(mem, &ar, ab);
         DeleteObject(ab);
     }
 
-    SetTextColor(mem, hot ? COL_ACCENT : COL_SUBTEXT());
+    SetTextColor(mem, repeat ? COL_WARN : hot ? COL_ACCENT : COL_SUBTEXT());
     SelectObject(mem, g.font_ui);
     RECT arr = { 8, 0, 28, h };
-    DrawText(mem, L"\u25BA", -1, &arr, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    /* Show repeat loop symbol (\u21BB) when in repeat mode, arrow otherwise */
+    DrawText(mem, repeat ? L"\u21BB" : L"\u25BA", -1, &arr,
+             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     WCHAR fallback[MAX_NAME] = {0};
     if (!s || !s->name[0])
@@ -237,7 +244,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     const WCHAR *purpose = (s && s->meta_loaded && s->meta.purpose[0])
                            ? s->meta.purpose : NULL;
 
-    SetTextColor(mem, hot ? COL_ACCENT : COL_TEXT());
+    SetTextColor(mem, repeat ? COL_WARN : hot ? COL_ACCENT : COL_TEXT());
     SelectObject(mem, g.font_bold);
     if (purpose) {
         RECT lr = { 30, 3, main_w - 6, h / 2 + 2 };
@@ -466,10 +473,48 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         if (g.tip_btn == (int)uid) { g.tip_btn = -1; ShowWindow(g.hwnd_tip, SW_HIDE); }
         break;
 
+    case WM_LBUTTONDBLCLK:
+    {
+        RECT rc; GetClientRect(hwnd, &rc);
+        /* Ignore double-clicks on the info zone */
+        if (GET_X_LPARAM(lp) >= rc.right - INFO_BTN_W) return 0;
+        if (!g.cfg.repeat_on_dblclick) return 0;
+        /* Console mode doesn't notify us when the script finishes */
+        if (g.cfg.show_console) {
+            PostStatus(L"Repeat mode not available in console mode.");
+            return 0;
+        }
+        int fi = g.active_tab;
+        int si = (int)uid - IDC_SCRIPT_BTN_BASE;
+        if (fi < 0 || fi >= g.folder_count ||
+            si < 0 || si >= g.folders[fi].count) return 0;
+        /* Double-click same script while repeating → toggle off */
+        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) {
+            Repeat_Stop();
+            g.suppress_lbuttonup = false;
+            PostStatus(L"Repeat cancelled.");
+            return 0;
+        }
+        /* Activate (also cancels any previous repeat on a different script) */
+        Repeat_Stop();
+        Repeat_Start(fi, si);
+        g.suppress_lbuttonup = true;
+        PostStatus(L"Repeat: %s  •  Esc or click to stop",
+                   g.folders[fi].scripts[si].name);
+        InvalidateRect(hwnd, NULL, FALSE);
+        if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+        return 0;
+    }
+
     case WM_LBUTTONUP:
     {
         RECT rc; GetClientRect(hwnd, &rc);
         if (GET_X_LPARAM(lp) >= rc.right - INFO_BTN_W) return 0;
+        /* Suppress the trailing LBUTTONUP generated after a double-click */
+        if (g.suppress_lbuttonup) {
+            g.suppress_lbuttonup = false;
+            return 0;
+        }
         break;
     }
 

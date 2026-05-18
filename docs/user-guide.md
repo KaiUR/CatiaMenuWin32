@@ -21,6 +21,7 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [Script Sources](#script-sources)
 - [Update Dependencies](#update-dependencies)
 - [Quick Launch Bar](#quick-launch-bar)
+- [Repeat Script on Double-Click](#repeat-script-on-double-click)
 - [System Tray](#system-tray)
 - [Themes](#themes)
 - [GitHub Token](#github-token)
@@ -248,6 +249,7 @@ The Settings dialog is organised into five tabs:
 | Show Python console window | Off | Opens a visible console when running scripts |
 | Keep console open after script finishes | On | Window stays open so you can read output/errors (`cmd /k` mode) |
 | Keep Update Deps console open | Off | Keeps the dependency install window open until you close it |
+| Repeat script on double-click (main window) | On | Enable [repeat mode](#repeat-script-on-double-click) for scripts in the main window |
 
 ### Window tab
 
@@ -269,6 +271,7 @@ The Settings dialog is organised into five tabs:
 | Stay on Top with Target App | On | Auto-elevate bar when target app is in the foreground |
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
 | Target Exe | `CNEXT.exe` | Process executable filename to match alongside **Target App**. Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
+| Repeat script on double-click (Quick Bar) | On | Enable [repeat mode](#repeat-script-on-double-click) for Quick Bar buttons |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -391,6 +394,37 @@ To disable target tracking entirely — keeping the bar always visible with no t
 | On Top with Target App | Toggle topmost-with-target behaviour (greyed out when no target is set) |
 | Set Target App… | Enter the window-title substring to track |
 | Reset Position | Move the bar back to its default position (right edge of screen) |
+| Repeat on Double-Click | Toggle [repeat mode](#repeat-script-on-double-click) for Quick Bar buttons |
+
+---
+
+## Repeat Script on Double-Click
+
+**Repeat mode** lets a script re-run automatically each time it finishes, without any further input.
+
+### Starting repeat mode
+
+- **Double-click** a script button in the main window, or **double-click** a Quick Bar button.
+- The button turns amber — the border, left accent bar, label text, and the loop symbol **↻** are shown in yellow/amber — so you always know which script is looping.
+- The status bar shows: *Repeat: \<script name\>  •  Esc or click to stop*
+
+### Stopping repeat mode
+
+| Action | Result |
+|--------|--------|
+| Press **Escape** | Cancels repeat immediately; the current run (if any) completes normally |
+| **Single-click the same script** | Cancels repeat; no extra run is triggered |
+| **Single-click a different script** | Cancels repeat and runs the new script once |
+| Click **■ Stop** | Cancels repeat and stops the current run |
+
+### Toggling the feature
+
+- **Main window:** **☰ Menu → Run → Repeat Script on Double-Click** (checkmark indicates state), or **Settings → Console → Repeat script on double-click (main window)**
+- **Quick Bar:** right-click the bar → **Repeat on Double-Click**, or **☰ Menu → View → Quick Bar → Repeat on Double-Click**, or **Settings → Quick Bar → Repeat script on double-click (Quick Bar)**
+
+Both toggles are independent and default to **On**.
+
+> **Note:** Repeat mode is not available when **Show Python console window** is enabled in Settings, because console-mode scripts run attached to a terminal and their completion is not tracked by the app.
 
 ---
 
@@ -581,6 +615,7 @@ The help window has a table of contents on the left and formatted topic content 
 | `F9` | Run last script |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
+| `Escape` | Cancel repeat mode (when active) |
 
 ---
 

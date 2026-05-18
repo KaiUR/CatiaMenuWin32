@@ -9,6 +9,16 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.1 — Repeat-on-double-click
+
+### Added
+- **Repeat script on double-click** — double-clicking any script in the main window or the Quick Launch Bar puts that script into *repeat mode*: it re-runs automatically after each completion until you press **Escape**, single-click the same script, or single-click a different script. The repeating button is highlighted in amber (border, accent bar, label, and loop symbol ↻) so you always know what is looping.
+- **Toggle per context** — repeat mode can be enabled or disabled independently for the main window (**☰ Menu → Run → Repeat Script on Double-Click**) and for the Quick Launch Bar (**right-click bar → Repeat on Double-Click** or **☰ Menu → View → Quick Bar → Repeat on Double-Click**). Both options also appear in **Settings → Console** and **Settings → Quick Bar** tabs.
+- Defaults: both repeat toggles are **On**.
+- **Console-mode note** — repeat is not supported when **Show Python console window** is on (the script process runs attached to a console and completion is not tracked); a status-bar message explains this if you double-click in console mode.
+
+---
+
 ## v2.1.0 — Security hardening and Stop Script button
 
 ### Added

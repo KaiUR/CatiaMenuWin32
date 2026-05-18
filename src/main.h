@@ -334,6 +334,9 @@ typedef struct {
     int       qbar_y;
     WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target      */
     WCHAR     qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
+    /* Double-click repeat */
+    bool      repeat_on_dblclick;        /* repeat main-window scripts on double-click (default: true) */
+    bool      qbar_repeat_on_dblclick;   /* repeat Quick Bar scripts on double-click (default: true)   */
 } Settings;
 
 /* ------------------------------------------------------------------ */
@@ -437,6 +440,13 @@ typedef struct {
     int    qbar_drag_oy;         /* drag start: cursor offset from top   */
     int    qbar_tip_idx;         /* button index shown in tip, -1 = none */
 
+    /* Double-click repeat mode */
+    bool   repeat_mode;          /* true = re-run script after each completion  */
+    int    repeat_fi;            /* folder index of the script to repeat        */
+    int    repeat_si;            /* script index of the script to repeat        */
+    bool   suppress_lbuttonup;   /* suppress the extra LBUTTONUP after dblclick */
+    HHOOK  kbd_repeat_hook;      /* low-level keyboard hook active during repeat */
+
 } AppState;
 
 extern AppState g;
@@ -533,6 +543,10 @@ bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
 void Runner_Stop(void);
 
+/* Repeat-mode helpers (main.c) */
+void Repeat_Start(int fi, int si); /* activate repeat + install global ESC hook */
+void Repeat_Stop(void);            /* cancel repeat + remove hook + repaint      */
+
 /* updater.c */
 DWORD WINAPI Updater_CheckThread(LPVOID);
 void  Updater_PromptAndInstall(const WCHAR *latest_tag);
@@ -583,7 +597,7 @@ void QuickBar_ShowTargetDlg(void);
 void Paint_MainWindow(HWND, HDC);
 void Paint_ToolbarButton(DRAWITEMSTRUCT *dis);
 void Paint_ScriptButton(HWND, HDC, bool hot, bool pressed,
-                        bool info_hot, const Script *s);
+                        bool info_hot, bool repeat, const Script *s);
 void Paint_Tooltip(HWND hwnd);
 LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 

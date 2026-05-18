@@ -112,6 +112,8 @@ void Window_ShowMenu(void)
     AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
     AppendMenu(hRun, MF_STRING,    IDM_OPEN_CACHE,  L"Open Cache Folder...");
     AppendMenu(hRun, MF_STRING,    IDM_UPDATE_DEPS, L"Update Dependencies");
+    AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hRun, MF_STRING,    IDM_REPEAT_MAINAPP, L"Repeat Script on Double-Click");
 
     AppendMenu(hTheme, MF_STRING, IDM_THEME_DARK,   L"Dark");
     AppendMenu(hTheme, MF_STRING, IDM_THEME_LIGHT,  L"Light");
@@ -140,6 +142,8 @@ void Window_ShowMenu(void)
     AppendMenu(hQBar, MF_STRING,    IDM_QBAR_SET_TARGET, L"Set Target App...");
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
     AppendMenu(hQBar, MF_STRING,    IDM_QBAR_RESET_POS,  L"Reset Position");
+    AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hQBar, MF_STRING,    IDM_REPEAT_QBAR,     L"Repeat on Double-Click");
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hQBar,         L"Quick Bar");
 
     AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY,   L"Minimize to Tray");
@@ -187,6 +191,10 @@ void Window_ShowMenu(void)
     if (qbar_has_target)
         CheckMenuItem(hQBar, IDM_QBAR_TOPMOST,
             g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hQBar, IDM_REPEAT_QBAR,
+        g.cfg.qbar_repeat_on_dblclick  ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hRun,  IDM_REPEAT_MAINAPP,
+        g.cfg.repeat_on_dblclick       ? MF_CHECKED : MF_UNCHECKED);
 
     HWND hBtn = GetDlgItem(g.hwnd, IDC_BTN_MENU);
     RECT rc; GetWindowRect(hBtn, &rc);

@@ -15,6 +15,63 @@ static void Handle_SyncDone(SyncResult *sr);
 static bool SystemIsDark(void);
 
 /* ================================================================== */
+/*  GlobalKbdHookProc  (static)                                        */
+/*  Permanent low-level keyboard hook active for the lifetime of the  */
+/*  application.  Forwards hotkeys to the main window so they work    */
+/*  regardless of which application currently has keyboard focus.     */
+/*                                                                     */
+/*  Only fires when g.hwnd is NOT the foreground window to avoid      */
+/*  double-delivery when our own window already handles the key.      */
+/*                                                                     */
+/*  Keys forwarded:                                                    */
+/*    Escape — cancel repeat mode and/or stop running script          */
+/*    F9     — re-run last script                                      */
+/* ================================================================== */
+static LRESULT CALLBACK GlobalKbdHookProc(int nCode, WPARAM wp, LPARAM lp)
+{
+    if (nCode == HC_ACTION && wp == WM_KEYDOWN) {
+        KBDLLHOOKSTRUCT *kb = (KBDLLHOOKSTRUCT *)lp;
+        if (GetForegroundWindow() != g.hwnd) {
+            if (kb->vkCode == VK_ESCAPE &&
+                (g.repeat_mode || (!g.cfg.show_console && g.run_process)))
+                PostMessage(g.hwnd, WM_KEYDOWN, VK_ESCAPE, 0);
+            if (kb->vkCode == VK_F9)
+                PostMessage(g.hwnd, WM_KEYDOWN, VK_F9, 0);
+        }
+    }
+    return CallNextHookEx(g.kbd_repeat_hook, nCode, wp, lp);
+}
+
+/* ================================================================== */
+/*  Repeat_Start                                                       */
+/*  Activates repeat mode for the script at (fi, si) and installs a   */
+/*  global low-level keyboard hook so Escape works regardless of      */
+/*  which window has focus.                                            */
+/* ================================================================== */
+void Repeat_Start(int fi, int si)
+{
+    g.repeat_fi   = fi;
+    g.repeat_si   = si;
+    g.repeat_mode = true;
+}
+
+/* ================================================================== */
+/*  Repeat_Stop                                                        */
+/*  Cancels repeat mode, removes the keyboard hook, and repaints the  */
+/*  button that was highlighted amber.  Safe to call when not in      */
+/*  repeat mode (no-op).                                               */
+/* ================================================================== */
+void Repeat_Stop(void)
+{
+    if (!g.repeat_mode) return;
+    g.repeat_mode = false;
+    HWND hBtn = GetDlgItem(g.hwnd_scroll,
+                            IDC_SCRIPT_BTN_BASE + g.repeat_si);
+    if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
+    if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+}
+
+/* ================================================================== */
 /*  wWinMain                                                            */
 /*  Purpose: Application entry point.  Enforces single-instance via    */
 /*           a named mutex, initialises settings, creates the main     */
@@ -61,6 +118,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     InitializeCriticalSection(&g.cs_folders);
 
     Window_Create(hInst);
+
+    /* Install permanent global keyboard hook for cross-app hotkeys (Escape, F9) */
+    g.kbd_repeat_hook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKbdHookProc, NULL, 0);
 
     /* Check command line for /minimized flag from autorun */
     bool launch_minimized = g.cfg.start_minimized ||
@@ -270,6 +330,17 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_KEYDOWN:
         /* F1 opens help */
         if (wp == VK_F1) { Help_Show(); return 0; }
+        /* Escape cancels repeat mode and/or stops a running background script */
+        if (wp == VK_ESCAPE &&
+            (g.repeat_mode || (!g.cfg.show_console && g.run_process))) {
+            if (g.repeat_mode) {
+                Repeat_Stop();
+                PostStatus(L"Repeat cancelled.");
+            }
+            if (!g.cfg.show_console && g.run_process)
+                Runner_Stop();
+            return 0;
+        }
         /* Ctrl+Tab / Ctrl+Shift+Tab to switch tabs */
         if (GetKeyState(VK_CONTROL) & 0x8000) {
             if (wp == VK_TAB) {
@@ -430,6 +501,16 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
     case WM_SCRIPT_STOPPED:
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), FALSE);
+        if (g.repeat_mode) {
+            if (wp != 0) {
+                /* Non-zero exit code → script failed; stop repeating */
+                Repeat_Stop();
+                PostStatus(L"Repeat cancelled: script exited with error (code %llu).",
+                           (unsigned long long)wp);
+            } else {
+                Runner_Run(g.repeat_fi, g.repeat_si);
+            }
+        }
         return 0;
 
     /* Re-apply always-on-top every time the window becomes visible
@@ -450,6 +531,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
 
     case WM_DESTROY:
+        if (g.kbd_repeat_hook) {
+            UnhookWindowsHookEx(g.kbd_repeat_hook);
+            g.kbd_repeat_hook = NULL;
+        }
         QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
@@ -475,7 +560,14 @@ static void Handle_Command(WPARAM wp)
     int id = LOWORD(wp);
 
     if (id >= IDC_SCRIPT_BTN_BASE && id < IDC_SCRIPT_BTN_BASE + MAX_SCRIPTS) {
-        Runner_Run(g.active_tab, id - IDC_SCRIPT_BTN_BASE);
+        int fi = g.active_tab;
+        int si = id - IDC_SCRIPT_BTN_BASE;
+        if (g.repeat_mode) {
+            bool same = (g.repeat_fi == fi && g.repeat_si == si);
+            Repeat_Stop();
+            if (same) return; /* cancel repeat, don't re-run */
+        }
+        Runner_Run(fi, si);
         return;
     }
 
@@ -697,6 +789,18 @@ apply_theme:
         QuickBar_ShowTargetDlg();
         break;
 
+    case IDM_REPEAT_MAINAPP:
+        g.cfg.repeat_on_dblclick = !g.cfg.repeat_on_dblclick;
+        if (!g.cfg.repeat_on_dblclick) Repeat_Stop();
+        Settings_Save(&g.cfg);
+        break;
+
+    case IDM_REPEAT_QBAR:
+        g.cfg.qbar_repeat_on_dblclick = !g.cfg.qbar_repeat_on_dblclick;
+        if (!g.cfg.qbar_repeat_on_dblclick) Repeat_Stop();
+        Settings_Save(&g.cfg);
+        break;
+
     case IDM_GITHUB_SCRIPTS:
         ShellExecute(NULL, L"open",
             L"https://github.com/KaiUR/Pycatia_Scripts", NULL, NULL, SW_SHOW);
@@ -801,6 +905,7 @@ apply_theme:
         break;
 
     case IDC_BTN_STOP:
+        Repeat_Stop();
         Runner_Stop();
         break;
 

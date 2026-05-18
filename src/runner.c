@@ -133,7 +133,7 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
                 CloseHandle(old);
                 DWORD exit_code = 0;
                 GetExitCodeProcess(pi.hProcess, &exit_code);
-                PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
+                PostMessage(g.hwnd, WM_SCRIPT_STOPPED, (WPARAM)exit_code, 0);
                 if (exit_code == 0)
                     PostStatus(L"Script finished successfully.");
                 else
