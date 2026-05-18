@@ -234,32 +234,21 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 
     PostStatus(L"Update downloaded. Closing to install...");
 
-    /* Write batch script to replace exe and restart.
-       Use _wfopen_s + fwprintf_s with a UTF-16 BOM so cmd.exe can handle
-       paths that contain non-ASCII characters (e.g. non-Latin user profiles). */
-    WCHAR bat_path[MAX_APPPATH] = {0};
-    GetTempPath(MAX_APPPATH - 1, bat_path);
-    wcsncat_s(bat_path, MAX_APPPATH, L"CatiaMenuWin32_update.bat", _TRUNCATE);
+    /* Use a PowerShell one-liner to wait, replace, and restart.
+       PowerShell handles Unicode paths natively and needs no temp script file,
+       avoiding the cmd.exe limitation of not supporting UTF-16 batch files. */
+    WCHAR ps_args[MAX_APPPATH * 3] = {0};
+    _snwprintf_s(ps_args, (int)(ARRAYSIZE(ps_args)) - 1, _TRUNCATE,
+        L"-WindowStyle Hidden -NonInteractive -Command \""
+        L"Start-Sleep -Seconds 2; "
+        L"Copy-Item -Force '%s' '%s'; "
+        L"Start-Process '%s'; "
+        L"Remove-Item -Force '%s'"
+        L"\"",
+        temp_path, exe_path, exe_path, temp_path);
 
-    FILE *f = NULL;
-    if (_wfopen_s(&f, bat_path, L"w,ccs=UTF-16LE") != 0 || !f) {
-        Updater_PromptAndInstall(latest_tag); return;
-    }
-    fwprintf_s(f, L"@echo off\n");
-    fwprintf_s(f, L"timeout /t 2 /nobreak >nul\n");
-    fwprintf_s(f, L"copy /y \"%s\" \"%s\"\n", temp_path, exe_path);
-    fwprintf_s(f, L"if errorlevel 1 goto fail\n");
-    fwprintf_s(f, L"start \"\" \"%s\"\n", exe_path);
-    fwprintf_s(f, L"del \"%s\"\n", temp_path);
-    fwprintf_s(f, L"del \"%%~f0\"\n");
-    fwprintf_s(f, L"exit\n");
-    fwprintf_s(f, L":fail\n");
-    fwprintf_s(f, L"echo Update failed - could not copy file.\n");
-    fwprintf_s(f, L"pause\n");
-    fclose(f);
-
-    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
-    Sleep(500); /* brief pause to let batch start before we exit */
+    ShellExecuteW(NULL, L"open", L"powershell.exe", ps_args, NULL, SW_HIDE);
+    Sleep(500); /* brief pause to let PowerShell start before we exit */
     PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wp=1 = force quit, bypass tray */
 }
 
