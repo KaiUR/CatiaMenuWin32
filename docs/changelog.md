@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.2 — Auto-update fix
+
+### Fixed
+- **Auto-update did not replace the exe or restart the app** — the update batch script was written as UTF-16LE (`ccs=UTF-16LE`), which `cmd.exe` cannot execute; the app closed but nothing was copied or restarted. Fixed by writing a plain ANSI `.bat` file (which `cmd.exe` has always read) and using `GetShortPathNameW` to convert the embedded paths to 8.3 format so the file content is always ASCII-safe, even on systems with non-Latin characters in the user-profile path.
+
+---
+
 ## v2.1.1 — Repeat-on-double-click
 
 ### Added

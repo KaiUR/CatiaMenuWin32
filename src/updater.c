@@ -234,21 +234,57 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 
     PostStatus(L"Update downloaded. Closing to install...");
 
-    /* Use a PowerShell one-liner to wait, replace, and restart.
-       PowerShell handles Unicode paths natively and needs no temp script file,
-       avoiding the cmd.exe limitation of not supporting UTF-16 batch files. */
-    WCHAR ps_args[MAX_APPPATH * 3] = {0};
-    _snwprintf_s(ps_args, (int)(ARRAYSIZE(ps_args)) - 1, _TRUNCATE,
-        L"-WindowStyle Hidden -NonInteractive -Command \""
-        L"Start-Sleep -Seconds 2; "
-        L"Copy-Item -Force '%s' '%s'; "
-        L"Start-Process '%s'; "
-        L"Remove-Item -Force '%s'"
-        L"\"",
-        temp_path, exe_path, exe_path, temp_path);
+    /* Get 8.3 short paths for exe and temp file so the ANSI batch script
+       never contains non-ASCII characters, even on non-Latin user profiles.
+       GetShortPathNameW succeeds here because both files already exist. */
+    WCHAR s_exe[MAX_APPPATH]  = {0};
+    WCHAR s_tmp[MAX_APPPATH]  = {0};
+    if (!GetShortPathNameW(exe_path,  s_exe, MAX_APPPATH) || !s_exe[0])
+        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE);
+    if (!GetShortPathNameW(temp_path, s_tmp, MAX_APPPATH) || !s_tmp[0])
+        wcsncpy_s(s_tmp, MAX_APPPATH, temp_path, _TRUNCATE);
 
-    ShellExecuteW(NULL, L"open", L"powershell.exe", ps_args, NULL, SW_HIDE);
-    Sleep(500); /* brief pause to let PowerShell start before we exit */
+    /* Derive the bat path from the short temp directory so fopen_s gets
+       an ASCII-safe narrow path (the file itself does not exist yet, so
+       we shorten the directory and append the filename). */
+    WCHAR tmp_dir[MAX_APPPATH]       = {0};
+    WCHAR short_tmp_dir[MAX_APPPATH] = {0};
+    GetTempPath(MAX_APPPATH - 1, tmp_dir);
+    if (!GetShortPathNameW(tmp_dir, short_tmp_dir, MAX_APPPATH) || !short_tmp_dir[0])
+        wcsncpy_s(short_tmp_dir, MAX_APPPATH, tmp_dir, _TRUNCATE);
+
+    WCHAR bat_path[MAX_APPPATH] = {0};
+    _snwprintf_s(bat_path, MAX_APPPATH - 1, _TRUNCATE,
+                 L"%sCatiaMenuWin32_update.bat", short_tmp_dir);
+
+    /* Convert all three short (ASCII) paths to narrow for fopen_s / fprintf */
+    char bat_a[MAX_APPPATH] = {0};
+    char s_exe_a[MAX_APPPATH] = {0};
+    char s_tmp_a[MAX_APPPATH] = {0};
+    WideCharToMultiByte(CP_ACP, 0, bat_path, -1, bat_a,   MAX_APPPATH, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, s_exe,    -1, s_exe_a, MAX_APPPATH, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, s_tmp,    -1, s_tmp_a, MAX_APPPATH, NULL, NULL);
+
+    /* Write a plain ANSI batch file — cmd.exe reads ANSI, not UTF-16 */
+    FILE *f = NULL;
+    if (fopen_s(&f, bat_a, "w") != 0 || !f) {
+        Updater_PromptAndInstall(latest_tag); return;
+    }
+    fprintf(f, "@echo off\r\n");
+    fprintf(f, "timeout /t 2 /nobreak >nul\r\n");
+    fprintf(f, "copy /y \"%s\" \"%s\"\r\n", s_tmp_a, s_exe_a);
+    fprintf(f, "if errorlevel 1 goto fail\r\n");
+    fprintf(f, "start \"\" \"%s\"\r\n", s_exe_a);
+    fprintf(f, "del \"%s\"\r\n", s_tmp_a);
+    fprintf(f, "del \"%%~f0\"\r\n");
+    fprintf(f, "exit /b 0\r\n");
+    fprintf(f, ":fail\r\n");
+    fprintf(f, "echo Update failed - could not copy file.\r\n");
+    fprintf(f, "pause\r\n");
+    fclose(f);
+
+    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
+    Sleep(500); /* brief pause to let batch start before we exit */
     PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wp=1 = force quit, bypass tray */
 }
 
