@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.2 — Auto-update fix
+
+### Fixed
+- **Auto-update did not replace the exe or restart the app** — the update batch script was written as UTF-16LE (`ccs=UTF-16LE`), which `cmd.exe` cannot execute; the app closed but nothing was copied or restarted. Replaced the batch-file approach with a PowerShell one-liner that waits 2 seconds, copies the downloaded exe over the running one, starts the new version, and removes the temp file. PowerShell handles Unicode paths natively so no encoding workaround is needed.
+
+---
+
 ## v2.1.1 — Repeat-on-double-click
 
 ### Added
