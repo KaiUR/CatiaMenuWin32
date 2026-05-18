@@ -333,7 +333,8 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
         bool hot      = (g.hot_btn == (int)(UINT_PTR)dis->CtlID);
         bool pressed  = (dis->itemState & ODS_SELECTED) != 0;
         bool info_hot = (g.tip_btn  == (int)(UINT_PTR)dis->CtlID);
-        Paint_ScriptButton(dis->hwndItem, dis->hDC, hot, pressed, info_hot, s);
+        bool repeat   = g.repeat_mode && g.repeat_fi == fi && g.repeat_si == idx;
+        Paint_ScriptButton(dis->hwndItem, dis->hDC, hot, pressed, info_hot, repeat, s);
         return TRUE;
     }
 

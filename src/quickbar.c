@@ -485,11 +485,16 @@ static void QB_Paint(HWND hwnd, HDC hdc)
 
         bool hot = (i == g.qbar_hot);
 
+        /* Check if this button is the currently repeating script */
+        int fi_btn = 0, si_btn = 0;
+        QB_GetFav(i, &fi_btn, &si_btn);
+        bool rep = g.repeat_mode && g.repeat_fi == fi_btn && g.repeat_si == si_btn;
+
         /* Button background (rounded rect) */
         COLORREF bg  = hot ? COL_BTN_HOT() : COL_BTN_NORM();
-        COLORREF brd = hot ? COL_ACCENT     : COL_DIVIDER();
+        COLORREF brd = rep ? COL_WARN : (hot ? COL_ACCENT : COL_DIVIDER());
         HBRUSH br_btn = CreateSolidBrush(bg);
-        HPEN   pen    = CreatePen(PS_SOLID, 1, brd);
+        HPEN   pen    = CreatePen(PS_SOLID, rep ? 2 : 1, brd);
         HPEN   op     = SelectObject(hdc, pen);
         HBRUSH ob     = SelectObject(hdc, br_btn);
         RoundRect(hdc, br.left, br.top, br.right, br.bottom, 10, 10);
@@ -498,9 +503,9 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         DeleteObject(pen);
         DeleteObject(br_btn);
 
-        /* Accent edge bar when hot */
-        if (hot) {
-            HBRUSH ba = CreateSolidBrush(COL_ACCENT);
+        /* Accent edge bar when hot or repeating */
+        if (hot || rep) {
+            HBRUSH ba = CreateSolidBrush(rep ? COL_WARN : COL_ACCENT);
             RECT   acc;
             if (!horiz) {
                 acc.left   = br.left;
@@ -534,7 +539,7 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         }
 
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, hot ? COL_ACCENT : COL_TEXT());
+        SetTextColor(hdc, rep ? COL_WARN : (hot ? COL_ACCENT : COL_TEXT()));
         HFONT of = SelectObject(hdc, s_font_label);
         DrawTextW(hdc, label, -1, &br, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         SelectObject(hdc, of);
@@ -634,6 +639,8 @@ static void QB_ShowContextMenu(HWND hwnd)
     AppendMenu(hm, MF_STRING,    IDM_QBAR_SET_TARGET, L"Set Target App...");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
     AppendMenu(hm, MF_STRING,    IDM_QBAR_RESET_POS,  L"Reset Position");
+    AppendMenu(hm, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hm, MF_STRING,    IDM_REPEAT_QBAR,     L"Repeat on Double-Click");
 
     CheckMenuItem(hm, IDM_QBAR_TOGGLE,
         g.cfg.qbar_enabled            ? MF_CHECKED : MF_UNCHECKED);
@@ -644,6 +651,8 @@ static void QB_ShowContextMenu(HWND hwnd)
     if (has_target)
         CheckMenuItem(hm, IDM_QBAR_TOPMOST,
             g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hm, IDM_REPEAT_QBAR,
+        g.cfg.qbar_repeat_on_dblclick ? MF_CHECKED : MF_UNCHECKED);
 
     POINT pt; GetCursorPos(&pt);
     /* SetForegroundWindow ensures the menu closes properly */
@@ -811,17 +820,63 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
             g.qbar_dragging = false;
             QB_SavePos();
         }
+        if (g.suppress_lbuttonup) {
+            g.suppress_lbuttonup = false;
+            return 0;
+        }
         if (!was_drag) {
             int x   = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
             int hit = QB_HitTest(hwnd, x, y);
             if (hit >= 0) {
                 int fi = 0, si = 0;
                 QB_GetFav(hit, &fi, &si);
+                if (g.repeat_mode) {
+                    bool same = (g.repeat_fi == fi && g.repeat_si == si);
+                    Repeat_Stop();
+                    if (same) return 0; /* cancel repeat, don't re-run */
+                }
                 Runner_Run(fi, si);
             }
         }
         return 0;
     }
+
+    case WM_LBUTTONDBLCLK:
+    {
+        int x   = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
+        int hit = QB_HitTest(hwnd, x, y);
+        if (hit < 0) return 0;
+        if (!g.cfg.qbar_repeat_on_dblclick) return 0;
+        if (g.cfg.show_console) {
+            PostStatus(L"Repeat mode not available in console mode.");
+            return 0;
+        }
+        int fi = 0, si = 0;
+        QB_GetFav(hit, &fi, &si);
+        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) {
+            /* Double-click on the already-repeating script → toggle off */
+            Repeat_Stop();
+            g.suppress_lbuttonup = false;
+            PostStatus(L"Repeat cancelled.");
+            return 0;
+        }
+        /* Activate (cancels any previous repeat on a different script) */
+        Repeat_Stop();
+        Repeat_Start(fi, si);
+        g.suppress_lbuttonup = true;
+        Script *rs = QB_GetFav(hit, NULL, NULL);
+        PostStatus(L"Repeat: %s  •  Esc or click to stop", rs ? rs->name : L"");
+        InvalidateRect(hwnd, NULL, FALSE);
+        if (g.hwnd) InvalidateRect(g.hwnd, NULL, FALSE);
+        return 0;
+    }
+
+    case WM_KEYDOWN:
+        if (wp == VK_ESCAPE && g.repeat_mode) {
+            Repeat_Stop();
+            PostStatus(L"Repeat cancelled.");
+        }
+        return 0;
 
     case WM_MOUSEMOVE:
     {
@@ -884,7 +939,7 @@ void QuickBar_Register(HINSTANCE hInst)
 {
     WNDCLASSEX wc = {
         .cbSize        = sizeof(wc),
-        .style         = CS_HREDRAW | CS_VREDRAW,
+        .style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
         .lpfnWndProc   = QuickBarProc,
         .hInstance     = hInst,
         .hCursor       = LoadCursor(NULL, IDC_ARROW),

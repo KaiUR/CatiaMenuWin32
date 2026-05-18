@@ -330,6 +330,50 @@ This pattern guarantees no double-close and no double-terminate regardless of wh
 
 ---
 
+## Repeat-on-Double-Click Architecture
+
+The repeat feature re-runs a script automatically each time it completes. State is stored in `AppState g` (never in dialogs or local statics):
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `g.repeat_mode` | `bool` | `true` while a script is looping |
+| `g.repeat_fi` | `int` | Folder index of the script to repeat |
+| `g.repeat_si` | `int` | Script index within that folder |
+| `g.suppress_lbuttonup` | `bool` | Suppresses the extra `WM_LBUTTONUP` that follows a `WM_LBUTTONDBLCLK` |
+
+### Message sequence (main window)
+
+Win32 double-click sends: `WM_LBUTTONDOWN` → `WM_LBUTTONUP` (first click, runs the script via `WM_COMMAND`) → `WM_LBUTTONDBLCLK` → `WM_LBUTTONUP` (must be suppressed).
+
+`WM_LBUTTONDBLCLK` is handled in `BtnSubclassProc` (`paint.c`): it sets `g.repeat_mode`, `g.repeat_fi/si`, and `g.suppress_lbuttonup = true`. The next `WM_LBUTTONUP` checks `suppress_lbuttonup`, clears it, and returns without running the script.
+
+### Repeat trigger
+
+`WM_SCRIPT_STOPPED` (`main.c → MainWndProc`) checks `g.repeat_mode` and calls `Runner_Run(g.repeat_fi, g.repeat_si)` to start the next iteration.
+
+### Cancellation
+
+- **Escape** (`WM_KEYDOWN` in `MainWndProc` and `QuickBarProc`): clears `g.repeat_mode` and repaints the button.
+- **Single-click same script** (`Handle_Command`): clears `g.repeat_mode`, skips the run.
+- **Single-click different script** (`Handle_Command`): clears `g.repeat_mode`, runs the new script.
+- **Stop button** (`IDC_BTN_STOP` in `Handle_Command`): clears `g.repeat_mode`, then calls `Runner_Stop()`.
+
+### Quick Bar
+
+`QuickBarProc` (`quickbar.c`) receives `WM_LBUTTONDBLCLK` because `CS_DBLCLKS` is set on the bar window class. The handler mirrors the main-window logic using `QB_GetFav` to resolve the hit index to `fi/si`.
+
+### Visual indicator
+
+`Paint_ScriptButton` (`paint.c`) receives a `bool repeat` parameter. When `true`: border colour → `COL_WARN`, left accent bar → `COL_WARN`, run icon → `↻`, label text → `COL_WARN`.
+
+`QB_Paint` (`quickbar.c`) computes `rep` for each button by calling `QB_GetFav(i, &fi_btn, &si_btn)` and comparing with `g.repeat_fi/si`. When `rep` is true: border width 2, `COL_WARN` border and accent bar, `COL_WARN` label text.
+
+### Console-mode guard
+
+Console-mode scripts (run via `cmd /k`) do not post `WM_SCRIPT_STOPPED`, so the repeat trigger never fires. Both `BtnSubclassProc` and `QuickBarProc` check `g.cfg.show_console` in the `WM_LBUTTONDBLCLK` handler and display a status-bar message instead of activating repeat.
+
+---
+
 ## Code Style
 
 - **C11** — designated initialisers, `bool`, `stdbool.h`, `_Static_assert`

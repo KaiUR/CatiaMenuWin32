@@ -88,6 +88,10 @@ void Settings_Load(Settings *s)
     GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
                             s->qbar_target_exe, MAX_NAME, ini);
 
+    /* Double-click repeat */
+    s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",    1, ini) != 0;
+    s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick",1, ini) != 0;
+
     if (!s->cache_dir[0])
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
     SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
@@ -160,6 +164,12 @@ void Settings_Save(const Settings *s)
     WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
 
+    /* Double-click repeat */
+    WritePrivateProfileString(L"Options", L"RepeatOnDblClick",
+                              s->repeat_on_dblclick      ? L"1" : L"0", ini);
+    WritePrivateProfileString(L"Options", L"QBarRepeatOnDblClick",
+                              s->qbar_repeat_on_dblclick ? L"1" : L"0", ini);
+
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
 }
@@ -218,6 +228,7 @@ static const int s_stab1[] = {   /* Sync */
 static const int s_stab2[] = {   /* Console */
     IDC_GRP_CONSOLE,
     IDC_CHK_CONSOLE, IDC_CHK_KEEP_OPEN, IDC_CHK_DEPS_KEEP_OPEN,
+    IDC_CHK_REPEAT_MAIN,
     -1
 };
 static const int s_stab3[] = {   /* Window */
@@ -237,6 +248,7 @@ static const int s_stab4[] = {   /* Quick Bar */
     IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
     IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_BTN_BROWSE_QBAR_EXE_S,
     IDC_LBL_QBAR_EXE_TIP,
+    IDC_CHK_REPEAT_QBAR,
     -1
 };
 static const int *s_stabs[5] = {
@@ -276,6 +288,7 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
         IDC_LBL_QBAR_TARGET,     IDC_EDIT_QBAR_TARGET_S,     IDC_LBL_QBAR_TIP,
         IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_BTN_BROWSE_QBAR_EXE_S,
         IDC_LBL_QBAR_EXE_TIP,
+        IDC_CHK_REPEAT_QBAR,
         -1
     };
     for (const int *p = ids; *p != -1; p++)
@@ -338,9 +351,10 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
 
         /* ── Tab 2: Console ─────────────────────────────────────── */
-        CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console      ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open   ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_CONSOLE,       s->show_console        ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open   ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_REPEAT_MAIN,   s->repeat_on_dblclick  ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
 
         /* ── Tab 3: Window ──────────────────────────────────────── */
@@ -363,6 +377,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, s->qbar_topmost_with_catia? BST_CHECKED : BST_UNCHECKED);
         SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     s->qbar_target_app);
         SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe);
+        CheckDlgButton(hwnd, IDC_CHK_REPEAT_QBAR, s->qbar_repeat_on_dblclick ? BST_CHECKED : BST_UNCHECKED);
         Settings_QBarEnableControls(hwnd, s->qbar_enabled);
 
         /* Show only tab 0, hide the rest */
@@ -479,6 +494,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_topmost_with_catia = true;
             wcsncpy_s(s->qbar_target_app, MAX_NAME, L"CATIA V5",  _TRUNCATE);
             wcsncpy_s(s->qbar_target_exe, MAX_NAME, L"CNEXT.exe", _TRUNCATE);
+            s->repeat_on_dblclick      = true;
+            s->qbar_repeat_on_dblclick = true;
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
             Runner_FindPython(s->python_exe, MAX_APPPATH);
 
@@ -498,6 +515,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_CHK_CONSOLE,        BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,      BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_REPEAT_MAIN,    BST_CHECKED);
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), FALSE);
 
             CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, BST_CHECKED);
@@ -518,6 +536,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_CHK_QBAR_TOPMOST, BST_CHECKED);
             SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     L"CATIA V5");
             SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, L"CNEXT.exe");
+            CheckDlgButton(hwnd, IDC_CHK_REPEAT_QBAR,  BST_CHECKED);
             Settings_QBarEnableControls(hwnd, true);
             break;
         }
@@ -551,9 +570,10 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
 
             /* Console */
-            s->show_console      = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)       == BST_CHECKED;
-            s->console_keep_open = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)     == BST_CHECKED;
-            s->deps_keep_open    = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN)== BST_CHECKED;
+            s->show_console           = IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE)        == BST_CHECKED;
+            s->console_keep_open      = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN)      == BST_CHECKED;
+            s->deps_keep_open         = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN) == BST_CHECKED;
+            s->repeat_on_dblclick     = IsDlgButtonChecked(hwnd, IDC_CHK_REPEAT_MAIN)    == BST_CHECKED;
 
             /* Window */
             s->always_on_top      = IsDlgButtonChecked(hwnd, IDC_CHK_ALWAYS_ON_TOP)== BST_CHECKED;
@@ -569,9 +589,10 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             else                                                                   s->sort_mode = SORT_ORDER;
 
             /* Quick Bar */
-            s->qbar_enabled            = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
-            s->qbar_horizontal         = IsDlgButtonChecked(hwnd, IDC_RAD_QBAR_HORIZ)  == BST_CHECKED;
-            s->qbar_topmost_with_catia = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_TOPMOST)== BST_CHECKED;
+            s->qbar_enabled              = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
+            s->qbar_horizontal           = IsDlgButtonChecked(hwnd, IDC_RAD_QBAR_HORIZ)  == BST_CHECKED;
+            s->qbar_topmost_with_catia   = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_TOPMOST)== BST_CHECKED;
+            s->qbar_repeat_on_dblclick   = IsDlgButtonChecked(hwnd, IDC_CHK_REPEAT_QBAR) == BST_CHECKED;
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S,     s->qbar_target_app, MAX_NAME);
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe, MAX_NAME);
 
