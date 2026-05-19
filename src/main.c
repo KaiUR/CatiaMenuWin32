@@ -945,12 +945,21 @@ static void Handle_SyncDone(SyncResult *sr)
     if (!sr) return;
 
     if (sr->status == SR_NO_INTERNET) {
-        /* No connection - keep whatever is already displayed from cache.
-           Just update the status bar message. */
+        g.status_offline = true;
+        InvalidateRect(g.hwnd_status, NULL, FALSE);
         SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
+        if (!g.cfg.offline_use_cache) {
+            /* User opted out of cache display — clear tabs to match emptied folders */
+            Tabs_Build();
+            Tabs_DestroyButtons();
+            InvalidateRect(g.hwnd_tab,    NULL, TRUE);
+            InvalidateRect(g.hwnd_scroll, NULL, TRUE);
+        }
         free(sr);
         return;
     }
+
+    g.status_offline = false;
 
     /* Reset so meta re-reads from freshly downloaded files */
     for (int fi = 0; fi < g.folder_count; fi++)

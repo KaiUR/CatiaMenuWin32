@@ -569,7 +569,7 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
         WCHAR text[256] = {0};
         GetWindowText(hwnd, text, 255);
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, COL_SUBTEXT());
+        SetTextColor(hdc, g.status_offline ? COL_WARN : COL_SUBTEXT());
         HFONT of = SelectObject(hdc, g.font_small);
         RECT tr = { 6, 0, rc.right - 6, rc.bottom };
         DrawText(hdc, text, -1, &tr,

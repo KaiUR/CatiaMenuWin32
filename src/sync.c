@@ -12,6 +12,10 @@
  *   7. Saves the updated manifest back to AppData.
  *   8. Posts WM_SYNC_DONE with a heap-allocated SyncResult.
  *
+ * If the main repo is enabled but unreachable, the module returns
+ * SR_NO_INTERNET without clearing folders, so cached scripts loaded
+ * at startup by Sync_LoadManifest remain visible in the UI.
+ *
  * Manifest format  (%APPDATA%\CatiaMenuWin32\manifest.ini):
  *   [FolderName]
  *   script_gh_path=sha40hex
@@ -535,14 +539,6 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         return 1;
     }
 
-    /* Clear all folders before sync so disabled sources don't linger.
-       Hold cs_folders while modifying the shared array to prevent a concurrent
-       UI-thread paint from reading freed scripts pointers. */
-    EnterCriticalSection(&g.cs_folders);
-    for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
-    g.folder_count = 0;
-    LeaveCriticalSection(&g.cs_folders);
-
         if (g.cfg.main_repo_enabled) {
     /* ── Step 1: Fetch root to get current folder list ───────────── */
     PostStatus(L"Connecting to GitHub\u2026");
@@ -554,17 +550,32 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     DWORD len = 0;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
         sr->status = SR_NO_INTERNET;
-        if (g.folder_count > 0) {
-            _snwprintf_s(sr->message, 255, _TRUNCATE, L"Showing %d cached folder(s). Connect to internet to sync.",
-                       g.folder_count);
+        if (!g.cfg.offline_use_cache) {
+            EnterCriticalSection(&g.cs_folders);
+            for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
+            g.folder_count = 0;
+            LeaveCriticalSection(&g.cs_folders);
+            wcsncpy_s(sr->message, 256,
+                L"\u26a0 No internet connection.", _TRUNCATE);
+        } else if (g.folder_count > 0) {
+            _snwprintf_s(sr->message, 255, _TRUNCATE,
+                L"\u26a0 Offline \u2013 showing %d cached folder(s). Scripts may be out of date.",
+                g.folder_count);
         } else {
             wcsncpy_s(sr->message, 256,
-                    L"No internet connection. No cached scripts found.", _TRUNCATE);
+                L"\u26a0 No internet connection. No cached scripts found.", _TRUNCATE);
         }
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
         free(buf);
         return 0;
     }
+
+    /* Connected ─ clear folders so disabled sources don't linger before rebuild.
+       Hold cs_folders to guard against a concurrent UI-thread paint reading freed pointers. */
+    EnterCriticalSection(&g.cs_folders);
+    for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
+    g.folder_count = 0;
+    LeaveCriticalSection(&g.cs_folders);
 
     /* ── Step 2: Parse root and detect folder changes ───────────── */
 
@@ -736,7 +747,14 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         }
     }
 
-    } /* end if (main_repo_enabled) */
+    } else {
+        /* Main repo disabled — clear now so extra repos and local dirs
+           rebuild from scratch rather than merging onto stale manifest data. */
+        EnterCriticalSection(&g.cs_folders);
+        for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
+        g.folder_count = 0;
+        LeaveCriticalSection(&g.cs_folders);
+    } /* end if/else (main_repo_enabled) */
 
     /* ── Step 6: Sync extra GitHub repos ───────────────────────── */
     {

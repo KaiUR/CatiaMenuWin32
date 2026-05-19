@@ -40,6 +40,7 @@ BEGIN
     LTEXT "Auto-refresh every",                                 456, 16,  96,  92, 10
     EDITTEXT 414,                                                  112,  94,  30, 14, ES_NUMBER
     LTEXT "hours  (0 = off)",                                   457,146,  96,  90, 10
+    AUTOCHECKBOX "Show cached scripts when offline (may be out of date)", 470, 16, 110, 324, 12
 
     /* ── Tab 2: Console ─────────────────────────────────────────── */
     GROUPBOX "Console Options",                                 458, 10,  22, 344, 76

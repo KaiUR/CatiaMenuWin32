@@ -220,4 +220,7 @@
 #define IDC_CHK_REPEAT_MAIN   468   /* Console tab: repeat main-window scripts  */
 #define IDC_CHK_REPEAT_QBAR   469   /* Quick Bar tab: repeat Quick Bar scripts  */
 
+/* Settings dialog — offline cache behaviour */
+#define IDC_CHK_OFFLINE_CACHE 470   /* Sync tab: show cached scripts when offline */
+
 #endif /* RESOURCE_H */
