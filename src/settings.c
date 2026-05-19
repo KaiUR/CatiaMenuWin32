@@ -46,6 +46,7 @@ void Settings_Load(Settings *s)
     s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
     s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
     s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
+    s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",   0, ini) != 0;
     s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
     s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
     s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0;
@@ -124,6 +125,7 @@ void Settings_Save(const Settings *s)
     WB(L"Options", L"CheckUpdates",      s->check_updates);
     WB(L"Options", L"DepsKeepOpen",      s->deps_keep_open);
     WB(L"Options", L"AutoUpdate",         s->auto_update);
+    WB(L"Options", L"OfflineUseCache",   s->offline_use_cache);
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->refresh_interval);
     WritePrivateProfileString(L"Options", L"RefreshInterval", tmp, ini);
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->sort_mode);
@@ -223,6 +225,7 @@ static const int s_stab1[] = {   /* Sync */
     IDC_GRP_SYNC,
     IDC_CHK_AUTOSYNC, IDC_CHK_DOWNLOAD, IDC_CHK_CHECK_UPDATES, IDC_CHK_AUTO_UPDATE,
     IDC_LBL_REFRESH1, IDC_EDIT_REFRESH_INTERVAL, IDC_LBL_REFRESH2,
+    IDC_CHK_OFFLINE_CACHE,
     -1
 };
 static const int s_stab2[] = {   /* Console */
@@ -343,7 +346,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      s->auto_sync           ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      s->download_before_run ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, s->check_updates       ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   s->auto_update         ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,    s->auto_update         ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_OFFLINE_CACHE, s->offline_use_cache   ? BST_CHECKED : BST_UNCHECKED);
         {
             WCHAR ri[8];
             _snwprintf_s(ri, 7, _TRUNCATE, L"%d", s->refresh_interval);
@@ -482,6 +486,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->deps_keep_open          = false;
             s->check_updates           = true;
             s->auto_update             = true;
+            s->offline_use_cache       = false;
             s->refresh_interval        = 6;
             s->always_on_top           = true;
             s->minimize_to_tray        = true;
@@ -506,10 +511,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_CHK_TOKEN,         BST_UNCHECKED);
             EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), FALSE);
 
-            CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,      BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,      BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,   BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_AUTOSYNC,       BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_DOWNLOAD,       BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_CHECK_UPDATES,  BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_AUTO_UPDATE,    BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_OFFLINE_CACHE,  BST_UNCHECKED);
             SetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, L"6");
 
             CheckDlgButton(hwnd, IDC_CHK_CONSOLE,        BST_UNCHECKED);
@@ -561,6 +567,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->download_before_run = IsDlgButtonChecked(hwnd, IDC_CHK_DOWNLOAD)      == BST_CHECKED;
             s->check_updates       = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_UPDATES) == BST_CHECKED;
             s->auto_update         = IsDlgButtonChecked(hwnd, IDC_CHK_AUTO_UPDATE)   == BST_CHECKED;
+            s->offline_use_cache   = IsDlgButtonChecked(hwnd, IDC_CHK_OFFLINE_CACHE) == BST_CHECKED;
             {
                 WCHAR ri[8] = {0};
                 GetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri, 7);

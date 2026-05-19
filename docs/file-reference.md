@@ -35,7 +35,7 @@ Entry point and main window procedure.
 - `wWinMain` — app startup: loads settings, creates window, starts sync and update threads, runs message loop
 - `MainWndProc` — handles `WM_PAINT`, `WM_SIZE`, `WM_COMMAND`, `WM_DRAWITEM`, `WM_SETTINGCHANGE`, `WM_TRAYICON`, `WM_SYNC_DONE`, `WM_UPDATE_AVAIL`, `WM_CLOSE`, `WM_DESTROY`
 - `Handle_Command` — routes all `WM_COMMAND` messages to appropriate actions
-- `Handle_SyncDone` — called on main thread when sync completes; rebuilds tabs and restores the active tab by folder name (via `g.active_folder_name`) to prevent drift when `Tabs_BuildFavourites` shifts indices
+- `Handle_SyncDone` — called on main thread when sync completes; if `SR_NO_INTERNET` sets `g.status_offline` (amber status bar) and optionally clears tabs when `offline_use_cache` is off; otherwise rebuilds tabs and restores the active tab by folder name (via `g.active_folder_name`) to prevent drift when `Tabs_BuildFavourites` shifts indices
 - `App_InitGDI` / `App_FreeGDI` / `App_RebuildGDI` — create/destroy/recreate all GDI resources
 - `App_BuildAppDataPath` — builds `g.appdata_dir` from `%APPDATA%\CatiaMenuWin32` and creates the directory if it does not exist
 - `App_ResolveTheme` — sets `g.dark_mode` based on `cfg.theme` and Windows registry
@@ -105,7 +105,7 @@ All GitHub API communication.
 ### `sync.c`
 GitHub sync thread and local directory scanning.
 
-- `Sync_Thread` — background thread: fetches root, parses folders, downloads changed scripts, syncs extra repos, scans local dirs, saves manifest, posts `WM_SYNC_DONE`
+- `Sync_Thread` — background thread: fetches root, parses folders, downloads changed scripts, syncs extra repos, scans local dirs, saves manifest, posts `WM_SYNC_DONE`; if the GitHub connection fails, posts `SR_NO_INTERNET` without clearing the cache pre-loaded by `Sync_LoadManifest` (when `offline_use_cache` is on), or clears it and posts an offline message (when off)
 - `Sync_LoadManifest` — called at startup: scans `cache_dir` on disk to populate `g.folders[]` immediately without internet
 - `Sync_SaveManifest` — writes all current SHA values to `manifest.ini`
 - `Sync_GetLocalSHA` — reads a script's SHA from `manifest.ini`
@@ -316,6 +316,7 @@ typedef struct {
     HBRUSH br_bg, br_toolbar, br_btn, br_btn_hot, br_accent, br_status;
 
     bool   syncing;
+    bool   status_offline; /* true when showing stale cache due to no internet */
     int    hot_btn;        /* currently hovered script button ID */
     int    tip_btn;        /* button whose tooltip is showing */
     int    tip_h;          /* cached tooltip height */
@@ -375,6 +376,7 @@ typedef struct {
     bool      start_with_windows, start_minimized;
     bool      check_updates;
     bool      auto_update;       /* auto-download and install updates */
+    bool      offline_use_cache; /* show cached scripts when offline (default: false) */
     ThemeMode theme;             /* THEME_SYSTEM=0, THEME_DARK=1, THEME_LIGHT=2 */
     int       refresh_interval;  /* hours, 0 = disabled, default 6 */
     bool      main_repo_enabled;

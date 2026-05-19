@@ -243,6 +243,7 @@ The Settings dialog is organised into five tabs:
 | Check for app updates on startup | On | Notifies you when a newer version is available |
 | Auto-install updates | On | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually |
 | Auto-refresh every N hours | 6 | Background sync interval in hours; 0 = disabled |
+| Show cached scripts when offline | Off | Display previously synced scripts when there is no internet connection; an amber status bar warning is shown. When off, no buttons appear if the sync cannot reach GitHub |
 
 ### Console tab
 

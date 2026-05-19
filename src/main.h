@@ -316,6 +316,7 @@ typedef struct {
     bool      start_minimized;
     bool      check_updates;
     bool      auto_update;       /* auto-download and install updates   */
+    bool      offline_use_cache; /* show cached scripts when offline (default: true) */
     ThemeMode theme;
     int       refresh_interval;  /* hours, 0 = disabled, default 6     */
     /* Sources */
@@ -405,6 +406,7 @@ typedef struct {
     HBRUSH br_status;
 
     bool   syncing;
+    bool   status_offline;   /* true when showing stale cache due to no internet */
     int    hot_btn;
     int    tip_btn;
     int    tip_h;

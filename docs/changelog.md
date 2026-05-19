@@ -9,6 +9,17 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.6 — Show cached scripts when offline
+
+### Added
+- **Show cached scripts when offline** — when the app starts with no internet connection, scripts that were synced during a previous online session can now be displayed immediately from the local cache. An amber warning appears in the status bar: *⚠ Offline — showing N cached folder(s). Scripts may be out of date.*
+- **Settings → Sync → Show cached scripts when offline** — a new checkbox controls the behaviour. Default: **Off** (the previous behaviour — no buttons shown when offline). Turn it on to always display the cached scripts when offline.
+
+### Fixed
+- **Cached scripts were always hidden when offline** — the sync thread cleared `g.folders[]` before checking for internet connectivity, so `Sync_LoadManifest`'s pre-populated cache was destroyed even when the connection failed. The clear is now deferred until after a successful connection is confirmed.
+
+---
+
 ## v2.1.5 — Escape stops script; single green highlight
 
 ### Fixed
