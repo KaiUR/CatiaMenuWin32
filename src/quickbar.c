@@ -741,6 +741,8 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
 /* ================================================================== */
 /*  QuickBarProc                                                       */
 /*  Main window procedure for the floating quick bar.                 */
+/*  VK_ESCAPE calls Repeat_Stop() and Runner_Stop() so that Escape    */
+/*  cancels both repeat mode and any running background script.       */
 /* ================================================================== */
 static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
                                       WPARAM wp, LPARAM lp)
@@ -873,9 +875,13 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     }
 
     case WM_KEYDOWN:
-        if (wp == VK_ESCAPE && g.repeat_mode) {
-            Repeat_Stop();
-            PostStatus(L"Repeat cancelled.");
+        if (wp == VK_ESCAPE) {
+            if (g.repeat_mode) {
+                Repeat_Stop();
+                PostStatus(L"Repeat cancelled.");
+            }
+            if (!g.cfg.show_console && g.run_process)
+                Runner_Stop();
         }
         return 0;
 

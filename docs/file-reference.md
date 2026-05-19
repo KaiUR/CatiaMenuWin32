@@ -117,7 +117,7 @@ GitHub sync thread and local directory scanning.
 ### `runner.c`
 Script execution and dependency management.
 
-- `Runner_Run` — verifies SHA, finds Python, records `g.run_fi`/`g.run_si`, launches script in a thread
+- `Runner_Run` — verifies SHA, finds Python, invalidates the previously highlighted button before overwriting `g.run_fi`/`g.run_si` (ensures only one button is green at a time), then launches script in a thread
 - `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper); for background runs, duplicates the process handle into `g.run_process`, posts `WM_SCRIPT_STARTED`, waits up to 30 minutes, then atomically clears the handle and posts `WM_SCRIPT_STOPPED`
 - `Runner_Stop` — atomically claims `g.run_process` via `InterlockedExchangePointer`, calls `TerminateProcess`, and posts `WM_SCRIPT_STOPPED` to disable the Stop button
 - `Runner_FindPython` — searches PATH, `cfg.python_exe`, and common install locations
@@ -213,7 +213,7 @@ Public API (called from `main.c` and `window.c`):
 - `QuickBar_ShowTargetDlg` — opens the `IDD_QBAR_TARGET` dialog to set the window-title tracking substring
 
 Internal key functions:
-- `QuickBarProc` — bar window procedure; handles drag (background = drag handle), click, hover, scroll arrows, mouse wheel, and right-click context menu
+- `QuickBarProc` — bar window procedure; handles drag (background = drag handle), click, hover, scroll arrows, mouse wheel, right-click context menu, and `VK_ESCAPE` (calls `Repeat_Stop()` and `Runner_Stop()` so Escape cancels both repeat and the running script)
 - `QBarTipProc` — tooltip window procedure; paints script name (bold) and purpose line (small) with double-buffering
 - `QB_Paint` — double-buffered render of bar background, scroll arrows (▲▼ / ◄►), and all 2-letter abbreviation buttons with accent bar on hover
 - `QB_HitTest` — returns button index (≥0), `HIT_ARROW_PREV/NEXT`, or `HIT_NONE` (background/drag area)

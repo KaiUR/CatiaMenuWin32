@@ -159,6 +159,8 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
 /*  Purpose: Validates folder/script indices, locates Python, downloads */
 /*           the script if missing or if download_before_run is set,  */
 /*           performs SHA verification, then launches Runner_Thread.   */
+/*           Invalidates the previously highlighted button before      */
+/*           overwriting g.run_fi/g.run_si so only one button is green.*/
 /*           Increments the run count and updates last_run_path.       */
 /*  In:  fi — folder index                                             */
 /*       si — script index within that folder                          */
@@ -227,6 +229,13 @@ bool Runner_Run(int fi, int si)
     wcsncpy_s(g.last_run_path, MAX_APPPATH, s->gh_path, _TRUNCATE);
     Prefs_IncrementRunCount(s->gh_path);
     s->run_count++;
+
+    /* Repaint the previously highlighted button before taking over the indices */
+    if (g.script_running) {
+        HWND hOldBtn = GetDlgItem(g.hwnd_scroll, IDC_SCRIPT_BTN_BASE + g.run_si);
+        if (hOldBtn) InvalidateRect(hOldBtn, NULL, FALSE);
+        if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+    }
     g.run_fi = fi;
     g.run_si = si;
     PostStatus(L"Running: %s", s->name);
