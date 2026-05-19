@@ -9,6 +9,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.5 — Escape stops script; single green highlight
+
+### Fixed
+- **Multiple green buttons when a new script is clicked** — clicking a second script while one was already running left both buttons highlighted green. `Runner_Run` now invalidates the previously highlighted button (and the Quick Bar) before overwriting `g.run_fi`/`g.run_si`, so only the newly launched script's button turns green.
+- **Escape did not stop the running script when in repeat mode** — pressing Escape while the Quick Launch Bar had keyboard focus (the normal state after double-clicking a Quick Bar button to start repeat) stopped repeat mode but left the script running. `QuickBarProc WM_KEYDOWN` now calls `Runner_Stop()` in addition to `Repeat_Stop()`, matching the behaviour of the main window's Escape handler.
+
+---
+
 ## v2.1.4 — Running script green highlight
 
 ### Added

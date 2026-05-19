@@ -414,7 +414,7 @@ To disable target tracking entirely — keeping the bar always visible with no t
 
 | Action | Result |
 |--------|--------|
-| Press **Escape** | Cancels repeat immediately; the current run (if any) completes normally |
+| Press **Escape** | Cancels repeat and stops the currently running background script |
 | **Single-click the same script** | Cancels repeat; no extra run is triggered |
 | **Single-click a different script** | Cancels repeat and runs the new script once |
 | Click **■ Stop** | Cancels repeat and stops the current run |
@@ -617,7 +617,7 @@ The help window has a table of contents on the left and formatted topic content 
 | `F9` | Run last script |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
-| `Escape` | Cancel repeat mode (when active) |
+| `Escape` | Cancel repeat mode and stop running script (when active) |
 
 ---
 

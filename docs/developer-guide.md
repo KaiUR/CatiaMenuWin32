@@ -353,7 +353,7 @@ Win32 double-click sends: `WM_LBUTTONDOWN` → `WM_LBUTTONUP` (first click, runs
 
 ### Cancellation
 
-- **Escape** (`WM_KEYDOWN` in `MainWndProc` and `QuickBarProc`): clears `g.repeat_mode` and repaints the button.
+- **Escape** (`WM_KEYDOWN` in `MainWndProc` and `QuickBarProc`): clears `g.repeat_mode`, repaints the button, and calls `Runner_Stop()` to terminate the running script.
 - **Single-click same script** (`Handle_Command`): clears `g.repeat_mode`, skips the run.
 - **Single-click different script** (`Handle_Command`): clears `g.repeat_mode`, runs the new script.
 - **Stop button** (`IDC_BTN_STOP` in `Handle_Command`): clears `g.repeat_mode`, then calls `Runner_Stop()`.
@@ -391,7 +391,7 @@ When a background (no-console) script runs, the button that was clicked turns gr
 
 ### Flow
 
-1. **`Runner_Run`** (`runner.c`) sets `g.run_fi = fi; g.run_si = si;` before creating the thread.
+1. **`Runner_Run`** (`runner.c`) invalidates the old running button (if `g.script_running` is true) before overwriting `g.run_fi = fi; g.run_si = si;`, then creates the thread. This ensures only the newly launched script's button turns green.
 2. **`Runner_Thread`** posts `WM_SCRIPT_STARTED` once the process is created.
 3. **`WM_SCRIPT_STARTED`** handler (`main.c`) sets `g.script_running = true`, invalidates `IDC_SCRIPT_BTN_BASE + g.run_si`, and invalidates `hwnd_qbar` — both repaint green.
 4. **`WM_SCRIPT_STOPPED`** handler clears `g.script_running = false` and triggers the same repaints — both return to normal colour.
