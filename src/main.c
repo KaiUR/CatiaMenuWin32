@@ -496,11 +496,23 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
 
     case WM_SCRIPT_STARTED:
+        g.script_running = true;
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), TRUE);
+        {
+            HWND hBtn = GetDlgItem(g.hwnd_scroll, IDC_SCRIPT_BTN_BASE + g.run_si);
+            if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
+        }
+        if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
         return 0;
 
     case WM_SCRIPT_STOPPED:
+        g.script_running = false;
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), FALSE);
+        {
+            HWND hBtn = GetDlgItem(g.hwnd_scroll, IDC_SCRIPT_BTN_BASE + g.run_si);
+            if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
+        }
+        if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
         if (g.repeat_mode) {
             if (wp != 0) {
                 /* Non-zero exit code → script failed; stop repeating */

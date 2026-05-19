@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.1.4 — Running script green highlight
+
+### Added
+- **Running script highlight** — when a script button is clicked (single click, repeat mode not active) the button turns **green** for the duration of the run: border, left accent bar, and label text all use `COL_SUCCESS`. The highlight clears automatically when the script exits. Applies to both the main window script buttons and the Quick Launch Bar. Only active in background (no-console) mode, where script completion is tracked via `WM_SCRIPT_STARTED` / `WM_SCRIPT_STOPPED`.
+
+---
+
 ## v2.1.2 — Auto-update fix
 
 ### Fixed

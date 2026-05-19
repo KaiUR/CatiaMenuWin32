@@ -82,6 +82,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Sort scripts** | Sort by Default, Alphabetical, By Date, or Most Used |
 | **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments |
 | **Stop running script** | ■ Stop toolbar button terminates a running background script instantly via `TerminateProcess` |
+| **Running script highlight** | Clicked button turns green (border, accent bar, label) while the script runs; clears automatically on exit |
 | **Script notes** | Per-script user notes stored locally in `prefs.ini` |
 | **Auto-refresh** | Background sync every N hours (default 6); configurable in Settings |
 | **Auto-update** | Optionally download and install new versions automatically |

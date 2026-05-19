@@ -190,12 +190,14 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 /*       hot       — true when the mouse is over the main click zone   */
 /*       pressed   — true when left button is held                     */
 /*       info_hot  — true when the mouse is over the "i" zone          */
+/*       repeat    — true when this script is in repeat mode (amber)   */
+/*       running   — true when this script is currently executing      */
 /*       s         — pointer to the Script to display (may be NULL)    */
 /*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
                          bool hot, bool pressed, bool info_hot, bool repeat,
-                         const Script *s)
+                         bool running, const Script *s)
 {
     RECT rc; GetClientRect(hwnd_btn, &rc);
     int w = rc.right, h = rc.bottom;
@@ -206,7 +208,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     HBITMAP old = SelectObject(mem, bmp);
 
     COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : COL_BTN_NORM();
-    COLORREF bdr = repeat ? COL_WARN : hot ? COL_ACCENT : COL_DIVIDER();
+    COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER();
     DrawRoundRect(mem, 0,      0, main_w,     h, 7, bg, bdr);
     DrawRoundRect(mem, main_w, 0, INFO_BTN_W, h, 7,
                   info_hot ? COL_ACCENT_DIM : COL_INFO_ZONE(), bdr);
@@ -222,6 +224,11 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
         RECT   ar = { 0, 5, 4, h - 5 };
         FillRect(mem, &ar, ab);
         DeleteObject(ab);
+    } else if (running) {
+        HBRUSH ab = CreateSolidBrush(COL_SUCCESS);
+        RECT   ar = { 0, 5, 4, h - 5 };
+        FillRect(mem, &ar, ab);
+        DeleteObject(ab);
     } else if (hot || pressed) {
         HBRUSH ab = CreateSolidBrush(pressed ? COL_ACCENT_DIM : COL_ACCENT);
         RECT   ar = { 0, 5, 4, h - 5 };
@@ -229,7 +236,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
         DeleteObject(ab);
     }
 
-    SetTextColor(mem, repeat ? COL_WARN : hot ? COL_ACCENT : COL_SUBTEXT());
+    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_SUBTEXT());
     SelectObject(mem, g.font_ui);
     RECT arr = { 8, 0, 28, h };
     /* Show repeat loop symbol (\u21BB) when in repeat mode, arrow otherwise */
@@ -244,7 +251,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     const WCHAR *purpose = (s && s->meta_loaded && s->meta.purpose[0])
                            ? s->meta.purpose : NULL;
 
-    SetTextColor(mem, repeat ? COL_WARN : hot ? COL_ACCENT : COL_TEXT());
+    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_TEXT());
     SelectObject(mem, g.font_bold);
     if (purpose) {
         RECT lr = { 30, 3, main_w - 6, h / 2 + 2 };

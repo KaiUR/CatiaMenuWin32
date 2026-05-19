@@ -84,7 +84,7 @@ All GDI rendering. Every function uses double-buffering (memory DC + `BitBlt`).
 
 - `Paint_MainWindow` — draws toolbar background, title, version, syncing indicator, update badge
 - `Paint_ToolbarButton` — owner-draw for `BS_OWNERDRAW` toolbar buttons (Menu, Refresh, Settings, Deps, Stop); renders pressed/hot/normal/disabled states; the Stop button uses a red accent when enabled
-- `Paint_ScriptButton` — draws a script button with accent bar, arrow, label, purpose text, and `i` info badge
+- `Paint_ScriptButton` — draws a script button with accent bar, arrow, label, purpose text, and `i` info badge; accepts `bool repeat` and `bool running` — priority: repeat (amber) > running (green) > hot (blue)
 - `Paint_Tooltip` — draws the script info tooltip popup
 - `Tip_ComputeHeight` — measures tooltip height using `DT_CALCRECT` with correct font
 - `BtnSubclassProc` — subclass proc for script buttons; handles hover, `i` badge detection, tooltip show/hide
@@ -117,7 +117,7 @@ GitHub sync thread and local directory scanning.
 ### `runner.c`
 Script execution and dependency management.
 
-- `Runner_Run` — verifies SHA, finds Python, launches script in a thread
+- `Runner_Run` — verifies SHA, finds Python, records `g.run_fi`/`g.run_si`, launches script in a thread
 - `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper); for background runs, duplicates the process handle into `g.run_process`, posts `WM_SCRIPT_STARTED`, waits up to 30 minutes, then atomically clears the handle and posts `WM_SCRIPT_STOPPED`
 - `Runner_Stop` — atomically claims `g.run_process` via `InterlockedExchangePointer`, calls `TerminateProcess`, and posts `WM_SCRIPT_STOPPED` to disable the Stop button
 - `Runner_FindPython` — searches PATH, `cfg.python_exe`, and common install locations
@@ -347,6 +347,17 @@ typedef struct {
     int    qbar_drag_ox;         /* drag start: cursor offset from left */
     int    qbar_drag_oy;         /* drag start: cursor offset from top */
     int    qbar_tip_idx;         /* button index shown in tip, -1 = none */
+
+    /* Double-click repeat mode */
+    bool   repeat_mode;          /* true while a script is looping */
+    int    repeat_fi;            /* folder index of the script to repeat */
+    int    repeat_si;            /* script index of the script to repeat */
+    bool   suppress_lbuttonup;   /* suppresses extra WM_LBUTTONUP after WM_LBUTTONDBLCLK */
+
+    /* Running state (background mode only) */
+    bool   script_running;       /* true while a background script is in flight */
+    int    run_fi;               /* folder index of the running script */
+    int    run_si;               /* script index of the running script */
 } AppState;
 ```
 
@@ -379,6 +390,8 @@ typedef struct {
     int       qbar_x, qbar_y;
     WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
     WCHAR     qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
+    bool      repeat_on_dblclick;        /* repeat main-window scripts on double-click */
+    bool      qbar_repeat_on_dblclick;   /* repeat Quick Bar scripts on double-click */
 } Settings;
 ```
 
@@ -474,8 +487,8 @@ typedef struct {
 | `WM_TRAYICON` | `WM_USER+10` | System → Main | Tray icon mouse event |
 | `WM_UPDATE_AVAIL` | `WM_USER+11` | Thread → Main | Newer version found |
 | `WM_AUTO_REFRESH` | `WM_USER+12` | Timer → Main | Auto-refresh interval elapsed |
-| `WM_SCRIPT_STARTED` | `WM_USER+13` | Runner → Main | Background script launched; enables the Stop button |
-| `WM_SCRIPT_STOPPED` | `WM_USER+14` | Runner → Main | Background script exited or was terminated; disables the Stop button |
+| `WM_SCRIPT_STARTED` | `WM_USER+13` | Runner → Main | Background script launched; enables the Stop button and turns the running button green |
+| `WM_SCRIPT_STOPPED` | `WM_USER+14` | Runner → Main | Background script exited or was terminated; disables the Stop button and clears the green highlight |
 
 ### Timer IDs
 
@@ -522,7 +535,7 @@ Fixed-colour constants (no theme variant):
 |----------|-------|----------|
 | `COL_ACCENT` | `RGB(82, 155, 245)` | Highlights, selected tabs, accent bars |
 | `COL_ACCENT_DIM` | `RGB(48, 92, 160)` | Dimmed accent for pressed states |
-| `COL_SUCCESS` | `RGB(80, 200, 120)` | Success/OK status indicators |
+| `COL_SUCCESS` | `RGB(80, 200, 120)` | Success/OK indicators; running script button highlight |
 | `COL_WARN` | `RGB(240, 190, 60)` | Warning status indicators |
 | `COL_STAR` | `RGB(255, 200, 60)` | Favourite star badge |
 | `COL_TIP_BORDER` | `RGB(82, 155, 245)` | Tooltip popup border |
