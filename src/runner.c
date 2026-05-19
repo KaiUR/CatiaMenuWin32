@@ -227,6 +227,8 @@ bool Runner_Run(int fi, int si)
     wcsncpy_s(g.last_run_path, MAX_APPPATH, s->gh_path, _TRUNCATE);
     Prefs_IncrementRunCount(s->gh_path);
     s->run_count++;
+    g.run_fi = fi;
+    g.run_si = si;
     PostStatus(L"Running: %s", s->name);
 
     RunArg *ra = (RunArg *)malloc(sizeof(RunArg));

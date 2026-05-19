@@ -489,12 +489,13 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         int fi_btn = 0, si_btn = 0;
         QB_GetFav(i, &fi_btn, &si_btn);
         bool rep = g.repeat_mode && g.repeat_fi == fi_btn && g.repeat_si == si_btn;
+        bool run = g.script_running && !g.repeat_mode && g.run_fi == fi_btn && g.run_si == si_btn;
 
         /* Button background (rounded rect) */
         COLORREF bg  = hot ? COL_BTN_HOT() : COL_BTN_NORM();
-        COLORREF brd = rep ? COL_WARN : (hot ? COL_ACCENT : COL_DIVIDER());
+        COLORREF brd = rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_DIVIDER());
         HBRUSH br_btn = CreateSolidBrush(bg);
-        HPEN   pen    = CreatePen(PS_SOLID, rep ? 2 : 1, brd);
+        HPEN   pen    = CreatePen(PS_SOLID, (rep || run) ? 2 : 1, brd);
         HPEN   op     = SelectObject(hdc, pen);
         HBRUSH ob     = SelectObject(hdc, br_btn);
         RoundRect(hdc, br.left, br.top, br.right, br.bottom, 10, 10);
@@ -503,9 +504,9 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         DeleteObject(pen);
         DeleteObject(br_btn);
 
-        /* Accent edge bar when hot or repeating */
-        if (hot || rep) {
-            HBRUSH ba = CreateSolidBrush(rep ? COL_WARN : COL_ACCENT);
+        /* Accent edge bar when hot, repeating, or running */
+        if (hot || rep || run) {
+            HBRUSH ba = CreateSolidBrush(rep ? COL_WARN : run ? COL_SUCCESS : COL_ACCENT);
             RECT   acc;
             if (!horiz) {
                 acc.left   = br.left;
@@ -539,7 +540,7 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         }
 
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, rep ? COL_WARN : (hot ? COL_ACCENT : COL_TEXT()));
+        SetTextColor(hdc, rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_TEXT()));
         HFONT of = SelectObject(hdc, s_font_label);
         DrawTextW(hdc, label, -1, &br, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         SelectObject(hdc, of);

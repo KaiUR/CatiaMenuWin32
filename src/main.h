@@ -447,6 +447,11 @@ typedef struct {
     bool   suppress_lbuttonup;   /* suppress the extra LBUTTONUP after dblclick */
     HHOOK  kbd_repeat_hook;      /* low-level keyboard hook active during repeat */
 
+    /* Running state (background mode only, cleared when script exits) */
+    bool   script_running;       /* true while a background script is in flight */
+    int    run_fi;               /* folder index of the running script           */
+    int    run_si;               /* script index of the running script           */
+
 } AppState;
 
 extern AppState g;
@@ -597,7 +602,7 @@ void QuickBar_ShowTargetDlg(void);
 void Paint_MainWindow(HWND, HDC);
 void Paint_ToolbarButton(DRAWITEMSTRUCT *dis);
 void Paint_ScriptButton(HWND, HDC, bool hot, bool pressed,
-                        bool info_hot, bool repeat, const Script *s);
+                        bool info_hot, bool repeat, bool running, const Script *s);
 void Paint_Tooltip(HWND hwnd);
 LRESULT CALLBACK BtnSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 

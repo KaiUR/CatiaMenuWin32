@@ -117,6 +117,8 @@ Click any script button to run it. The app will:
 2. Launch Python with the script path
 3. Show "Script launched in console" or the exit code in the status bar
 
+When a script is running in background mode (no console), the button highlights in **green** — border, left accent bar, and label text — for the duration of the run. The highlight clears automatically when the script exits or is stopped.
+
 **Console options** (configurable in Settings):
 - **Show console** — opens a visible Python console window when the script runs
 - **Keep console open** — keeps the console window open after the script finishes so you can read output and errors (`cmd /k` mode)

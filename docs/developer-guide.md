@@ -364,13 +364,49 @@ Win32 double-click sends: `WM_LBUTTONDOWN` → `WM_LBUTTONUP` (first click, runs
 
 ### Visual indicator
 
-`Paint_ScriptButton` (`paint.c`) receives a `bool repeat` parameter. When `true`: border colour → `COL_WARN`, left accent bar → `COL_WARN`, run icon → `↻`, label text → `COL_WARN`.
+`Paint_ScriptButton` (`paint.c`) receives `bool repeat` and `bool running`. Priority: **repeat (amber) > running (green) > hot (blue)**.
 
-`QB_Paint` (`quickbar.c`) computes `rep` for each button by calling `QB_GetFav(i, &fi_btn, &si_btn)` and comparing with `g.repeat_fi/si`. When `rep` is true: border width 2, `COL_WARN` border and accent bar, `COL_WARN` label text.
+- `repeat = true`: border → `COL_WARN`, accent bar → `COL_WARN`, arrow → `↻`, text → `COL_WARN`
+- `running = true` (and not repeat): border → `COL_SUCCESS`, accent bar → `COL_SUCCESS`, text → `COL_SUCCESS`
+
+`QB_Paint` (`quickbar.c`) mirrors this: `rep` and `run` are computed per button via `QB_GetFav`; `rep` wins over `run`.
 
 ### Console-mode guard
 
-Console-mode scripts (run via `cmd /k`) do not post `WM_SCRIPT_STOPPED`, so the repeat trigger never fires. Both `BtnSubclassProc` and `QuickBarProc` check `g.cfg.show_console` in the `WM_LBUTTONDBLCLK` handler and display a status-bar message instead of activating repeat.
+Console-mode scripts (run via `cmd /k`) do not post `WM_SCRIPT_STOPPED`, so the repeat trigger never fires and the running highlight never shows. Both `BtnSubclassProc` and `QuickBarProc` check `g.cfg.show_console` in the `WM_LBUTTONDBLCLK` handler and display a status-bar message instead of activating repeat.
+
+---
+
+## Running Script Highlight Architecture
+
+When a background (no-console) script runs, the button that was clicked turns green for the duration of the run.
+
+### State fields (`AppState g`)
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `g.script_running` | `bool` | `true` while a background script is in flight |
+| `g.run_fi` | `int` | Folder index of the running script |
+| `g.run_si` | `int` | Script index within that folder |
+
+### Flow
+
+1. **`Runner_Run`** (`runner.c`) sets `g.run_fi = fi; g.run_si = si;` before creating the thread.
+2. **`Runner_Thread`** posts `WM_SCRIPT_STARTED` once the process is created.
+3. **`WM_SCRIPT_STARTED`** handler (`main.c`) sets `g.script_running = true`, invalidates `IDC_SCRIPT_BTN_BASE + g.run_si`, and invalidates `hwnd_qbar` — both repaint green.
+4. **`WM_SCRIPT_STOPPED`** handler clears `g.script_running = false` and triggers the same repaints — both return to normal colour.
+
+### Paint condition
+
+```c
+// tabs.c (main window)
+bool running = g.script_running && !g.repeat_mode && g.run_fi == fi && g.run_si == idx;
+
+// quickbar.c
+bool run = g.script_running && !g.repeat_mode && g.run_fi == fi_btn && g.run_si == si_btn;
+```
+
+`!g.repeat_mode` ensures repeat (amber) always takes priority over the green running state.
 
 ---
 
