@@ -114,7 +114,7 @@ void Sync_LoadManifest(void)
     /* Scan the cache directory and populate g.folders[] from what is
        already on disk. This runs at startup so scripts are visible
        immediately even before the sync completes or if there is no internet. */
-    if (!g.cfg.cache_dir[0]) return;
+    if (!g.cfg.cache_dir[0]) return; /* no cache path configured — nothing to scan */
 
     for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
@@ -128,11 +128,11 @@ void Sync_LoadManifest(void)
     if (hFind == INVALID_HANDLE_VALUE) return;
 
     do {
-        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
-        if (wcscmp(fd.cFileName, L".") == 0)     continue;
-        if (wcscmp(fd.cFileName, L"..") == 0)    continue;
-        if (wcscmp(fd.cFileName, L"setup") == 0) continue;
-        if (g.folder_count >= MAX_FOLDERS)        break;
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue; /* skip files — only process subdirs */
+        if (wcscmp(fd.cFileName, L".") == 0)     continue;               /* skip current-dir entry */
+        if (wcscmp(fd.cFileName, L"..") == 0)    continue;               /* skip parent-dir entry */
+        if (wcscmp(fd.cFileName, L"setup") == 0) continue;               /* setup/ holds requirements, not scripts */
+        if (g.folder_count >= MAX_FOLDERS)        break;                  /* hard cap — stop adding tabs */
 
         ScriptFolder *f = &g.folders[g.folder_count++];
         ZeroMemory(f, sizeof(*f));
@@ -151,10 +151,10 @@ void Sync_LoadManifest(void)
         if (hSub == INVALID_HANDLE_VALUE) continue;
 
         do {
-            if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+            if (sf.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue; /* skip subdirs inside the script folder */
 
             Script *s = Folder_Push(f);
-            if (!s) break;
+            if (!s) break; /* OOM — stop adding scripts for this folder */
 
             /* gh_path: FolderName/filename.py */
             _snwprintf_s(s->gh_path, MAX_APPPATH, _TRUNCATE, L"%s/%s", f->name, sf.cFileName);
@@ -190,7 +190,7 @@ void Sync_LoadManifest(void)
         } while (FindNextFileW(hSub, &sf));
         FindClose(hSub);
 
-        f->loaded = (f->count > 0);
+        f->loaded = (f->count > 0); /* mark loaded only if at least one script was found on disk */
 
     } while (FindNextFileW(hFind, &fd));
     FindClose(hFind);
@@ -479,7 +479,7 @@ static void Sync_LocalDir(const LocalDir *dir)
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
             /* Use local path as gh_path for uniqueness */
-            wcsncpy_s(s->gh_path, MAX_APPPATH, s->local,     _TRUNCATE);
+            wcsncpy_s(s->gh_path, MAX_APPPATH, s->local,     _TRUNCATE); /* local scripts have no GitHub path; use local path as a unique key for prefs */
         } while (FindNextFileW(hs, &sf));
         FindClose(hs);
 
@@ -503,7 +503,7 @@ static void Sync_LocalDir(const LocalDir *dir)
         WCHAR dest[MAX_APPPATH];
         _snwprintf_s(dest, MAX_APPPATH, _TRUNCATE, L"%s\\requirements.txt", dest_dir);
         /* Only copy if newer or missing */
-        if (GetFileAttributes(dest) == INVALID_FILE_ATTRIBUTES)
+        if (GetFileAttributes(dest) == INVALID_FILE_ATTRIBUTES) /* only copy if not already present */
             CopyFile(req, dest, FALSE);
     }
 }
@@ -527,6 +527,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
     SyncResult *sr = (SyncResult *)calloc(1, sizeof(SyncResult));
     if (!sr) {
+        /* OOM: post NULL so the main window clears the syncing flag even without a result */
         PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)NULL, 0);
         return 1;
     }
@@ -551,6 +552,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
         sr->status = SR_NO_INTERNET;
         if (!g.cfg.offline_use_cache) {
+            /* User opted out of offline mode \u2014 clear folders so the UI shows nothing */
             EnterCriticalSection(&g.cs_folders);
             for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
             g.folder_count = 0;
@@ -558,6 +560,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             wcsncpy_s(sr->message, 256,
                 L"\u26a0 No internet connection.", _TRUNCATE);
         } else if (g.folder_count > 0) {
+            /* Offline but cache exists \u2014 keep showing cached scripts with a warning */
             _snwprintf_s(sr->message, 255, _TRUNCATE,
                 L"\u26a0 Offline \u2013 showing %d cached folder(s). Scripts may be out of date.",
                 g.folder_count);
@@ -616,7 +619,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             /* Simple recursive delete via SHFileOperation */
             WCHAR del_from[MAX_APPPATH + 2];
             _snwprintf_s(del_from, MAX_APPPATH + 1, _TRUNCATE, L"%s\\", cache_dir);
-            del_from[wcslen(del_from) + 1] = L'\0';  /* double-NUL */
+            del_from[wcslen(del_from) + 1] = L'\0';  /* SHFileOperation requires double-null terminator after the path */
             SHFILEOPSTRUCT fo = {
                 .wFunc  = FO_DELETE,
                 .pFrom  = del_from,
@@ -703,6 +706,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             bool file_missing  = (GetFileAttributes(s->local)
                                   == INVALID_FILE_ATTRIBUTES);
 
+            /* Download when: no manifest entry, SHA changed on GitHub, or cached file is gone */
             if (!have_local || sha_changed || file_missing) {
                 WCHAR dl_msg[128];
                 const WCHAR *fname = wcsrchr(s->gh_path, L'/');
@@ -713,10 +717,9 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 if (GitHub_DownloadRaw(s->gh_path, s->local, token)) {
                     sr->scripts_updated++;
                 } else {
-                    /* Download failed — revert SHA in memory to the previously
-                       stored value so the manifest keeps the old SHA.
-                       This prevents the tamper warning next run — the script
-                       will simply retry downloading on the next sync. */
+                    /* Download failed — revert the in-memory SHA to the old manifest value.
+                       Saving the old SHA prevents a false tamper warning on the next run;
+                       the script will simply retry on the next sync cycle. */
                     wcsncpy_s(s->sha, MAX_SHA, stored_sha, _TRUNCATE);
                     sr->status = SR_PARTIAL;
                 }
@@ -762,7 +765,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         if (xbuf) {
             for (int i = 0; i < g.cfg.extra_repo_count; i++) {
                 ExtraRepo *xr = &g.cfg.extra_repos[i];
-                if (!xr->enabled || !xr->url[0]) continue;
+                if (!xr->enabled || !xr->url[0]) continue; /* skip disabled or empty extra repo entries */
                 Sync_ExtraRepo(xr, xbuf);
 
                 /* Cache requirements.txt for this repo in unique subfolder */
@@ -774,7 +777,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                     SHCreateDirectoryEx(NULL, sub, NULL);
                     WCHAR req[MAX_APPPATH];
                     _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\requirements.txt", sub);
-                    if (GetFileAttributes(req) == INVALID_FILE_ATTRIBUTES) {
+                    if (GetFileAttributes(req) == INVALID_FILE_ATTRIBUTES) { /* only download if not already cached */
                         const WCHAR *tok = xr->token[0] ? xr->token
                                          : (g.cfg.github_token[0] ? g.cfg.github_token : NULL);
                         const WCHAR *branch = xr->branch[0] ? xr->branch : L"main";
@@ -804,8 +807,10 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
         if (sr->scripts_updated == 0 && sr->folders_added == 0
             && sr->folders_removed == 0 && sr->scripts_added == 0
             && sr->scripts_removed == 0) {
+            /* Nothing changed — brief "up to date" message */
             wcsncpy_s(sr->message, 256, L"All scripts are up to date.", _TRUNCATE);
         } else {
+            /* Something changed — show a change summary */
             _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync complete. "
                 L"+%d/-%d folders, "
                 L"+%d/-%d scripts, "
@@ -814,7 +819,7 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                 sr->scripts_added,  sr->scripts_removed,
                 sr->scripts_updated);
         }
-    } else if (sr->status == SR_PARTIAL) {
+    } else if (sr->status == SR_PARTIAL) { /* at least one folder or file failed to download */
         _snwprintf_s(sr->message, 255, _TRUNCATE, L"Sync partial \u2013 some downloads failed. "
                    L"%d updated.", sr->scripts_updated);
     }

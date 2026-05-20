@@ -27,9 +27,9 @@ static void ParseVersion(const WCHAR *s, int v[4])
     int part = 0;
     for (const WCHAR *p = s; *p && part < 4; p++) {
         if (*p >= L'0' && *p <= L'9') {
-            v[part] = v[part] * 10 + (*p - L'0');
+            v[part] = v[part] * 10 + (*p - L'0'); /* accumulate digit into current component */
         } else if (*p == L'.') {
-            part++;
+            part++; /* move to next version component (major → minor → patch → build) */
         }
     }
 }
@@ -57,10 +57,11 @@ static bool IsNewer(const WCHAR *remote_tag)
        Build number (4th part) is ignored - a local build with a higher
        build number than the latest release should not prompt for update. */
     for (int i = 0; i < 3; i++) {
-        if (rv[i] > lv[i]) return true;
-        if (rv[i] < lv[i]) return false;
+        if (rv[i] > lv[i]) return true;  /* remote is newer at this position — done */
+        if (rv[i] < lv[i]) return false; /* local is newer at this position — done */
+        /* equal at this position — check the next component */
     }
-    return false;
+    return false; /* all three components equal — versions match, not newer */
 }
 
 /* ================================================================== */
@@ -75,17 +76,17 @@ static bool IsNewer(const WCHAR *remote_tag)
 static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
 {
     const char *p = strstr(json, "\"tag_name\"");
-    if (!p) return false;
+    if (!p) return false; /* key absent — not a releases response */
     p += strlen("\"tag_name\"");
-    while (*p == ' ' || *p == ':' || *p == '\t') p++;
-    if (*p != '"') return false;
-    p++;
+    while (*p == ' ' || *p == ':' || *p == '\t') p++; /* skip whitespace and the colon separator */
+    if (*p != '"') return false; /* value is not a JSON string */
+    p++; /* step past the opening quote */
     int i = 0;
     char tmp[64] = {0};
-    while (*p && *p != '"' && i < 62) tmp[i++] = *p++;
+    while (*p && *p != '"' && i < 62) tmp[i++] = *p++; /* i < 62 leaves room for null terminator in 64-byte buffer */
     tmp[i] = '\0';
-    MultiByteToWideChar(CP_UTF8, 0, tmp, -1, tag_out, max);
-    return (tag_out[0] != L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, tmp, -1, tag_out, max); /* convert UTF-8 tag to wide string */
+    return (tag_out[0] != L'\0'); /* false if conversion produced an empty string */
 }
 
 
@@ -101,12 +102,12 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
 /* ================================================================== */
 DWORD WINAPI Updater_CheckThread(LPVOID unused)
 {
-    bool manual = (unused != NULL);
+    bool manual = (unused != NULL); /* non-NULL lpParam signals a user-initiated check */
 
-    /* Auto-check: wait for sync thread to finish its API calls first */
+    /* Auto-check: delay 3 s (3000 ms) so the sync thread's API calls go first */
     if (!manual) Sleep(3000);
 
-    if (manual) PostStatus(L"Checking for updates…");
+    if (manual) PostStatus(L"Checking for updates…"); /* only show status on manual check — auto runs silently */
 
     char *buf = (char *)malloc(HTTP_BUF_SIZE);
     if (!buf) return 1;
@@ -119,25 +120,25 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
                               g.cfg.github_token[0] ? g.cfg.github_token : NULL,
                               buf, &len);
 
-    if (!ok || len == 0) { free(buf); return 1; }
+    if (!ok || len == 0) { free(buf); return 1; } /* HTTP failure or empty response */
 
     WCHAR tag[32] = {0};
-    if (!ParseLatestTag(buf, tag, 32)) { free(buf); return 1; }
+    if (!ParseLatestTag(buf, tag, 32)) { free(buf); return 1; } /* response did not contain a tag_name */
 
     if (IsNewer(tag)) {
-        /* Strip leading 'v' before storing for display */
+        /* Store display version without the leading 'v' prefix */
         const WCHAR *display_tag = tag;
         if (display_tag[0] == L'v' || display_tag[0] == L'V')
             display_tag++;
         wcsncpy_s(g.latest_version, 32, display_tag, _TRUNCATE);
 
         if (g.cfg.auto_update) {
-            /* Auto-update: download and install (honoured for both auto and manual check) */
-            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0);  /* wParam=1 means auto */
+            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0); /* wParam=1 = auto-update mode; triggers silent download */
         } else {
-            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0);
+            PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0); /* wParam=0 = prompt mode; shows badge + message box */
         }
     } else if (manual) {
+        /* Only report "up to date" for a manual check — auto-check is silent when current */
         PostStatus(L"App is up to date (v%s).", VERSION_STRING_W);
     }
 
@@ -176,6 +177,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
         L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
 
     if (res != IDYES) {
+        /* User declined the auto-install — fall back to opening the releases page */
         Updater_PromptAndInstall(latest_tag);
         return;
     }
@@ -195,15 +197,16 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
         L"/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
         latest_tag);
 
-    char *buf = (char *)malloc(8 * 1024 * 1024); /* 8MB for exe */
+    char *buf = (char *)malloc(8 * 1024 * 1024); /* 8 MB — sized to hold the release exe */
     if (!buf) { Updater_PromptAndInstall(latest_tag); return; }
 
-    DWORD len = 8 * 1024 * 1024; /* tell HttpGet our buffer size */
+    DWORD len = 8 * 1024 * 1024; /* pass buffer capacity to GitHub_HttpGet as the in/out size */
     bool ok = GitHub_HttpGet(L"github.com", raw_path,
                              g.cfg.github_token[0] ? g.cfg.github_token : NULL,
                              buf, &len);
 
     if (!ok || len == 0) {
+        /* Download failed — degrade gracefully to browser-based install */
         free(buf);
         MessageBox(g.hwnd, L"Download failed. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
@@ -225,6 +228,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     free(buf);
 
     if (written != len || GetFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES) {
+        /* written != len means the WriteFile call was truncated; verify file also exists */
         DeleteFile(temp_path);
         MessageBox(g.hwnd, L"Download incomplete. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
@@ -234,13 +238,14 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
 
     PostStatus(L"Update downloaded. Closing to install...");
 
-    /* Get 8.3 short paths for exe and temp file so the ANSI batch script
-       never contains non-ASCII characters, even on non-Latin user profiles.
-       GetShortPathNameW succeeds here because both files already exist. */
+    /* Convert paths to 8.3 short form so the batch file is pure ASCII.
+       cmd.exe reads .bat files as ANSI, and non-Latin user profiles can have
+       Unicode characters in %TEMP% or the exe path that ANSI cannot represent.
+       GetShortPathNameW succeeds here because both files already exist on disk. */
     WCHAR s_exe[MAX_APPPATH]  = {0};
     WCHAR s_tmp[MAX_APPPATH]  = {0};
     if (!GetShortPathNameW(exe_path,  s_exe, MAX_APPPATH) || !s_exe[0])
-        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE);
+        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE); /* fall back to long path if short path fails */
     if (!GetShortPathNameW(temp_path, s_tmp, MAX_APPPATH) || !s_tmp[0])
         wcsncpy_s(s_tmp, MAX_APPPATH, temp_path, _TRUNCATE);
 
@@ -283,9 +288,9 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     fprintf(f, "pause\r\n");
     fclose(f);
 
-    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
-    Sleep(500); /* brief pause to let batch start before we exit */
-    PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wp=1 = force quit, bypass tray */
+    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE); /* launch batch file invisibly */
+    Sleep(500); /* 500 ms — give the batch process time to start before this process exits */
+    PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wParam=1 = force quit; WndProc skips the tray-minimize check */
 }
 
 /* ================================================================== */
@@ -309,7 +314,7 @@ void Updater_PromptAndInstall(const WCHAR *latest_tag)
                          MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
 
     if (res == IDYES) {
-        /* Open the releases page in the browser */
+        /* User confirmed — open GitHub releases in the default browser */
         WCHAR url[256];
         _snwprintf_s(url, 255, _TRUNCATE, L"https://github.com/%s/CatiaMenuWin32/releases/latest",
                    GITHUB_OWNER);

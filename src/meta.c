@@ -8,7 +8,7 @@
 
 #include "main.h"
 
-#define DESC_MAX 1023   /* must match ScriptMeta.description buffer - 1 */
+#define DESC_MAX 1023   /* ScriptMeta.description is [1024], so max writable index is 1023 */
 
 /* ================================================================== */
 /*  TrimRight  (static)                                                */
@@ -95,13 +95,13 @@ static void AppendDesc(WCHAR *buf, const WCHAR *text)
 /* ================================================================== */
 void Meta_Parse(Script *s)
 {
-    if (s->meta_loaded) return;
-    if (!s->local[0]) return;
-    if (GetFileAttributes(s->local) == INVALID_FILE_ATTRIBUTES) return;
+    if (s->meta_loaded) return;         /* already parsed — nothing to do    */
+    if (!s->local[0]) return;           /* no local path yet (not downloaded)*/
+    if (GetFileAttributes(s->local) == INVALID_FILE_ATTRIBUTES) return; /* file missing — INVALID_FILE_ATTRIBUTES is the sentinel for "not found" */
 
-    FILE *f = _wfopen(s->local, L"r, ccs=UTF-8");
-    if (!f) f = _wfopen(s->local, L"r");
-    if (!f) return;
+    FILE *f = _wfopen(s->local, L"r, ccs=UTF-8"); /* try UTF-8 first (script headers are ASCII-safe) */
+    if (!f) f = _wfopen(s->local, L"r");           /* fall back to system default encoding if UTF-8 open fails */
+    if (!f) return;                     /* file exists but cannot be opened (e.g. locked) */
 
     ScriptMeta m;
     ZeroMemory(&m, sizeof(m));
@@ -112,15 +112,15 @@ void Meta_Parse(Script *s)
     bool  in_desc   = false;
     bool  found_any = false;
 
-    while (lineno < 200 && fgetws(raw, 1024, f))
+    while (lineno < 200 && fgetws(raw, 1024, f)) /* 200-line cap: header is always near the top; avoids reading whole file */
     {
         lineno++;
         TrimRight(raw);
         wcsncpy_s(line, 1024, raw, _TRUNCATE);
-        StripLeading(line);
+        StripLeading(line);   /* strip comment chars (#, ', ", -) from the raw line copy */
         TrimRight(line);
 
-        /* Detect dashed separator line */
+        /* Detect dashed separator line — a run of 10+ dashes with no other content */
         bool is_dashes = false;
         {
             int dash_count = 0, other = 0;
@@ -128,19 +128,19 @@ void Meta_Parse(Script *s)
                 if (*p==L'-') dash_count++;
                 else if (*p!=L' '&&*p!=L'\t'&&*p!=L'\''&&*p!=L'"') other++;
             }
-            is_dashes = (dash_count >= 10 && other == 0);
+            is_dashes = (dash_count >= 10 && other == 0); /* 10 = minimum dash run to be a separator */
         }
 
         if (is_dashes) {
-            if (!in_header) { in_header = true; }
-            else            { break; } /* second dashes = end of header */
+            if (!in_header) { in_header = true;  } /* first separator = start of header block */
+            else            { break;             } /* second separator = end of header; stop */
             continue;
         }
 
-        if (!in_header) continue;
+        if (!in_header) continue; /* skip lines before the opening separator */
 
-        /* Stop at Python code */
-        if (_wcsnicmp(line, L"import ",      7)==0 ||
+        /* Stop if we reach actual Python code — the header is over */
+        if (_wcsnicmp(line, L"import ",      7)==0 ||  /* length includes the trailing space */
             _wcsnicmp(line, L"from ",        5)==0 ||
             _wcsnicmp(line, L"def ",         4)==0 ||
             _wcsnicmp(line, L"class ",       6)==0 ||
@@ -152,8 +152,7 @@ void Meta_Parse(Script *s)
         const WCHAR *val = NULL;
 
         if (MatchKey(line, L"Script name") != NULL) {
-            /* Script name not displayed — just stop description mode */
-            in_desc = false;
+            in_desc = false; /* "Script name:" has no display field; recognise it so it doesn't bleed into description */
 
         } else if ((val = MatchKey(line, L"Version")) != NULL) {
             wcsncpy_s(m.version, 32, val, _TRUNCATE);
@@ -184,34 +183,32 @@ void Meta_Parse(Script *s)
             found_any = true; in_desc = true;
 
         } else if (_wcsnicmp(line, L"requirements", 12) == 0) {
-            /* requirements: may have content on same line or next lines */
+            /* "requirements:" may have content on the same line or span multiple indented lines */
             val = MatchKey(line, L"requirements");
             if (val) wcsncpy_s(m.requirements, 512, val, _TRUNCATE);
             found_any = true; in_desc = false;
-            /* Continuation lines are collected below via m.requirements[0] check */
+            /* Continuation lines are collected in the m.requirements[0] branch below */
 
         } else if (_wcsnicmp(line, L"dependencies", 12) == 0) {
-            in_desc = false;
-            /* Skip dependencies block */
+            in_desc = false; /* "dependencies:" block is recognised but not stored */
 
         } else if (in_desc) {
-            /* Description continuation line */
+            /* Description continuation: collect indented or comment-prefixed lines */
             bool indented = (raw[0]==L' '||raw[0]==L'\t'||
                              raw[0]==L'\''||raw[0]==L'"');
-            if (line[0]==L'['||line[0]==L']') { in_desc = false; continue; }
+            if (line[0]==L'['||line[0]==L']') { in_desc = false; continue; } /* INI-style section marker ends description */
             if (indented && line[0]) {
                 AppendDesc(m.description, line);
             } else if (!indented) {
-                in_desc = false;
+                in_desc = false; /* unindented non-key line means description block is over */
             }
         } else if (m.requirements[0] && !in_desc) {
-            /* Requirements continuation — collect indented lines */
+            /* Requirements continuation — collect indented lines after the "requirements:" key */
             bool indented = (raw[0]==L' '||raw[0]==L'\t');
             if (indented && line[0] &&
                 line[0] != L'[' && line[0] != L']') {
-                /* Append to requirements */
                 int cur = (int)wcslen(m.requirements);
-                if (cur < 508) {
+                if (cur < 508) { /* 508 = 512 buffer - 4 reserved for \r\n\0 appended below */
                     m.requirements[cur++] = L'\r';
                     m.requirements[cur++] = L'\n';
                     m.requirements[cur]   = L'\0';
@@ -224,12 +221,14 @@ void Meta_Parse(Script *s)
     fclose(f);
 
     if (found_any) {
+        /* At least one recognised key was parsed — commit the result */
         s->meta        = m;
         s->meta_loaded = true;
     }
-    /* If found_any is false (file missing or no header found),
-       leave meta_loaded=false so Meta_Parse retries next hover
-       after the sync thread has downloaded the file. */
+    /* If found_any is false the file exists but has no recognised header.
+       Leaving meta_loaded=false lets Meta_Parse retry on the next tooltip
+       hover, which handles the race where the sync thread downloads the
+       file after this parse attempt. */
 }
 
 /* ================================================================== */

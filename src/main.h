@@ -9,32 +9,45 @@
  * License: MIT
  */
 
+/* ------------------------------------------------------------------ */
+/*  Preprocessor guards — must be set before any Windows header        */
+/* ------------------------------------------------------------------ */
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN  /* exclude rarely-used Win32 APIs to speed up compilation */
 #endif
 #ifndef UNICODE
-#define UNICODE
+#define UNICODE              /* use wide-character Win32 entry points */
 #endif
 #ifndef _UNICODE
-#define _UNICODE
+#define _UNICODE             /* align CRT with Win32 UNICODE mode */
 #endif
 
+/* ------------------------------------------------------------------ */
+/*  Windows API includes                                                */
+/* ------------------------------------------------------------------ */
 #include <windows.h>
-#include <windowsx.h>
-#include <commdlg.h>
-#include <commctrl.h>
-#include <dwmapi.h>
-#include <uxtheme.h>
-#include <wininet.h>
-#include <shellapi.h>
-#include <shlobj.h>
-#include <shlwapi.h>
+#include <windowsx.h>   /* GET_X_LPARAM, GET_Y_LPARAM, message crackers */
+#include <commdlg.h>    /* GetOpenFileName, OPENFILENAME                 */
+#include <commctrl.h>   /* ListView, TreeView, tab control, etc.         */
+#include <dwmapi.h>     /* DwmSetWindowAttribute (dark title bar)        */
+#include <uxtheme.h>    /* SetWindowTheme (DarkMode_Explorer)            */
+#include <wininet.h>    /* WinINet HTTPS (InternetOpen, HttpSendRequest) */
+#include <shellapi.h>   /* Shell_NotifyIcon, SHFileOperation             */
+#include <shlobj.h>     /* SHGetKnownFolderPath (APPDATA)                */
+#include <shlwapi.h>    /* PathFileExistsW, StrStrIW                     */
+
+/* ------------------------------------------------------------------ */
+/*  C standard library                                                  */
+/* ------------------------------------------------------------------ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdbool.h>
 
+/* ------------------------------------------------------------------ */
+/*  Local headers                                                       */
+/* ------------------------------------------------------------------ */
 #include "resource.h"
 #include "version.h"
 
@@ -58,23 +71,23 @@
 /* ------------------------------------------------------------------ */
 /*  Layout                                                              */
 /* ------------------------------------------------------------------ */
-#define WIN_MIN_W        820
-#define WIN_MIN_H        420
-#define TOOLBAR_H        38
-#define TAB_H            26
-#define TAB_ARROW_W      22
-#define STATUS_H         22
-#define BTN_H            40
-#define BTN_GAP          6
-#define BTN_MX           12
-#define BTN_MY           10
-#define SCROLL_STEP      40
-#define INFO_BTN_W       28
-#define STAR_BTN_W       28   /* width of favourite star badge          */
-#define TIP_W            320
-#define TIP_ROW_H        18
-#define TIP_HEADER_ROWS  5
-#define SEARCH_H         26   /* height of search/filter box            */
+#define WIN_MIN_W        820  /* minimum main window width (px)          */
+#define WIN_MIN_H        420  /* minimum main window height (px)         */
+#define TOOLBAR_H        38   /* toolbar strip height (px)               */
+#define TAB_H            26   /* tab bar row height (px)                 */
+#define TAB_ARROW_W      22   /* tab scroll arrow click-zone width (px)  */
+#define STATUS_H         22   /* status bar height (px)                  */
+#define BTN_H            40   /* script button height (px)               */
+#define BTN_GAP          6    /* vertical gap between script buttons     */
+#define BTN_MX           12   /* horizontal content margin inside button */
+#define BTN_MY           10   /* vertical content margin inside button   */
+#define SCROLL_STEP      40   /* px scrolled per keyboard/wheel step     */
+#define INFO_BTN_W       28   /* info (ℹ) button column width            */
+#define STAR_BTN_W       28   /* width of favourite star badge           */
+#define TIP_W            320  /* tooltip popup width (px)                */
+#define TIP_ROW_H        18   /* height of one tooltip row (px)          */
+#define TIP_HEADER_ROWS  5    /* rows shown in the tooltip header area   */
+#define SEARCH_H         26   /* height of search/filter box             */
 
 /* Quick Launch Bar */
 #define QBAR_BTN_SIZE    52   /* button face square (px)                 */
@@ -88,31 +101,31 @@
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
-#define MAX_FOLDERS       64
-#define MAX_SCRIPTS       1024  /* default heap capacity per folder — grows as needed */
-#define MAX_NAME          128
-#define MAX_SHA           64
-#define MAX_APPPATH       520
-#define HTTP_BUF_SIZE     (512 * 1024)
-#define MAX_EXTRA_REPOS   8
-#define MAX_LOCAL_DIRS    8
-#define MAX_FAVOURITES    256
-#define MAX_HIDDEN        256
-#define MAX_NOTE_LEN      512
+#define MAX_FOLDERS       64           /* maximum number of tabs/folders                 */
+#define MAX_SCRIPTS       1024         /* default heap capacity per folder — grows as needed */
+#define MAX_NAME          128          /* max wide-char length for names and titles       */
+#define MAX_SHA           64           /* SHA1 as hex = 40 chars; 64 gives headroom      */
+#define MAX_APPPATH       520          /* MAX_PATH (260) doubled for wide + decoration    */
+#define HTTP_BUF_SIZE     (512 * 1024) /* 512 KB download buffer for GitHub API responses */
+#define MAX_EXTRA_REPOS   8            /* max user-added GitHub repository sources        */
+#define MAX_LOCAL_DIRS    8            /* max user-added local folder sources             */
+#define MAX_FAVOURITES    256          /* max favourite scripts stored in prefs.ini       */
+#define MAX_HIDDEN        256          /* max hidden scripts stored in prefs.ini          */
+#define MAX_NOTE_LEN      512          /* max note characters per script                 */
 
 /* ------------------------------------------------------------------ */
 /*  Messages                                                            */
 /* ------------------------------------------------------------------ */
-#define WM_SYNC_DONE       (WM_USER + 1)
-#define WM_STATUS_SET      (WM_USER + 2)
-#define WM_TRAYICON        (WM_USER + 10)
-#define WM_UPDATE_AVAIL    (WM_USER + 11)
-#define WM_AUTO_REFRESH    (WM_USER + 12)
+#define WM_SYNC_DONE       (WM_USER + 1)   /* Sync_Thread → UI: sync complete (lp = SyncResult*) */
+#define WM_STATUS_SET      (WM_USER + 2)   /* PostStatus → UI: update status bar (lp = WCHAR*) */
+#define WM_TRAYICON        (WM_USER + 10)  /* Shell_NotifyIcon callback (lp = mouse message)  */
+#define WM_UPDATE_AVAIL    (WM_USER + 11)  /* Updater_CheckThread → UI: new version available */
+#define WM_AUTO_REFRESH    (WM_USER + 12)  /* timer-triggered automatic sync                  */
 #define WM_SCRIPT_STARTED  (WM_USER + 13)  /* posted by Runner_Thread when a bg script starts */
 #define WM_SCRIPT_STOPPED  (WM_USER + 14)  /* posted when bg script exits or is terminated   */
-#define TRAY_ID            1
-#define TIMER_AUTO_REFRESH 1001
-#define TIMER_QBAR         1002
+#define TRAY_ID            1               /* notification area icon ID passed to Shell_NotifyIcon */
+#define TIMER_AUTO_REFRESH 1001            /* SetTimer ID for the auto-sync interval          */
+#define TIMER_QBAR         1002            /* SetTimer ID for quick bar deferred update       */
 
 /* ================================================================== */
 /*  SortMode                                                            */
@@ -380,43 +393,43 @@ typedef struct {
 /*  Out: (read by all modules via the global `g` instance)            */
 /* ================================================================== */
 typedef struct {
-    HWND   hwnd;
-    HWND   hwnd_tab;
-    HWND   hwnd_scroll;
-    HWND   hwnd_status;
-    HWND   hwnd_tip;
-    HWND   hwnd_search;   /* search/filter edit box                    */
-    HWND   hwnd_details;  /* script details panel                      */
+    HWND   hwnd;            /* main application window                   */
+    HWND   hwnd_tab;        /* custom tab bar control                    */
+    HWND   hwnd_scroll;     /* scrollable script panel                   */
+    HWND   hwnd_status;     /* status bar at the bottom                  */
+    HWND   hwnd_tip;        /* script tooltip popup                      */
+    HWND   hwnd_search;     /* search/filter edit box                    */
+    HWND   hwnd_details;    /* script details panel                      */
 
     ScriptFolder folders[MAX_FOLDERS];
     int      folder_count;
-    int      active_tab;
-    int      tab_offset;
+    int      active_tab;    /* index of the currently displayed tab      */
+    int      tab_offset;    /* first visible tab when tabs overflow       */
     Settings cfg;
-    bool     dark_mode;
+    bool     dark_mode;     /* true = dark theme active                  */
 
-    HFONT  font_ui;
-    HFONT  font_bold;
-    HFONT  font_small;
-    HBRUSH br_bg;
-    HBRUSH br_toolbar;
-    HBRUSH br_btn;
-    HBRUSH br_btn_hot;
-    HBRUSH br_accent;
-    HBRUSH br_status;
+    HFONT  font_ui;         /* default UI font (≈10pt)                   */
+    HFONT  font_bold;       /* bold variant of font_ui                   */
+    HFONT  font_small;      /* smaller font for secondary text (≈8pt)    */
+    HBRUSH br_bg;           /* main background brush                     */
+    HBRUSH br_toolbar;      /* toolbar background brush                  */
+    HBRUSH br_btn;          /* script button idle-state brush            */
+    HBRUSH br_btn_hot;      /* script button hovered-state brush         */
+    HBRUSH br_accent;       /* accent colour brush                       */
+    HBRUSH br_status;       /* status bar background brush               */
 
-    bool   syncing;
+    bool   syncing;          /* true = background sync thread is running */
     bool   status_offline;   /* true when showing stale cache due to no internet */
-    int    hot_btn;
-    int    tip_btn;
-    int    tip_h;
-    WCHAR  last_run_path[MAX_APPPATH];
+    int    hot_btn;          /* hovered button index, -1 = none          */
+    int    tip_btn;          /* button whose tooltip is displayed, -1 = none */
+    int    tip_h;            /* current tooltip height in px             */
+    WCHAR  last_run_path[MAX_APPPATH]; /* path of the most recently run script */
     WCHAR  appdata_dir[MAX_APPPATH];
     WCHAR  latest_version[32];
     WCHAR  active_folder_name[MAX_NAME]; /* name of active folder for post-sync restoration */
-    int    scroll_y;
-    int    scroll_max;
-    bool   tray_icon_added;
+    int    scroll_y;         /* current vertical scroll position (px)    */
+    int    scroll_max;       /* maximum scroll position (px)             */
+    bool   tray_icon_added;  /* guards against double-adding tray icon   */
 
     CRITICAL_SECTION cs_folders; /* guards g.folders[] and g.folder_count */
 
@@ -460,6 +473,8 @@ extern AppState g;
 
 /* ------------------------------------------------------------------ */
 /*  DWM dark mode                                                       */
+/*  Value 20 is the official constant (Windows 10 20H1+).              */
+/*  Attribute 19 is the pre-20H1 alias used in Window_ApplyDarkMode.  */
 /* ------------------------------------------------------------------ */
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20

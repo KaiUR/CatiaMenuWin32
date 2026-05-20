@@ -417,7 +417,7 @@ static const char *Help_GetRTF(HelpTopic topic)
             "}";
 
     default:
-        return "{\\rtf1\\ansi Hello}";
+        return "{\\rtf1\\ansi Hello}"; /* fallback — minimal valid RTF so the control is never empty */
     }
 }
 
@@ -473,10 +473,10 @@ static DWORD CALLBACK RtfCallback(DWORD_PTR cookie, LPBYTE buf,
 {
     RtfStream *s = (RtfStream *)cookie;
     DWORD avail = (DWORD)strlen(s->data) - s->pos;
-    DWORD n = (avail < (DWORD)cb) ? avail : (DWORD)cb;
-    if (n) { if (memmove_s(buf, n, s->data + s->pos, n) == 0) s->pos += n; else n = 0; }
-    *read = (LONG)n;
-    return 0;
+    DWORD n = (avail < (DWORD)cb) ? avail : (DWORD)cb; /* take whichever is smaller: bytes available vs bytes requested */
+    if (n) { if (memmove_s(buf, n, s->data + s->pos, n) == 0) s->pos += n; else n = 0; } /* advance only if copy succeeded */
+    *read = (LONG)n; /* 0 signals end of stream to RichEdit */
+    return 0; /* non-zero would abort streaming with an error */
 }
 
 /* ================================================================== */
@@ -518,13 +518,13 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
                                       WPARAM wp, LPARAM lp)
 {
     static HWND hTree = NULL, hEdit = NULL;
-    static int  splitter = 200; /* px */
+    static int  splitter = 200; /* 200 px — TreeView pane width */
 
     switch (msg)
     {
     case WM_INITDIALOG:
     {
-        /* Load RichEdit */
+        /* Load RichEdit — RICHEDIT_CLASS is not available until this DLL is loaded */
         LoadLibrary(L"RICHED20.DLL");
 
         /* Icon */
@@ -537,7 +537,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
         SetWindowLongPtr(hwnd, GWL_STYLE,
             GetWindowLongPtr(hwnd, GWL_STYLE) | WS_CLIPCHILDREN);
 
-        /* Create TreeView — no border, no expand/collapse indicators (flat list) */
+        /* Create TreeView — TVS_FULLROWSELECT highlights full row; TVS_NOHSCROLL keeps it tidy */
         hTree = CreateWindowEx(0, WC_TREEVIEW, L"",
             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS |
             TVS_SHOWSELALWAYS | TVS_FULLROWSELECT | TVS_NOHSCROLL,
@@ -561,7 +561,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
         /* Style RichEdit */
         SendMessage(hEdit, EM_SETBKGNDCOLOR, 0, (LPARAM)COL_BG());
         SendMessage(hEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN,
-                    MAKELONG(14, 14));
+                    MAKELONG(14, 14)); /* 14 px padding on left and right edges */
 
         /* Populate TreeView */
         for (int i = 0; i < HELP_TOPIC_COUNT; i++) {
@@ -570,7 +570,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             tvi.hInsertAfter = TVI_LAST;
             tvi.item.mask    = TVIF_TEXT | TVIF_PARAM;
             tvi.item.pszText = (LPWSTR)Help_TopicLabel((HelpTopic)i);
-            tvi.item.lParam  = (LPARAM)i;
+            tvi.item.lParam  = (LPARAM)i; /* store topic index so TVN_SELCHANGED can retrieve it */
             TreeView_InsertItem(hTree, &tvi);
         }
 
@@ -581,11 +581,11 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             Help_LoadTopic(hEdit, HELP_GETTING_STARTED);
         }
 
-        /* Apply dark mode */
+        /* Apply dark mode — "DarkMode_Explorer" visual style gives the TreeView dark scrollbars */
         SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
         Window_ApplyDarkMode(hwnd);
 
-        /* Size controls */
+        /* Trigger WM_SIZE to position controls for the actual client area */
         RECT rc; GetClientRect(hwnd, &rc);
         SendMessage(hwnd, WM_SIZE, 0, MAKELPARAM(rc.right, rc.bottom));
         return TRUE;
@@ -596,7 +596,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
         /* Fill dialog background with app theme colour */
         RECT rc; GetClientRect(hwnd, &rc);
         FillRect((HDC)wp, &rc, g.br_bg);
-        return TRUE;
+        return TRUE; /* returning TRUE signals the background was erased, preventing flicker */
     }
 
     case WM_PAINT:
@@ -625,7 +625,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             SetWindowPos(hEdit, NULL, splitter + 1, 0,
                          w - splitter - 1, h,
                          SWP_NOZORDER | SWP_NOACTIVATE);
-        /* Repaint the divider strip */
+        /* Invalidate only the 3-px divider strip to avoid a full repaint */
         RECT div = { splitter - 1, 0, splitter + 2, h };
         InvalidateRect(hwnd, &div, FALSE);
         return 0;
@@ -635,9 +635,9 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
     {
         NMHDR *nm = (NMHDR *)lp;
         if (nm->idFrom == IDC_HELP_TREE &&
-            nm->code == TVN_SELCHANGED) {
+            nm->code == TVN_SELCHANGED) { /* fires when user clicks a new topic */
             NMTREEVIEW *ntv = (NMTREEVIEW *)lp;
-            HelpTopic t = (HelpTopic)ntv->itemNew.lParam;
+            HelpTopic t = (HelpTopic)ntv->itemNew.lParam; /* lParam is the topic index stored at insert time */
             if (hEdit) Help_LoadTopic(hEdit, t);
         }
         return 0;
@@ -646,13 +646,13 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
     case WM_GETMINMAXINFO:
     {
         MINMAXINFO *mm = (MINMAXINFO *)lp;
-        mm->ptMinTrackSize.x = 600;
+        mm->ptMinTrackSize.x = 600; /* 600 × 420 — minimum useful two-pane layout */
         mm->ptMinTrackSize.y = 420;
         return 0;
     }
 
     case WM_CLOSE:
-        s_hwnd_help = NULL;
+        s_hwnd_help = NULL; /* clear before DestroyWindow so Help_Show sees no stale handle */
         DestroyWindow(hwnd);
         return 0;
 
@@ -673,8 +673,7 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
 /* ================================================================== */
 void Help_Show(void)
 {
-    /* Only one instance */
-    if (s_hwnd_help) {
+    if (s_hwnd_help) { /* single-instance guard — focus the existing window instead of opening a second */
         SetForegroundWindow(s_hwnd_help);
         return;
     }

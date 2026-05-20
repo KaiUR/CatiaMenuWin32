@@ -21,7 +21,7 @@ void Window_ApplyDarkMode(HWND hwnd)
 {
     BOOL dark = g.dark_mode ? TRUE : FALSE;
     DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-    DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark));
+    DwmSetWindowAttribute(hwnd, 19, &dark, sizeof(dark)); /* attribute 19 = pre-20H1 alias for DWMWA_USE_IMMERSIVE_DARK_MODE */
 }
 
 /* ================================================================== */
@@ -282,7 +282,7 @@ static int TabBar_NaturalWidth(const WCHAR *label)
     GetTextExtentPoint32W(hdc, label, (int)wcslen(label), &sz);
     SelectObject(hdc, of);
     ReleaseDC(NULL, hdc);
-    return sz.cx + 28; /* 14px padding each side */
+    return sz.cx + 28; /* +28 = 14 px padding on each side */
 }
 
 /* ================================================================== */
@@ -344,7 +344,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     switch (msg)
     {
     case WM_ERASEBKGND:
-        return 1;
+        return 1; /* suppress default erase to prevent flicker */
 
     case WM_PAINT:
     {
@@ -374,15 +374,15 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             left_x  = TAB_ARROW_W;
             right_x = w - TAB_ARROW_W;
 
-            /* Clamp g.tab_offset (index into vtabs) so the last page is reachable */
+            /* Find the last offset from which at least one page of tabs is reachable */
             int max_off = 0;
             while (max_off < vn - 1 &&
                    max_off + TabBar_CountFit(w, vtabs, vn, max_off, true) < vn)
                 max_off++;
-            if (g.tab_offset > max_off) g.tab_offset = max_off;
+            if (g.tab_offset > max_off) g.tab_offset = max_off; /* clamp to valid range */
             if (g.tab_offset < 0)       g.tab_offset = 0;
 
-            bool la_hot = (g.tab_offset > 0);
+            bool la_hot = (g.tab_offset > 0); /* left arrow active only when not at the start */
             HBRUSH ab = CreateSolidBrush(la_hot ? COL_BTN_HOT() : COL_TOOLBAR());
             RECT ar = { 0, 0, TAB_ARROW_W, h };
             FillRect(hdc, &ar, ab); DeleteObject(ab);
@@ -393,7 +393,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             SelectObject(hdc, of2);
 
             int visible_count = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
-            bool ra_hot = (g.tab_offset + visible_count < vn);
+            bool ra_hot = (g.tab_offset + visible_count < vn); /* right arrow active when more tabs are hidden to the right */
             ab = CreateSolidBrush(ra_hot ? COL_BTN_HOT() : COL_TOOLBAR());
             ar = (RECT){ right_x, 0, w, h };
             FillRect(hdc, &ar, ab); DeleteObject(ab);
@@ -402,7 +402,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             DrawText(hdc, L"►", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of3);
         } else {
-            g.tab_offset = 0;
+            g.tab_offset = 0; /* all tabs fit — no offset needed */
         }
 
         SetBkMode(hdc, TRANSPARENT);
@@ -420,6 +420,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             DeleteObject(tbr);
 
             if (sel) {
+                /* 2-px accent line at the top of the selected tab */
                 HPEN ap = CreatePen(PS_SOLID, 2, COL_ACCENT);
                 HPEN op = SelectObject(hdc, ap);
                 MoveToEx(hdc, x, 1, NULL);
@@ -428,7 +429,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(ap);
             }
 
-            if (v + 1 < vn) {
+            if (v + 1 < vn) { /* draw vertical divider between tabs, but not after the last visible one */
                 HPEN dp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
                 HPEN op = SelectObject(hdc, dp);
                 MoveToEx(hdc, x + tw - 1, 3, NULL);
@@ -439,7 +440,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
             SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
             HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
-            RECT lr = { x + 14, 0, x + tw - 14, h };
+            RECT lr = { x + 14, 0, x + tw - 14, h }; /* 14 px text margin matches the 28-total-padding from NaturalWidth */
             DrawText(hdc, g.folders[fi].display, -1, &lr,
                      DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of);
@@ -448,7 +449,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
         HPEN bp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
         HPEN op = SelectObject(hdc, bp);
-        MoveToEx(hdc, 0, h - 1, NULL);
+        MoveToEx(hdc, 0, h - 1, NULL); /* h - 1 = bottom edge of tab bar = horizontal divider */
         LineTo(hdc, w, h - 1);
         SelectObject(hdc, op);
         DeleteObject(bp);
@@ -473,11 +474,11 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         bool need_arrows = TabBar_NeedsArrows(w, vtabs, vn);
 
         if (need_arrows) {
-            if (mx < TAB_ARROW_W) {
+            if (mx < TAB_ARROW_W) { /* click on left arrow — scroll left */
                 if (g.tab_offset > 0) { g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE); }
                 return 0;
             }
-            if (mx >= w - TAB_ARROW_W) {
+            if (mx >= w - TAB_ARROW_W) { /* click on right arrow — scroll right */
                 int vis = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
                 if (g.tab_offset + vis < vn) { g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE); }
                 return 0;
@@ -490,9 +491,9 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         for (int v = g.tab_offset; v < vn; v++) {
             int fi = vtabs[v];
             int tw = TabBar_NaturalWidth(g.folders[fi].display);
-            if (x + tw > right_x) tw = right_x - x;
+            if (x + tw > right_x) tw = right_x - x; /* clip last visible tab at the arrow zone boundary */
             if (mx >= x && mx < x + tw) {
-                if (fi != g.active_tab) Tabs_Switch(fi);
+                if (fi != g.active_tab) Tabs_Switch(fi); /* only switch if a different tab was clicked */
                 return 0;
             }
             x += tw;
@@ -513,10 +514,10 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         if (!TabBar_NeedsArrows(rc.right, vtabs, vn)) break;
 
         int vis   = TabBar_CountFit(rc.right, vtabs, vn, g.tab_offset, true);
-        int delta = GET_WHEEL_DELTA_WPARAM(wp);
-        if (delta < 0 && g.tab_offset + vis < vn) {
+        int delta = GET_WHEEL_DELTA_WPARAM(wp); /* positive = wheel up = scroll left */
+        if (delta < 0 && g.tab_offset + vis < vn) { /* wheel down = scroll right */
             g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE);
-        } else if (delta > 0 && g.tab_offset > 0) {
+        } else if (delta > 0 && g.tab_offset > 0) { /* wheel up = scroll left */
             g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE);
         }
         return 0;
@@ -569,7 +570,7 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
         WCHAR text[256] = {0};
         GetWindowText(hwnd, text, 255);
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, g.status_offline ? COL_WARN : COL_SUBTEXT());
+        SetTextColor(hdc, g.status_offline ? COL_WARN : COL_SUBTEXT()); /* amber text when offline */
         HFONT of = SelectObject(hdc, g.font_small);
         RECT tr = { 6, 0, rc.right - 6, rc.bottom };
         DrawText(hdc, text, -1, &tr,
@@ -612,7 +613,7 @@ static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
 {
     switch (msg) {
     case WM_PAINT:      Paint_Tooltip(hwnd); return 0;
-    case WM_ERASEBKGND: return 1;
+    case WM_ERASEBKGND: return 1; /* suppress erase to prevent flicker */
     }
     return DefWindowProc(hwnd, msg, wp, lp);
 }
@@ -673,10 +674,10 @@ void Window_Create(HINSTANCE hInst)
 
     int sw = GetSystemMetrics(SM_CXSCREEN);
     int sh = GetSystemMetrics(SM_CYSCREEN);
-    int ww = 820, wh = 540;
+    int ww = 820, wh = 540; /* initial window dimensions */
 
     g.hwnd = CreateWindowEx(0, APP_CLASS, APP_TITLE, WS_OVERLAPPEDWINDOW,
-        (sw-ww)/2, (sh-wh)/2, ww, wh, NULL, NULL, hInst, NULL);
+        (sw-ww)/2, (sh-wh)/2, ww, wh, NULL, NULL, hInst, NULL); /* (sw-ww)/2 centres horizontally */
 
     Window_ApplyDarkMode(g.hwnd);
 
@@ -703,7 +704,7 @@ void Window_Create(HINSTANCE hInst)
 
     int ids[] = { IDC_BTN_MENU, IDC_BTN_REFRESH,
                   IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP };
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 5; i++) /* apply UI font to all 5 toolbar buttons */
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 
@@ -725,8 +726,8 @@ void Window_Create(HINSTANCE hInst)
         0, TOOLBAR_H + SEARCH_H, ww, TAB_H,
         g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
 
-    int ct = TOOLBAR_H + SEARCH_H + TAB_H;
-    int ch = wh - ct - STATUS_H;
+    int ct = TOOLBAR_H + SEARCH_H + TAB_H; /* top of scroll panel = toolbar + search + tab bar */
+    int ch = wh - ct - STATUS_H; /* scroll panel height = remaining space above status bar */
 
     /* Search box spans full width */
     if (g.hwnd_search)
@@ -744,7 +745,7 @@ void Window_Create(HINSTANCE hInst)
         g.hwnd, (HMENU)(UINT_PTR)IDC_STATUS_BAR, hInst, NULL);
     SendMessage(g.hwnd_status, WM_SETFONT, (WPARAM)g.font_small, TRUE);
 
-    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST|WS_EX_NOACTIVATE,
+    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST|WS_EX_NOACTIVATE, /* WS_EX_NOACTIVATE: tooltip never steals focus */
         L"CMW32Tip", NULL, WS_POPUP,
         0, 0, 300, 160, g.hwnd, NULL, hInst, NULL);
 }
@@ -763,7 +764,7 @@ void Window_OnSize(int w, int h)
     int tab_y    = TOOLBAR_H + SEARCH_H;
     int ct       = tab_y + TAB_H;
     int ch       = h - ct - STATUS_H;
-    if (ch < 0) ch = 0;
+    if (ch < 0) ch = 0; /* prevent negative height if window is smaller than the fixed chrome */
 
     /* Search box - full client width with small margin */
     if (g.hwnd_search)

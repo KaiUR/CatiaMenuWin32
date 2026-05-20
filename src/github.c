@@ -105,7 +105,7 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hInet) return false;
 
-    /* Set connection and receive timeouts (15 s each) so sync never hangs */
+    /* 15 000 ms = 15 s per operation — prevents sync from hanging on a slow or unresponsive server */
     DWORD timeout_ms = 15000;
     InternetSetOption(hInet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
     InternetSetOption(hInet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
@@ -116,9 +116,9 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConn) { InternetCloseHandle(hInet); return false; }
 
-    DWORD flags = INTERNET_FLAG_SECURE
-                | INTERNET_FLAG_RELOAD
-                | INTERNET_FLAG_NO_CACHE_WRITE;
+    DWORD flags = INTERNET_FLAG_SECURE          /* require HTTPS — plaintext is rejected */
+                | INTERNET_FLAG_RELOAD          /* bypass WinINet cache, always fetch fresh */
+                | INTERNET_FLAG_NO_CACHE_WRITE; /* don't write the response into the WinINet cache */
 
     HINTERNET hReq = HttpOpenRequest(
         hConn, L"GET", path, NULL, NULL, NULL, flags, 0);
@@ -128,11 +128,11 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         return false;
     }
 
-    /* Only send JSON Accept header for API calls, not raw file downloads */
+    /* GitHub REST API requires the v3 JSON accept header; raw file downloads must NOT send it */
     if (wcsstr(host, L"api.github.com")) {
         HttpAddRequestHeaders(hReq,
             L"Accept: application/vnd.github.v3+json\r\n",
-            (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
+            (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD); /* -1 = let WinINet measure the string length */
     }
 
     if (token && token[0]) {
@@ -154,7 +154,7 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         InternetCloseHandle(hReq);
         InternetCloseHandle(hConn);
         InternetCloseHandle(hInet);
-        return false;
+        return false; /* refuse to read response from an unverified server */
     }
 
     /* ── HTTP status check ───────────────────────────────────────── */
@@ -163,6 +163,7 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
                   HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
                   &status, &ssz, NULL);
     if (status != 200) {
+        /* 404 = not found, 401/403 = auth failure, 429 = rate-limited, etc. */
         Util_Log(L"GitHub_HttpGet: HTTP %d for %s%s", status, host, path);
         InternetCloseHandle(hReq);
         InternetCloseHandle(hConn);
@@ -171,19 +172,19 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
     }
 
     DWORD total = 0, read = 0;
-    DWORD max_read = (*len > 0) ? *len : HTTP_BUF_SIZE;
+    DWORD max_read = (*len > 0) ? *len : HTTP_BUF_SIZE; /* use caller-supplied capacity when provided */
     while (InternetReadFile(hReq, buf + total,
-                            max_read - total - 1, &read) && read) {
+                            max_read - total - 1, &read) && read) { /* -1 reserves space for the null terminator */
         total += read;
-        if (total >= max_read - 1) break;
+        if (total >= max_read - 1) break; /* buffer full — stop reading */
     }
-    buf[total] = '\0';
+    buf[total] = '\0'; /* null-terminate so callers can use string functions on the response */
     *len = total;
 
     InternetCloseHandle(hReq);
     InternetCloseHandle(hConn);
     InternetCloseHandle(hInet);
-    return total > 0;
+    return total > 0; /* false if the response body was empty even with HTTP 200 */
 }
 
 /* ================================================================== */
@@ -226,23 +227,20 @@ bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
     bool ok = false;
 
     if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
-                            CRYPT_VERIFYCONTEXT)) {
-        if (CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash)) {
-            /* Hash "blob <size>" */
-            CryptHashData(hHash, (BYTE *)header, header_len, 0);
-            /* Hash the NUL byte */
+                            CRYPT_VERIFYCONTEXT)) { /* CRYPT_VERIFYCONTEXT = key-less context, sufficient for hashing */
+        if (CryptCreateHash(hProv, CALG_SHA1, 0, 0, &hHash)) { /* CALG_SHA1 = SHA-1 algorithm ID */
+            /* Feed the three-part input to match GitHub's blob SHA formula */
+            CryptHashData(hHash, (BYTE *)header, header_len, 0); /* "blob <size>" (no NUL yet) */
             BYTE nul = 0;
-            CryptHashData(hHash, &nul, 1, 0);
-            /* Hash file content */
-            CryptHashData(hHash, (BYTE *)file_buf, file_size, 0);
+            CryptHashData(hHash, &nul, 1, 0);                    /* the mandatory NUL separator */
+            CryptHashData(hHash, (BYTE *)file_buf, file_size, 0);/* raw file bytes */
 
-            BYTE  hash[20];
+            BYTE  hash[20]; /* SHA-1 produces 160 bits = 20 bytes */
             DWORD hash_len = sizeof(hash);
             if (CryptGetHashParam(hHash, HP_HASHVAL, hash, &hash_len, 0)) {
-                /* Convert to hex string */
                 WCHAR *p = sha_out;
                 for (int i = 0; i < 20 && p < sha_out + sha_max - 2; i++) {
-                    _snwprintf_s(p, 3, _TRUNCATE, L"%02x", hash[i]);
+                    _snwprintf_s(p, 3, _TRUNCATE, L"%02x", hash[i]); /* 3 = 2 hex chars + null; advance p by 2 */
                     p += 2;
                 }
                 *p = L'\0';
@@ -268,7 +266,7 @@ bool GitHub_ComputeFileSHA1(const WCHAR *local_path,
 /* ================================================================== */
 bool GitHub_VerifyScriptSHA(const Script *s)
 {
-    if (!s->sha[0]) return true;   /* no expected SHA - skip check */
+    if (!s->sha[0]) return true;   /* no SHA in the manifest — skip verification (e.g. local dir scripts) */
 
     WCHAR computed[MAX_SHA] = {0};
     if (!GitHub_ComputeFileSHA1(s->local, computed, MAX_SHA))
@@ -299,9 +297,9 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
     _snwprintf_s(raw_url, MAX_APPPATH * 2 - 1, _TRUNCATE, L"/%s/%s/%s/%s",
                GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, gh_path);
 
-    /* Retry up to 3 times with a short delay */
+    /* Retry up to 3 times with increasing delays: 0 ms, 1000 ms, 2000 ms */
     for (int attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) Sleep(1000 * attempt);
+        if (attempt > 0) Sleep(1000 * attempt); /* back off: attempt 1 = 1 s, attempt 2 = 2 s */
 
         char *buf = (char *)malloc(HTTP_BUF_SIZE);
         if (!buf) return false;
@@ -321,15 +319,16 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                 WriteFile(hf, buf, len, &written, NULL);
                 CloseHandle(hf);
                 free(buf);
-                if (written == len) return true;
+                if (written == len) return true; /* all bytes written — success */
+                /* partial write: fall through to retry */
             } else {
-                free(buf);
+                free(buf); /* couldn't create the file — retry */
             }
         } else {
-            free(buf);
+            free(buf); /* HTTP GET failed — retry */
         }
     }
-    return false;
+    return false; /* all 3 attempts exhausted */
 }
 
 /* ================================================================== */
@@ -430,11 +429,11 @@ static const char *json_str(const char *p, const char *key,
 
     int i = 0;
     while (*p && *p != '"' && i < max - 1) {
-        if (*p == '\\') { p++; if (*p) out[i++] = *p++; }
+        if (*p == '\\') { p++; if (*p) out[i++] = *p++; } /* handle JSON escape: skip '\', copy next char literally */
         else            { out[i++] = *p++; }
     }
     out[i] = '\0';
-    return (*p == '"') ? p + 1 : NULL;
+    return (*p == '"') ? p + 1 : NULL; /* return position after closing quote, or NULL if string was unterminated */
 }
 
 /* ================================================================== */
@@ -460,12 +459,14 @@ void GitHub_ParseRoot(const char *json)
         if (!after) { p++; continue; }
 
         if (strcmp(type_val, "dir") == 0) {
+            /* Walk back to the opening '{' of this JSON object to read other fields */
             const char *obj = p;
             while (obj > json && *obj != '{') obj--;
 
             char name_a[MAX_NAME] = {0};
             json_str(obj, "name", name_a, sizeof(name_a));
 
+            /* Skip the setup folder (build files, not scripts) and hidden dot-folders */
             if (_stricmp(name_a, "setup") == 0 || name_a[0] == '.') { p = after; continue; }
 
             ScriptFolder *f = &g.folders[g.folder_count++];
@@ -473,7 +474,7 @@ void GitHub_ParseRoot(const char *json)
 
             MultiByteToWideChar(CP_UTF8, 0, name_a, -1, f->name, MAX_NAME);
             wcsncpy_s(f->display, MAX_NAME, f->name, _TRUNCATE);
-            Util_SnakeToTitle(f->display);
+            Util_SnakeToTitle(f->display); /* convert "Part_Document_Scripts" → "Part Document Scripts" */
         }
         p = after;
     }
@@ -521,6 +522,7 @@ void GitHub_ParseFolder(const char *json, int fi)
 
             size_t nl = strlen(name_a);
             if (nl < 4 || strcmp(name_a + nl - 3, ".py") != 0) {
+                /* nl < 4 rejects anything shorter than "x.py"; the strcmp checks the extension */
                 p = after; continue;
             }
 

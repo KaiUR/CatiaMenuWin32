@@ -29,9 +29,9 @@ static bool SystemIsDark(void);
 /* ================================================================== */
 static LRESULT CALLBACK GlobalKbdHookProc(int nCode, WPARAM wp, LPARAM lp)
 {
-    if (nCode == HC_ACTION && wp == WM_KEYDOWN) {
+    if (nCode == HC_ACTION && wp == WM_KEYDOWN) { /* HC_ACTION = hook must process this event */
         KBDLLHOOKSTRUCT *kb = (KBDLLHOOKSTRUCT *)lp;
-        if (GetForegroundWindow() != g.hwnd) {
+        if (GetForegroundWindow() != g.hwnd) { /* only forward when our window doesn't have focus */
             if (kb->vkCode == VK_ESCAPE &&
                 (g.repeat_mode || (!g.cfg.show_console && g.run_process)))
                 PostMessage(g.hwnd, WM_KEYDOWN, VK_ESCAPE, 0);
@@ -39,7 +39,7 @@ static LRESULT CALLBACK GlobalKbdHookProc(int nCode, WPARAM wp, LPARAM lp)
                 PostMessage(g.hwnd, WM_KEYDOWN, VK_F9, 0);
         }
     }
-    return CallNextHookEx(g.kbd_repeat_hook, nCode, wp, lp);
+    return CallNextHookEx(g.kbd_repeat_hook, nCode, wp, lp); /* always pass to next hook in chain */
 }
 
 /* ================================================================== */
@@ -92,7 +92,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* If another instance is already running, bring it to the front
        (or show it from tray) and exit this new instance. */
     HANDLE hMutex = CreateMutex(NULL, TRUE, L"CatiaMenuWin32_SingleInstance");
-    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+    if (GetLastError() == ERROR_ALREADY_EXISTS) { /* mutex already held — another instance is running */
         /* Find the existing window and restore it */
         HWND hExisting = FindWindow(APP_CLASS, NULL);
         if (hExisting) {
@@ -101,13 +101,13 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
                 ShowWindow(hExisting, SW_RESTORE);
             SetForegroundWindow(hExisting);
         }
-        if (hMutex) CloseHandle(hMutex);
+        if (hMutex) CloseHandle(hMutex); /* release the mutex we opened but didn't own */
         return 0;
     }
 
     INITCOMMONCONTROLSEX icc = {
         .dwSize = sizeof(icc),
-        .dwICC  = ICC_TAB_CLASSES | ICC_BAR_CLASSES | ICC_STANDARD_CLASSES
+        .dwICC  = ICC_TAB_CLASSES | ICC_BAR_CLASSES | ICC_STANDARD_CLASSES /* register common controls used by dialogs */
     };
     InitCommonControlsEx(&icc);
 
@@ -119,18 +119,18 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
 
     Window_Create(hInst);
 
-    /* Install permanent global keyboard hook for cross-app hotkeys (Escape, F9) */
+    /* WH_KEYBOARD_LL = low-level hook that fires regardless of which app has focus */
     g.kbd_repeat_hook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKbdHookProc, NULL, 0);
 
-    /* Check command line for /minimized flag from autorun */
+    /* honor either cfg flag or /minimized command-line arg from autorun registry entry */
     bool launch_minimized = g.cfg.start_minimized ||
         (lpCmd && wcsstr(lpCmd, L"/minimized"));
 
     /* Show window first, THEN apply topmost - SetWindowPos needs a visible window */
-    if (launch_minimized && g.cfg.minimize_to_tray) {
+    if (launch_minimized && g.cfg.minimize_to_tray) { /* start hidden in tray */
         ShowWindow(g.hwnd, SW_HIDE);
         Window_AddTrayIcon();
-    } else if (launch_minimized) {
+    } else if (launch_minimized) { /* start minimized to taskbar */
         ShowWindow(g.hwnd, SW_SHOWMINIMIZED);
     } else {
         ShowWindow(g.hwnd, nShow);
@@ -157,7 +157,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* Start auto-refresh timer if configured */
     if (g.cfg.refresh_interval > 0) {
         SetTimer(g.hwnd, TIMER_AUTO_REFRESH,
-                 g.cfg.refresh_interval * 3600 * 1000, NULL);
+                 g.cfg.refresh_interval * 3600 * 1000, NULL); /* 3600 * 1000 = convert hours to ms */
     }
 
     if (g.cfg.auto_sync) {
@@ -198,13 +198,13 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
 /* ================================================================== */
 static bool SystemIsDark(void)
 {
-    DWORD val = 1; /* default light */
+    DWORD val = 1; /* default 1 = light; unchanged if the registry key is missing */
     DWORD sz  = sizeof(val);
     RegGetValue(HKEY_CURRENT_USER,
         L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
         L"AppsUseLightTheme",
         RRF_RT_DWORD, NULL, &val, &sz);
-    return (val == 0);  /* 0 = dark, 1 = light */
+    return (val == 0); /* AppsUseLightTheme = 0 means dark mode is on */
 }
 
 /* ================================================================== */
@@ -250,13 +250,13 @@ void App_BuildAppDataPath(void)
 /* ================================================================== */
 void App_InitGDI(void)
 {
-    g.font_ui    = CreateFont(-13,0,0,0,FW_NORMAL,  0,0,0,DEFAULT_CHARSET,
+    g.font_ui    = CreateFont(-13,0,0,0,FW_NORMAL,  0,0,0,DEFAULT_CHARSET, /* -13 logical units ≈ 10 pt at 96 DPI */
                               OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,
                               CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
     g.font_bold  = CreateFont(-13,0,0,0,FW_SEMIBOLD,0,0,0,DEFAULT_CHARSET,
                               OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,
                               CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
-    g.font_small = CreateFont(-11,0,0,0,FW_NORMAL,  0,0,0,DEFAULT_CHARSET,
+    g.font_small = CreateFont(-11,0,0,0,FW_NORMAL,  0,0,0,DEFAULT_CHARSET, /* -11 logical units ≈ 8 pt at 96 DPI */
                               OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,
                               CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
 
@@ -266,8 +266,8 @@ void App_InitGDI(void)
     g.br_btn_hot = CreateSolidBrush(COL_BTN_HOT());
     g.br_accent  = CreateSolidBrush(COL_ACCENT);
     g.br_status  = CreateSolidBrush(COL_TOOLBAR());
-    g.hot_btn    = -1;
-    g.tip_btn    = -1;
+    g.hot_btn    = -1; /* -1 = no button is currently hot */
+    g.tip_btn    = -1; /* -1 = no tooltip is currently shown */
 }
 
 /* ================================================================== */
@@ -342,12 +342,12 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
         /* Ctrl+Tab / Ctrl+Shift+Tab to switch tabs */
-        if (GetKeyState(VK_CONTROL) & 0x8000) {
+        if (GetKeyState(VK_CONTROL) & 0x8000) { /* high bit set = key is held down */
             if (wp == VK_TAB) {
                 bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
                 int next = g.active_tab + (shift ? -1 : 1);
-                if (next < 0) next = g.folder_count - 1;
-                if (next >= g.folder_count) next = 0;
+                if (next < 0) next = g.folder_count - 1; /* wrap left */
+                if (next >= g.folder_count) next = 0;    /* wrap right */
                 Tabs_Switch(next);
                 return 0;
             }
@@ -357,7 +357,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         break;
 
     case WM_ERASEBKGND:
-        return 1;
+        return 1; /* suppress default erase to prevent flicker */
 
     case WM_PAINT:
     {
@@ -369,12 +369,12 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
 
     case WM_SIZE:
-        if (wp == SIZE_MINIMIZED && g.cfg.minimize_to_tray) {
+        if (wp == SIZE_MINIMIZED && g.cfg.minimize_to_tray) { /* intercept minimize → hide to tray instead */
             Window_AddTrayIcon();
             ShowWindow(hwnd, SW_HIDE);
             return 0;
         }
-        if (wp != SIZE_MINIMIZED)
+        if (wp != SIZE_MINIMIZED) /* skip layout when only minimizing */
             Window_OnSize(LOWORD(lp), HIWORD(lp));
         return 0;
 
@@ -408,7 +408,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         break;
 
     case WM_COMMAND:
-        if (LOWORD(wp) == IDC_SEARCH && HIWORD(wp) == EN_CHANGE) {
+        if (LOWORD(wp) == IDC_SEARCH && HIWORD(wp) == EN_CHANGE) { /* EN_CHANGE fires as the user types */
             GetWindowText(g.hwnd_search, g.filter_text, MAX_NAME - 1);
             Tabs_ApplyFilter();
             return 0;
@@ -423,7 +423,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_DRAWITEM:
     {
         DRAWITEMSTRUCT *dis = (DRAWITEMSTRUCT *)lp;
-        if (dis->CtlType == ODT_BUTTON) {
+        if (dis->CtlType == ODT_BUTTON) { /* ODT_BUTTON = owner-draw button; skip list views, static controls etc. */
             int id = (int)dis->CtlID;
             if (id == IDC_BTN_MENU ||
                 id == IDC_BTN_REFRESH ||
@@ -465,10 +465,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
     /* System tray */
     case WM_TRAYICON:
-        if (lp == WM_LBUTTONDBLCLK) {
+        if (lp == WM_LBUTTONDBLCLK) { /* double-click restores from tray */
             ShowWindow(hwnd, SW_RESTORE);
             SetForegroundWindow(hwnd);
-        } else if (lp == WM_RBUTTONUP) {
+        } else if (lp == WM_RBUTTONUP) { /* right-click shows tray context menu */
             Window_ShowTrayMenu();
         }
         return 0;
@@ -478,10 +478,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
 
     case WM_UPDATE_AVAIL:
-        InvalidateRect(hwnd, NULL, FALSE);  /* repaint toolbar to show badge */
-        if (wp == 1)
+        InvalidateRect(hwnd, NULL, FALSE); /* repaint toolbar to show the update badge */
+        if (wp == 1) /* wParam=1 = auto-update mode */
             Updater_AutoUpdate(g.latest_version);
-        else
+        else /* wParam=0 = prompt mode */
             Updater_PromptAndInstall(g.latest_version);
         return 0;
 
@@ -514,8 +514,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
         if (g.repeat_mode) {
-            if (wp != 0) {
-                /* Non-zero exit code → script failed; stop repeating */
+            if (wp != 0) { /* non-zero exit code = script failed; stop repeating */
                 Repeat_Stop();
                 PostStatus(L"Repeat cancelled: script exited with error (code %llu).",
                            (unsigned long long)wp);
@@ -528,11 +527,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     /* Re-apply always-on-top every time the window becomes visible
        (e.g. restored from tray) so it never gets lost */
     case WM_SHOWWINDOW:
-        if (wp) Window_ApplyAlwaysOnTop();
+        if (wp) Window_ApplyAlwaysOnTop(); /* wp = non-zero = window becoming visible — re-apply topmost */
         break;
 
     case WM_CLOSE:
-        if (g.cfg.minimize_to_tray && wp == 0) {
+        if (g.cfg.minimize_to_tray && wp == 0) { /* wp == 0 = normal close; intercept and hide to tray instead */
             Window_AddTrayIcon();
             ShowWindow(hwnd, SW_HIDE);
             return 0;
@@ -575,9 +574,9 @@ static void Handle_Command(WPARAM wp)
         int fi = g.active_tab;
         int si = id - IDC_SCRIPT_BTN_BASE;
         if (g.repeat_mode) {
-            bool same = (g.repeat_fi == fi && g.repeat_si == si);
+            bool same = (g.repeat_fi == fi && g.repeat_si == si); /* true if clicking the script that is repeating */
             Repeat_Stop();
-            if (same) return; /* cancel repeat, don't re-run */
+            if (same) return; /* single-click repeating script = cancel without re-run */
         }
         Runner_Run(fi, si);
         return;
@@ -594,7 +593,7 @@ static void Handle_Command(WPARAM wp)
         if (!g.syncing) {
             g.syncing = true;
             for (int i = 0; i < g.folder_count; i++)
-                g.folders[i].loaded = false;
+                g.folders[i].loaded = false; /* mark stale so Sync_Thread fetches fresh data */
             HANDLE hT = CreateThread(NULL, 0, Sync_Thread, NULL, 0, NULL);
             if (hT) CloseHandle(hT);
         }
@@ -652,13 +651,13 @@ static void Handle_Command(WPARAM wp)
 
     case IDM_THEME_DARK:
         g.cfg.theme = THEME_DARK;
-        goto apply_theme;
+        goto apply_theme; /* shared apply block below */
     case IDM_THEME_LIGHT:
         g.cfg.theme = THEME_LIGHT;
         goto apply_theme;
     case IDM_THEME_SYSTEM:
         g.cfg.theme = THEME_SYSTEM;
-apply_theme:
+apply_theme: /* shared apply: resolve, rebuild GDI, repaint */
         App_ResolveTheme();
         App_RebuildGDI();
         Window_ApplyDarkMode(g.hwnd);
@@ -787,8 +786,8 @@ apply_theme:
     case IDM_QBAR_RESET_POS:
     {
         RECT work; SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
-        g.cfg.qbar_x = work.right - (QBAR_BTN_SIZE + 2 * QBAR_PAD + 2) - 20;
-        g.cfg.qbar_y = work.top + 60;
+        g.cfg.qbar_x = work.right - (QBAR_BTN_SIZE + 2 * QBAR_PAD + 2) - 20; /* 20 px inset from right edge */
+        g.cfg.qbar_y = work.top + 60; /* 60 px from top of work area */
         if (g.hwnd_qbar)
             SetWindowPos(g.hwnd_qbar, NULL,
                 g.cfg.qbar_x, g.cfg.qbar_y, 0, 0,
@@ -820,7 +819,7 @@ apply_theme:
 
     case IDM_CHECK_UPDATES:
     {
-        HANDLE hU = CreateThread(NULL, 0, Updater_CheckThread, (LPVOID)1, 0, NULL);
+        HANDLE hU = CreateThread(NULL, 0, Updater_CheckThread, (LPVOID)1, 0, NULL); /* 1 = user-triggered; shows prompt even if no update */
         if (hU) CloseHandle(hU);
         break;
     }
@@ -838,7 +837,7 @@ apply_theme:
         HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
         if (hNtdll) {
             union { FARPROC proc; RtlGetVersion_t fn; } u;
-            u.proc = GetProcAddress(hNtdll, "RtlGetVersion");
+            u.proc = GetProcAddress(hNtdll, "RtlGetVersion"); /* RtlGetVersion returns the true version; GetVersionEx caps at 8.1 */
             if (u.fn) u.fn(&osvi);
         }
         _snwprintf_s(win_ver, 63, _TRUNCATE, L"Windows %lu.%lu build %lu",
@@ -870,12 +869,12 @@ apply_theme:
         /* URL-encode the body (percent-encode all chars that are unsafe in a query value) */
         WCHAR encoded[3072] = {0};
         WCHAR *dst = encoded;
-        for (const WCHAR *src = body; *src && dst < encoded + 3067; src++) {
+        for (const WCHAR *src = body; *src && dst < encoded + 3067; src++) { /* 3067 = 3072 - 5 = room for one 3-char %XX sequence plus null */
             WCHAR ch = *src;
             /* Encode each unsafe character as %XX (using 3 output slots). */
             #define PENC(hi, lo) do { *dst++=L'%'; *dst++=(hi); *dst++=(lo); } while(0)
             if      (ch == L' ')  { *dst++ = L'+'; }
-            else if (ch == 13)    { /* skip CR */ }
+            else if (ch == 13)    { /* skip CR — LF is encoded as %0A below */ }
             else if (ch == 10)    { PENC(L'0',L'A'); }
             else if (ch == L'%')  { PENC(L'2',L'5'); }
             else if (ch == L'"')  { PENC(L'2',L'2'); }
@@ -948,8 +947,7 @@ static void Handle_SyncDone(SyncResult *sr)
         g.status_offline = true;
         InvalidateRect(g.hwnd_status, NULL, FALSE);
         SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
-        if (!g.cfg.offline_use_cache) {
-            /* User opted out of cache display — clear tabs to match emptied folders */
+        if (!g.cfg.offline_use_cache) { /* user opted out of showing cached scripts while offline */
             Tabs_Build();
             Tabs_DestroyButtons();
             InvalidateRect(g.hwnd_tab,    NULL, TRUE);
@@ -961,7 +959,7 @@ static void Handle_SyncDone(SyncResult *sr)
 
     g.status_offline = false;
 
-    /* Reset so meta re-reads from freshly downloaded files */
+    /* Clear meta_loaded so Meta_Parse re-reads from freshly downloaded files */
     for (int fi = 0; fi < g.folder_count; fi++)
         for (int si = 0; si < g.folders[fi].count; si++)
             g.folders[fi].scripts[si].meta_loaded = false;
@@ -985,7 +983,7 @@ static void Handle_SyncDone(SyncResult *sr)
                 }
             }
         } else {
-            restore = (g.active_tab < g.folder_count) ? g.active_tab : 0;
+            restore = (g.active_tab < g.folder_count) ? g.active_tab : 0; /* fallback: keep current tab if valid */
         }
         Tabs_Switch(restore);
     }

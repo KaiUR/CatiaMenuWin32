@@ -33,14 +33,14 @@ static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,
                            COLORREF fill, COLORREF border)
 {
     HBRUSH br  = CreateSolidBrush(fill);
-    HPEN   pen = (border == fill) ? (HPEN)GetStockObject(NULL_PEN)
+    HPEN   pen = (border == fill) ? (HPEN)GetStockObject(NULL_PEN) /* no border wanted — use stock pen to avoid double-drawing */
                                   : CreatePen(PS_SOLID, 1, border);
     HBRUSH obr = SelectObject(hdc, br);
     HPEN   ope = SelectObject(hdc, pen);
     RoundRect(hdc, x, y, x + w, y + h, r, r);
     SelectObject(hdc, obr); SelectObject(hdc, ope);
     DeleteObject(br);
-    if (border != fill) DeleteObject(pen);
+    if (border != fill) DeleteObject(pen); /* don't delete the stock NULL_PEN — it is not owned by us */
 }
 
 /* ================================================================== */
@@ -73,7 +73,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 
     HPEN dp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
     HPEN op = SelectObject(mem, dp);
-    MoveToEx(mem, 0, TOOLBAR_H - 1, NULL);
+    MoveToEx(mem, 0, TOOLBAR_H - 1, NULL); /* TOOLBAR_H - 1 = one px below toolbar band = divider line */
     LineTo(mem, w, TOOLBAR_H - 1);
     SelectObject(mem, op); DeleteObject(dp);
 
@@ -84,11 +84,10 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
     WCHAR title[128];
     _snwprintf_s(title, 127, _TRUNCATE, L"%s   v%s", APP_TITLE, VERSION_STRING_W);
 
-    if (g.latest_version[0]) {
-        /* Two-line layout: title top half, update badge bottom half */
+    if (g.latest_version[0]) { /* update badge pending — split toolbar into two text rows */
         SetTextColor(mem, COL_ACCENT);
         SelectObject(mem, g.font_bold);
-        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 }; /* 440 = starts right of toolbar buttons; top half of bar */
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
         WCHAR upd[64];
@@ -97,7 +96,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
         SetTextColor(mem, COL_WARN);
         RECT ur = { 444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
         DrawText(mem, upd, -1, &ur, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
-    } else if (g.syncing) {
+    } else if (g.syncing) { /* no update pending, but sync is in progress */
         SetTextColor(mem, COL_ACCENT);
         RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 };
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
@@ -138,11 +137,11 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
-    bool pressed  = (dis->itemState & ODS_SELECTED) != 0;
+    bool pressed  = (dis->itemState & ODS_SELECTED) != 0; /* ODS_SELECTED = button is being clicked */
     bool hot      = (dis->itemState & ODS_HOTLIGHT)  != 0;
     bool focused  = (dis->itemState & ODS_FOCUS)      != 0;
     bool disabled = (dis->itemState & ODS_DISABLED)   != 0;
-    bool is_stop  = ((int)dis->CtlID == IDC_BTN_STOP);
+    bool is_stop  = ((int)dis->CtlID == IDC_BTN_STOP); /* Stop button gets red colour treatment */
 
 #define COL_STOP_ACTIVE  RGB(200, 60, 60)
 #define COL_STOP_HOT     RGB(230, 90, 90)
@@ -161,7 +160,7 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 #undef COL_STOP_ACTIVE
 #undef COL_STOP_HOT
 
-    DrawRoundRect(mem, 0, 0, w, h, 6, bg, bdr);
+    DrawRoundRect(mem, 0, 0, w, h, 6, bg, bdr); /* 6 = corner radius */
 
     /* Button label */
     WCHAR text[64] = {0};
@@ -201,14 +200,14 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
 {
     RECT rc; GetClientRect(hwnd_btn, &rc);
     int w = rc.right, h = rc.bottom;
-    int main_w = w - INFO_BTN_W;
+    int main_w = w - INFO_BTN_W; /* rightmost INFO_BTN_W px is the "i" info zone; rest is the run area */
 
     HDC     mem = CreateCompatibleDC(hdc);
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
     COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : COL_BTN_NORM();
-    COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER();
+    COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER(); /* border priority: repeat > running > hot > idle */
     DrawRoundRect(mem, 0,      0, main_w,     h, 7, bg, bdr);
     DrawRoundRect(mem, main_w, 0, INFO_BTN_W, h, 7,
                   info_hot ? COL_ACCENT_DIM : COL_INFO_ZONE(), bdr);
@@ -219,6 +218,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     RECT ir = { main_w, 0, w, h };
     DrawText(mem, L"i", -1, &ir, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+    /* Left accent bar — 4 px wide, 5 px inset top and bottom */
     if (repeat) {
         HBRUSH ab = CreateSolidBrush(COL_WARN);
         RECT   ar = { 0, 5, 4, h - 5 };
@@ -238,7 +238,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
 
     SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_SUBTEXT());
     SelectObject(mem, g.font_ui);
-    RECT arr = { 8, 0, 28, h };
+    RECT arr = { 8, 0, 28, h }; /* columns 8–28 = small arrow/loop icon area */
     /* Show repeat loop symbol (\u21BB) when in repeat mode, arrow otherwise */
     DrawText(mem, repeat ? L"\u21BB" : L"\u25BA", -1, &arr,
              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -254,12 +254,12 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_TEXT());
     SelectObject(mem, g.font_bold);
     if (purpose) {
-        RECT lr = { 30, 3, main_w - 6, h / 2 + 2 };
+        RECT lr = { 30, 3, main_w - 6, h / 2 + 2 }; /* name in top half; 30 = past the arrow icon */
         DrawText(mem, label, -1, &lr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         SetTextColor(mem, COL_SUBTEXT());
         SelectObject(mem, g.font_small);
-        RECT pr = { 30, h / 2, main_w - 6, h - 4 };
+        RECT pr = { 30, h / 2, main_w - 6, h - 4 }; /* purpose in bottom half */
         DrawText(mem, purpose, -1, &pr,
                  DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
     } else {
@@ -283,7 +283,7 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
 /* ================================================================== */
 static int Tip_ComputeHeight(const Script *s)
 {
-    /* Fixed rows: Script + Purpose + Author + Version + Date */
+    /* Fixed rows: Script + Purpose + Author + Version + Date; 8 = top padding */
     int h = 8 + TIP_HEADER_ROWS * TIP_ROW_H;
 
     if (s && s->meta.description[0]) {
@@ -292,16 +292,16 @@ static int Tip_ComputeHeight(const Script *s)
         HDC screen = GetDC(NULL);
         HDC mem    = CreateCompatibleDC(screen);
         HFONT of   = SelectObject(mem, g.font_small);
-        /* Width must match what Paint_Tooltip draws into */
-        RECT dr = { 0, 0, TIP_W - 14, 0 };
+        /* Width must match what Paint_Tooltip draws into; height 0 because DT_CALCRECT fills it in */
+        RECT dr = { 0, 0, TIP_W - 14, 0 }; /* TIP_W - 14 = TIP_W minus 8+6 side margins */
         int text_h = DrawText(mem, s->meta.description, -1, &dr,
                               DT_LEFT | DT_TOP | DT_WORDBREAK | DT_CALCRECT);
         SelectObject(mem, of);
         DeleteDC(mem);
         ReleaseDC(NULL, screen);
-        h += text_h + 10;
+        h += text_h + 10; /* 10 = separator gap above description */
     }
-    h += 10; /* bottom padding */
+    h += 10; /* 10 px bottom padding */
     return h;
 }
 
@@ -337,9 +337,9 @@ void Paint_Tooltip(HWND hwnd)
     DeleteObject(bp);
 
     int fi = g.active_tab;
-    int si = g.tip_btn - IDC_SCRIPT_BTN_BASE;
+    int si = g.tip_btn - IDC_SCRIPT_BTN_BASE; /* recover script index from stored button ID */
     if (fi < 0 || fi >= g.folder_count ||
-        si < 0 || si >= g.folders[fi].count) goto done;
+        si < 0 || si >= g.folders[fi].count) goto done; /* invalid index — paint empty panel only */
 
     {
         Script *s = &g.folders[fi].scripts[si];
@@ -356,8 +356,8 @@ void Paint_Tooltip(HWND hwnd)
         SetBkMode(mem, TRANSPARENT);
         int y = 8;
         for (int i = 0; rows[i].lbl; i++) {
-            RECT lr = { 8, y, 76, y + 16 };
-            RECT vr = { 80, y, w - 6, y + 16 };
+            RECT lr = { 8, y, 76, y + 16 }; /* 76 px = label column right edge */
+            RECT vr = { 80, y, w - 6, y + 16 }; /* 80 = value column start; w-6 = right margin */
             SelectObject(mem, g.font_bold);
             SetTextColor(mem, COL_ACCENT);
             DrawText(mem, rows[i].lbl, -1, &lr, DT_LEFT | DT_TOP | DT_SINGLELINE);
@@ -413,18 +413,19 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
     case WM_MOUSEMOVE:
     {
         if (g.hot_btn != (int)uid && g.hot_btn >= IDC_SCRIPT_BTN_BASE) {
+            /* repaint the button that is losing hot state */
             HWND hp = GetDlgItem(GetParent(hwnd), g.hot_btn);
             if (hp) InvalidateRect(hp, NULL, FALSE);
         }
         g.hot_btn = (int)uid;
         TRACKMOUSEEVENT tme = { .cbSize=sizeof(tme), .dwFlags=TME_LEAVE,
                                 .hwndTrack=hwnd };
-        TrackMouseEvent(&tme);
+        TrackMouseEvent(&tme); /* subscribe so WM_MOUSELEAVE clears the hot state */
         InvalidateRect(hwnd, NULL, FALSE);
 
         RECT rc; GetClientRect(hwnd, &rc);
         int mx = GET_X_LPARAM(lp);
-        bool over_info = (mx >= rc.right - INFO_BTN_W);
+        bool over_info = (mx >= rc.right - INFO_BTN_W); /* true when cursor is in the "i" zone */
 
         if (over_info && g.tip_btn != (int)uid) {
             g.tip_btn = (int)uid;
@@ -450,15 +451,15 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             GetMonitorInfo(hmon, &mi);
             RECT wa = mi.rcWork;
 
-            /* Position to right of i button, flip left if no room */
+            /* Position tooltip to right of button; flip to left side if it would go off screen */
             POINT pt = { rc.right, 0 };
             ClientToScreen(hwnd, &pt);
             int tx = (pt.x + TIP_W > wa.right)
-                     ? pt.x - rc.right - TIP_W
+                     ? pt.x - rc.right - TIP_W /* flip: place left of the button */
                      : pt.x;
             int ty = pt.y;
 
-            /* Clamp within work area on all sides */
+            /* Clamp within work area on all four sides; 4 px gap from edge */
             if (ty + th > wa.bottom) ty = wa.bottom - th - 4;
             if (ty < wa.top)         ty = wa.top + 4;
             if (tx < wa.left)        tx = wa.left + 4;
@@ -495,8 +496,7 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         int si = (int)uid - IDC_SCRIPT_BTN_BASE;
         if (fi < 0 || fi >= g.folder_count ||
             si < 0 || si >= g.folders[fi].count) return 0;
-        /* Double-click same script while repeating → toggle off */
-        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) {
+        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) { /* double-click same script while repeating — toggle off */
             Repeat_Stop();
             g.suppress_lbuttonup = false;
             PostStatus(L"Repeat cancelled.");
@@ -505,7 +505,7 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         /* Activate (also cancels any previous repeat on a different script) */
         Repeat_Stop();
         Repeat_Start(fi, si);
-        g.suppress_lbuttonup = true;
+        g.suppress_lbuttonup = true; /* prevent the trailing WM_LBUTTONUP from triggering a run */
         PostStatus(L"Repeat: %s  •  Esc or click to stop",
                    g.folders[fi].scripts[si].name);
         InvalidateRect(hwnd, NULL, FALSE);
@@ -532,7 +532,7 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
     case WM_RBUTTONUP:
     {
         int fi = g.active_tab;
-        int si = (int)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+        int si = (int)GetWindowLongPtr(hwnd, GWLP_USERDATA); /* script index stored at button creation */
         if (fi < 0 || fi >= g.folder_count) break;
         if (si < 0 || si >= g.folders[fi].count) break;
         Script *s = &g.folders[fi].scripts[si];
@@ -580,7 +580,7 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         case IDM_SCRIPT_FAVOURITE:
         {
             bool new_fav = !s->is_favourite;
-            bool was_on_favourites = (wcscmp(g.folders[fi].name, L"Favourites") == 0);
+            bool was_on_favourites = (wcscmp(g.folders[fi].name, L"Favourites") == 0); /* remember so we can return to Favourites after rebuild */
             Prefs_SetFavourite(s->gh_path, new_fav);
             /* Update the script in its real folder (not the Favourites copy) */
             for (int f2 = 0; f2 < g.folder_count; f2++) {
@@ -637,8 +637,7 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
     RECT rc  = dis->rcItem;
     bool sel = (dis->itemState & ODS_SELECTED) != 0;
 
-    /* Slightly expand selected tab so it covers the tab border line */
-    if (sel) rc.bottom += 2;
+    if (sel) rc.bottom += 2; /* expand 2 px downward so selected tab overlaps and hides the tab-bar border line */
 
     /* Background */
     COLORREF bg = sel ? COL_BTN_NORM() : COL_TOOLBAR();
@@ -685,7 +684,7 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
     SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
     HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
     RECT tr = rc;
-    if (sel) tr.bottom -= 2;
+    if (sel) tr.bottom -= 2; /* compensate for +2 expansion so text stays centred in the original rect */
     DrawText(hdc, text, -1, &tr,
              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     SelectObject(hdc, of);

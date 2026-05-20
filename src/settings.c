@@ -39,17 +39,17 @@ void Settings_Load(Settings *s)
     GetPrivateProfileString(L"Scripts", L"CacheDir",   L"", s->cache_dir,    MAX_APPPATH, ini);
     GetPrivateProfileString(L"GitHub",  L"Token",      L"", s->github_token, 256, ini);
 
-    s->auto_sync           = GetPrivateProfileInt(L"Options", L"AutoSync",          1, ini) != 0;
-    s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun", 0, ini) != 0;
-    s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",       0, ini) != 0;
-    s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0;
-    s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0;
-    s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0;
-    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
-    s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",   0, ini) != 0;
-    s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
-    s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
-    s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0;
+    s->auto_sync           = GetPrivateProfileInt(L"Options", L"AutoSync",          1, ini) != 0; /* default 1 = on */
+    s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun", 0, ini) != 0; /* default 0 = off */
+    s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",       0, ini) != 0; /* default 0 = hidden */
+    s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",  1, ini) != 0; /* default 1 = on */
+    s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",      1, ini) != 0; /* default 1 = on */
+    s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",      0, ini) != 0; /* default 0 = off */
+    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0; /* default 1 = on */
+    s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",   0, ini) != 0; /* default 0 = off */
+    s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);     /* default 6 hours */
+    s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);    /* default 0 = SORT_ORDER */
+    s->main_repo_enabled   = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled",   1, ini) != 0; /* default 1 = enabled */
 
     /* Extra repos */
     s->extra_repo_count = GetPrivateProfileInt(L"Sources", L"ExtraRepoCount", 0, ini);
@@ -60,7 +60,7 @@ void Settings_Load(Settings *s)
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i); GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i); GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token,  255, ini);
         _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i); s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
-        if (!s->extra_repos[i].branch[0]) wcsncpy_s(s->extra_repos[i].branch, 64, L"main", _TRUNCATE);
+        if (!s->extra_repos[i].branch[0]) wcsncpy_s(s->extra_repos[i].branch, 64, L"main", _TRUNCATE); /* fall back to 'main' if key was missing */
     }
 
     /* Local dirs */
@@ -76,12 +76,12 @@ void Settings_Load(Settings *s)
     s->start_with_windows  = GetPrivateProfileInt(L"Window",  L"StartWithWindows",  1, ini) != 0;
     s->start_minimized     = GetPrivateProfileInt(L"Window",  L"StartMinimized",    1, ini) != 0;
     s->theme               = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme",   0, ini);
-    if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
+    if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM; /* clamp: a corrupt INI could store an out-of-range value */
 
     /* Quick Launch Bar */
-    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0;
-    s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
-    s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
+    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0; /* default 1 = shown */
+    s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0; /* default 0 = vertical */
+    s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0; /* default 1 = topmost when CATIA is foreground */
     s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
     s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
     GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
@@ -93,11 +93,11 @@ void Settings_Load(Settings *s)
     s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",    1, ini) != 0;
     s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick",1, ini) != 0;
 
-    if (!s->cache_dir[0])
+    if (!s->cache_dir[0]) /* no cache dir stored — default to %APPDATA%\CatiaMenuWin32\scripts */
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
-    SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
+    SHCreateDirectoryEx(NULL, s->cache_dir, NULL); /* create directory if it doesn't exist yet */
 
-    if (!s->python_exe[0])
+    if (!s->python_exe[0]) /* no Python path stored — probe the system */
         Runner_FindPython(s->python_exe, MAX_APPPATH);
 }
 
@@ -117,7 +117,7 @@ void Settings_Save(const Settings *s)
     WritePrivateProfileString(L"Scripts", L"CacheDir",         s->cache_dir,    ini);
     WritePrivateProfileString(L"GitHub",  L"Token",            s->github_token, ini);
 
-#define WB(sec,key,val) WritePrivateProfileString(sec, key, (val)?L"1":L"0", ini)
+#define WB(sec,key,val) WritePrivateProfileString(sec, key, (val)?L"1":L"0", ini) /* writes "1" or "0" for each boolean flag */
     WB(L"Options", L"AutoSync",          s->auto_sync);
     WB(L"Options", L"DownloadBeforeRun", s->download_before_run);
     WB(L"Options", L"ShowConsole",       s->show_console);
@@ -195,14 +195,14 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
     if (enable) {
         WCHAR exe[MAX_APPPATH];
         GetModuleFileName(NULL, exe, MAX_APPPATH);
-        WCHAR cmd[MAX_APPPATH + 16];
+        WCHAR cmd[MAX_APPPATH + 16]; /* +16 = room for quoted path, " /minimized" flag, and null */
         if (minimized)
-            _snwprintf_s(cmd, MAX_APPPATH + 15, _TRUNCATE, L"\"%s\" /minimized", exe);
+            _snwprintf_s(cmd, MAX_APPPATH + 15, _TRUNCATE, L"\"%s\" /minimized", exe); /* quoted so spaces in path work */
         else
             wcsncpy_s(cmd, MAX_APPPATH + 16, exe, _TRUNCATE);
 
         RegSetValueEx(hk, AUTORUN_NAME, 0, REG_SZ,
-                      (BYTE *)cmd, (DWORD)((wcslen(cmd) + 1) * sizeof(WCHAR)));
+                      (BYTE *)cmd, (DWORD)((wcslen(cmd) + 1) * sizeof(WCHAR))); /* byte count must include null terminator */
     } else {
         RegDeleteValue(hk, AUTORUN_NAME);
     }
@@ -322,7 +322,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         /* ── Build the tab control ──────────────────────────────── */
         HWND hTab = GetDlgItem(hwnd, IDC_TAB_SETTINGS);
         {
-            TCITEM ti = { TCIF_TEXT, 0, 0, NULL, 0, -1, 0 };
+            TCITEM ti = { TCIF_TEXT, 0, 0, NULL, 0, -1, 0 }; /* only TCIF_TEXT is set; other members zeroed */
             static const WCHAR *labels[] = {
                 L"General", L"Sync", L"Console", L"Window", L"Quick Bar"
             };
@@ -336,10 +336,10 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         SetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe);
         SetDlgItemText(hwnd, IDC_EDIT_CACHE,  s->cache_dir);
         {
-            bool has_tok = (s->github_token[0] != L'\0');
+            bool has_tok = (s->github_token[0] != L'\0'); /* token present if string is non-empty */
             CheckDlgButton(hwnd, IDC_CHK_TOKEN, has_tok ? BST_CHECKED : BST_UNCHECKED);
             SetDlgItemText(hwnd, IDC_EDIT_TOKEN, s->github_token);
-            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), has_tok);
+            EnableWindow(GetDlgItem(hwnd, IDC_EDIT_TOKEN), has_tok); /* token field only editable when checkbox is ticked */
         }
 
         /* ── Tab 1: Sync ─────────────────────────────────────────── */
@@ -359,7 +359,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN,     s->console_keep_open   ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open     ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_REPEAT_MAIN,   s->repeat_on_dblclick  ? BST_CHECKED : BST_UNCHECKED);
-        EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console);
+        EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console); /* keep-open only meaningful when a console window is visible */
 
         /* ── Tab 3: Window ──────────────────────────────────────── */
         CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, s->always_on_top     ? BST_CHECKED : BST_UNCHECKED);
@@ -392,7 +392,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_NOTIFY:
     {
         NMHDR *nm = (NMHDR *)lp;
-        if (nm->idFrom == IDC_TAB_SETTINGS && nm->code == TCN_SELCHANGE) {
+        if (nm->idFrom == IDC_TAB_SETTINGS && nm->code == TCN_SELCHANGE) { /* TCN_SELCHANGE fires when the user clicks a tab */
             int sel = TabCtrl_GetCurSel(GetDlgItem(hwnd, IDC_TAB_SETTINGS));
             Settings_ShowTab(hwnd, sel);
         }
@@ -445,14 +445,14 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             };
             if (GetOpenFileName(&ofn)) {
                 WCHAR *slash = wcsrchr(path, L'\\');
-                SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, slash ? slash + 1 : path);
+                SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, slash ? slash + 1 : path); /* strip path — show filename only */
             }
             break;
         }
 
         case IDC_CHK_CONSOLE:
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN),
-                IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE) == BST_CHECKED);
+                IsDlgButtonChecked(hwnd, IDC_CHK_CONSOLE) == BST_CHECKED); /* grey out Keep Open when Show Console is unchecked */
             break;
 
         case IDC_CHK_TOKEN:
@@ -572,8 +572,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 WCHAR ri[8] = {0};
                 GetDlgItemText(hwnd, IDC_EDIT_REFRESH_INTERVAL, ri, 7);
                 s->refresh_interval = _wtoi(ri);
-                if (s->refresh_interval < 0)   s->refresh_interval = 0;
-                if (s->refresh_interval > 168) s->refresh_interval = 168;
+                if (s->refresh_interval < 0)   s->refresh_interval = 0;   /* 0 = no auto-sync */
+                if (s->refresh_interval > 168) s->refresh_interval = 168; /* cap at 168 hours (1 week) */
             }
 
             /* Console */
@@ -589,11 +589,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->start_minimized    = IsDlgButtonChecked(hwnd, IDC_CHK_START_MIN)    == BST_CHECKED;
             if      (IsDlgButtonChecked(hwnd, IDC_RAD_THEME_DARK)  == BST_CHECKED) s->theme = THEME_DARK;
             else if (IsDlgButtonChecked(hwnd, IDC_RAD_THEME_LIGHT) == BST_CHECKED) s->theme = THEME_LIGHT;
-            else                                                                    s->theme = THEME_SYSTEM;
+            else                                                                    s->theme = THEME_SYSTEM; /* checked radio wins; fall through to THEME_SYSTEM */
             if      (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_ALPHA) == BST_CHECKED) s->sort_mode = SORT_ALPHA;
             else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_DATE)  == BST_CHECKED) s->sort_mode = SORT_DATE;
             else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_USED)  == BST_CHECKED) s->sort_mode = SORT_MOST_USED;
-            else                                                                   s->sort_mode = SORT_ORDER;
+            else                                                                   s->sort_mode = SORT_ORDER; /* fall through to SORT_ORDER (GitHub/disk order) */
 
             /* Quick Bar */
             s->qbar_enabled              = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
@@ -604,7 +604,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe, MAX_NAME);
 
             Settings_Save(s);
-            SHCreateDirectoryEx(NULL, s->cache_dir, NULL);
+            SHCreateDirectoryEx(NULL, s->cache_dir, NULL); /* create cache dir if it doesn't exist yet */
 
             /* ── Apply side effects ─────────────────────────────── */
             App_ResolveTheme();
@@ -623,15 +623,16 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
             if (s->qbar_enabled) {
                 if (s->qbar_horizontal != old_qbar_horiz) {
+                    /* orientation changed — must destroy and recreate the window */
                     QuickBar_Destroy();
                     QuickBar_Register(GetModuleHandle(NULL));
                     QuickBar_Create();
                     QuickBar_Rebuild();
                 } else if (!old_qbar_en) {
-                    QuickBar_Show(true);
+                    QuickBar_Show(true); /* was disabled, now enabled — just show it */
                 }
             } else if (old_qbar_en) {
-                QuickBar_Show(false);
+                QuickBar_Show(false); /* was enabled, now disabled — hide it */
             }
 
             EndDialog(hwnd, IDOK);
@@ -667,7 +668,7 @@ INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
     case WM_INITDIALOG:
     {
-        /* App icon at 48×48 */
+        /* App icon at 48×48 — standard large icon size */
         s_hIconApp = (HICON)LoadImage(GetModuleHandle(NULL),
                                       MAKEINTRESOURCE(IDI_APP_ICON),
                                       IMAGE_ICON, 48, 48, LR_DEFAULTCOLOR);
@@ -675,7 +676,7 @@ INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SendDlgItemMessage(hwnd, IDC_ABOUT_ICON, STM_SETICON,
                                (WPARAM)s_hIconApp, 0);
 
-        /* Bold title font (~14 pt) */
+        /* Bold title font — -18 logical units ≈ 14 pt at 96 DPI */
         s_hFontTitle = CreateFont(
             -18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -698,8 +699,8 @@ INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
         case IDOK:
         case IDCANCEL:
-            if (s_hFontTitle) { DeleteObject(s_hFontTitle); s_hFontTitle = NULL; }
-            if (s_hIconApp)   { DestroyIcon(s_hIconApp);    s_hIconApp   = NULL; }
+            if (s_hFontTitle) { DeleteObject(s_hFontTitle); s_hFontTitle = NULL; } /* free GDI font to avoid leak */
+            if (s_hIconApp)   { DestroyIcon(s_hIconApp);    s_hIconApp   = NULL; } /* free icon handle to avoid leak */
             EndDialog(hwnd, IDOK);
             break;
         }

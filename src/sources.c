@@ -26,6 +26,7 @@ static void DeleteFolderRecursive(const WCHAR *path)
     if (h == INVALID_HANDLE_VALUE) return;
 
     do {
+        /* "." and ".." are the current and parent directory entries — never recurse into them */
         if (wcscmp(fd.cFileName, L".") == 0 ||
             wcscmp(fd.cFileName, L"..") == 0) continue;
 
@@ -33,9 +34,9 @@ static void DeleteFolderRecursive(const WCHAR *path)
         _snwprintf_s(full, MAX_APPPATH, _TRUNCATE, L"%s\\%s", path, fd.cFileName);
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-            DeleteFolderRecursive(full);
+            DeleteFolderRecursive(full); /* recurse into subdirectory */
         else
-            DeleteFileW(full);
+            DeleteFileW(full);           /* delete regular file */
     } while (FindNextFileW(h, &fd));
     FindClose(h);
 
@@ -60,7 +61,7 @@ static void Repos_Populate(HWND hList)
         lvi.iSubItem = 0;
         lvi.pszText = r->url;
         ListView_InsertItem(hList, &lvi);
-        ListView_SetItemText(hList, i, 1, r->branch[0] ? r->branch : L"main");
+        ListView_SetItemText(hList, i, 1, r->branch[0] ? r->branch : L"main"); /* display "main" if branch was left blank */
         ListView_SetItemText(hList, i, 2, r->enabled ? L"Yes" : L"No");
 
     }
@@ -111,29 +112,31 @@ typedef struct { ExtraRepo *repo; bool is_new; } RepoEditArg;
 static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
                                          WPARAM wp, LPARAM lp)
 {
+    /* Retrieve the arg pointer stored during WM_INITDIALOG; NULL before first message */
     RepoEditArg *arg = (RepoEditArg *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
     case WM_INITDIALOG:
-        arg = (RepoEditArg *)lp;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)arg);
-        if (!arg || !arg->repo) { EndDialog(hwnd, IDCANCEL); return FALSE; }
+        arg = (RepoEditArg *)lp;                              /* lp carries the RepoEditArg passed to DialogBoxParam */
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)arg);/* stash it so WM_COMMAND can retrieve it */
+        if (!arg || !arg->repo) { EndDialog(hwnd, IDCANCEL); return FALSE; } /* safety: malformed caller */
         SetDlgItemText(hwnd, IDC_EDIT_REPO_URL,    arg->repo->url);
         SetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH, arg->repo->branch[0]
-                                                    ? arg->repo->branch : L"main");
+                                                    ? arg->repo->branch : L"main"); /* show "main" as default */
         CheckDlgButton(hwnd, IDC_CHK_REPO_TOKEN,
             arg->repo->token[0] ? BST_CHECKED : BST_UNCHECKED);
         SetDlgItemText(hwnd, IDC_EDIT_REPO_TOKEN, arg->repo->token);
         EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REPO_TOKEN),
-                     arg->repo->token[0] != 0);
+                     arg->repo->token[0] != 0); /* grey out token field if no token is set */
         CheckDlgButton(hwnd, IDC_CHK_REPO_ENABLED,
             arg->repo->enabled ? BST_CHECKED : BST_UNCHECKED);
         return TRUE;
 
     case WM_COMMAND:
-        if (!arg) { EndDialog(hwnd, IDCANCEL); return TRUE; }
+        if (!arg) { EndDialog(hwnd, IDCANCEL); return TRUE; } /* arg not yet set — ignore */
         switch (LOWORD(wp)) {
         case IDC_CHK_REPO_TOKEN:
+            /* Enable or disable the token text field to match the checkbox state */
             EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REPO_TOKEN),
                 IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED);
             break;
@@ -142,40 +145,41 @@ static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
             WCHAR url[512] = {0};
             GetDlgItemText(hwnd, IDC_EDIT_REPO_URL, url, 511);
             if (!url[0]) {
+                /* Reject empty URL — repo cannot be identified */
                 MessageBox(hwnd, L"Please enter a GitHub URL.",
                            L"Sources", MB_ICONWARNING | MB_OK);
-                return TRUE;
+                return TRUE; /* stay in dialog */
             }
-            /* Validate it looks like a github URL */
+            /* Basic domain check — full URL validation is left to the sync engine */
             if (!wcsstr(url, L"github.com")) {
                 MessageBox(hwnd,
                     L"URL must be a GitHub repository URL.\n"
                     L"Example: https://github.com/owner/repo",
                     L"Sources", MB_ICONWARNING | MB_OK);
-                return TRUE;
+                return TRUE; /* stay in dialog */
             }
             wcsncpy_s(arg->repo->url, 512, url, _TRUNCATE);
             GetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH,
                            arg->repo->branch, 63);
             if (!arg->repo->branch[0])
-                wcsncpy_s(arg->repo->branch, 64, L"main", _TRUNCATE);
+                wcsncpy_s(arg->repo->branch, 64, L"main", _TRUNCATE); /* default branch if field left blank */
             if (IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED)
                 GetDlgItemText(hwnd, IDC_EDIT_REPO_TOKEN,
                                arg->repo->token, 255);
             else
-                arg->repo->token[0] = L'\0';
+                arg->repo->token[0] = L'\0'; /* clear token if checkbox is unchecked */
             arg->repo->enabled =
                 IsDlgButtonChecked(hwnd, IDC_CHK_REPO_ENABLED) == BST_CHECKED;
             EndDialog(hwnd, IDOK);
             break;
         }
         case IDCANCEL:
-            EndDialog(hwnd, IDCANCEL);
+            EndDialog(hwnd, IDCANCEL); /* discard changes */
             break;
         }
         return TRUE;
     }
-    return FALSE;
+    return FALSE; /* unhandled message — let DefDlgProc handle it */
 }
 
 /* ================================================================== */
@@ -240,6 +244,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         /* ── Extra repos ── */
         case IDC_BTN_REPO_ADD:
             if (g.cfg.extra_repo_count >= MAX_EXTRA_REPOS) {
+                /* Array is fixed-size — cannot grow further */
                 MessageBox(hwnd, L"Maximum number of repositories reached.",
                            L"Sources", MB_ICONWARNING | MB_OK);
                 break;
@@ -261,8 +266,8 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_REPO_EDIT:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_REPOS);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
-            if (sel < 0) break;
+            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED); /* -1 = start from beginning; returns -1 if nothing selected */
+            if (sel < 0) break; /* no selection — ignore button click */
             RepoEditArg arg = { &g.cfg.extra_repos[sel], false };
             if (DialogBoxParam(GetModuleHandle(NULL),
                     MAKEINTRESOURCE(IDD_REPO_EDIT),
@@ -275,7 +280,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_REPOS);
             int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
-            if (sel < 0) break;
+            if (sel < 0) break; /* nothing selected */
             g.cfg.extra_repos[sel].enabled = !g.cfg.extra_repos[sel].enabled;
             Repos_Populate(hList);
             break;
@@ -308,8 +313,8 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             }
 
             int res = MessageBox(hwnd, msg, L"Remove Repository",
-                                 MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
-            if (res != IDYES) break;
+                                 MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2); /* MB_DEFBUTTON2 = default to "No" for safety */
+            if (res != IDYES) break; /* user cancelled — leave the repo list unchanged */
 
             /* Delete cached scripts folder: cache_dir\owner_reponame\ */
             if (has_cache) {
@@ -329,7 +334,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
                 RemoveDirectoryW(req_dir);
             }
 
-            /* Shift array left */
+            /* Remove by shifting all entries after sel one position left */
             for (int i = sel; i < g.cfg.extra_repo_count - 1; i++)
                 g.cfg.extra_repos[i] = g.cfg.extra_repos[i + 1];
             g.cfg.extra_repo_count--;
@@ -340,6 +345,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         /* ── Local dirs ── */
         case IDC_BTN_LOCAL_ADD:
             if (g.cfg.local_dir_count >= MAX_LOCAL_DIRS) {
+                /* Fixed-size array — cannot add more entries */
                 MessageBox(hwnd, L"Maximum number of local folders reached.",
                            L"Sources", MB_ICONWARNING | MB_OK);
                 break;
@@ -370,7 +376,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_LOCAL);
             int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
-            if (sel < 0) break;
+            if (sel < 0) break; /* nothing selected */
             g.cfg.local_dirs[sel].enabled = !g.cfg.local_dirs[sel].enabled;
             Locals_Populate(hList);
             break;
@@ -380,7 +386,8 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_LOCAL);
             int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
-            if (sel < 0) break;
+            if (sel < 0) break; /* nothing selected */
+            /* Remove by shifting entries after sel one position left */
             for (int i = sel; i < g.cfg.local_dir_count - 1; i++)
                 g.cfg.local_dirs[i] = g.cfg.local_dirs[i + 1];
             g.cfg.local_dir_count--;
@@ -389,15 +396,15 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         }
 
         case IDOK:
-            Settings_Save(&g.cfg);
+            Settings_Save(&g.cfg); /* persist source list changes before closing */
             EndDialog(hwnd, IDOK);
             break;
 
         case IDCANCEL:
-            EndDialog(hwnd, IDCANCEL);
+            EndDialog(hwnd, IDCANCEL); /* discard any in-memory changes — settings were not saved */
             break;
         }
         return TRUE;
     }
-    return FALSE;
+    return FALSE; /* unhandled message */
 }
