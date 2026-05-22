@@ -59,6 +59,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | Tab | Folder |
 |-----|--------|
 | Any Document Scripts | `Any_Document_Scripts/` |
+| Drawing Document Scripts | `Drawing_Document_Scripts/` |
 | Part Document Scripts | `Part_Document_Scripts/` |
 | Process Document Scripts | `Process_Document_Scripts/` |
 | Product Document Scripts | `Product_Document_Scripts/` |
@@ -142,6 +143,8 @@ My_Scripts/
 ├── Any_Document_Scripts/
 │   ├── my_custom_script.py
 │   └── another_script.py
+├── Drawing_Document_Scripts/
+│   └── my_drawing_script.py
 └── Part_Document_Scripts/
     └── part_tool.py
 ```
