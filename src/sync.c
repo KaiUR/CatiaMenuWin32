@@ -168,6 +168,8 @@ void Sync_LoadManifest(void)
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
 
+            s->source = SCRIPT_SRC_MAIN; /* loaded from built-in main repo cache */
+
             /* SHA from manifest */
             Sync_GetLocalSHA(s->gh_path, s->sha);
 
@@ -407,6 +409,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s", cache_sub, fname_w);
             Util_StripExt(s->name);
             Util_SnakeToTitle(s->name);
+            s->source = SCRIPT_SRC_EXTRA;
 
             /* Download if changed */
             WCHAR existing_sha[MAX_SHA] = {0};
@@ -480,6 +483,7 @@ static void Sync_LocalDir(const LocalDir *dir)
             Util_SnakeToTitle(s->name);
             /* Use local path as gh_path for uniqueness */
             wcsncpy_s(s->gh_path, MAX_APPPATH, s->local,     _TRUNCATE); /* local scripts have no GitHub path; use local path as a unique key for prefs */
+            s->source = SCRIPT_SRC_LOCAL;
         } while (FindNextFileW(hs, &sf));
         FindClose(hs);
 
@@ -659,6 +663,10 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
 
         /* Parse new script list (fills f->scripts[], f->count) */
         GitHub_ParseFolder(buf, fi);
+
+        /* Tag all scripts in this folder as main-repo origin */
+        for (int si = 0; si < f->count; si++)
+            f->scripts[si].source = SCRIPT_SRC_MAIN;
 
         /* Ensure cache folder exists */
         WCHAR folder_cache[MAX_APPPATH];

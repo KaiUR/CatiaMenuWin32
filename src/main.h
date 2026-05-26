@@ -123,6 +123,7 @@
 #define WM_AUTO_REFRESH    (WM_USER + 12)  /* timer-triggered automatic sync                  */
 #define WM_SCRIPT_STARTED  (WM_USER + 13)  /* posted by Runner_Thread when a bg script starts */
 #define WM_SCRIPT_STOPPED  (WM_USER + 14)  /* posted when bg script exits or is terminated   */
+#define WM_LOG_OUTPUT      (WM_USER + 15)  /* LogReader_Thread → UI: script output (lp = WCHAR* heap) */
 #define TRAY_ID            1               /* notification area icon ID passed to Shell_NotifyIcon */
 #define TIMER_AUTO_REFRESH 1001            /* SetTimer ID for the auto-sync interval          */
 #define TIMER_QBAR         1002            /* SetTimer ID for quick bar deferred update       */
@@ -139,6 +140,20 @@ typedef enum {
     SORT_DATE     = 2,  /* by script header Date: field                */
     SORT_MOST_USED = 3  /* by run count descending                     */
 } SortMode;
+
+/* ================================================================== */
+/*  ScriptSource                                                        */
+/*  Purpose: Identifies where a script originates from, used to apply  */
+/*           optional background tinting in Paint_ScriptButton and     */
+/*           QB_Paint when g.cfg.tint_script_sources is true.          */
+/*  In:  (set by sync.c when populating Script entries)                */
+/*  Out: (read by paint.c and quickbar.c for colour selection)         */
+/* ================================================================== */
+typedef enum {
+    SCRIPT_SRC_MAIN  = 0,  /* built-in KaiUR/Pycatia_Scripts repo     */
+    SCRIPT_SRC_EXTRA = 1,  /* user-added extra GitHub repository       */
+    SCRIPT_SRC_LOCAL = 2   /* user-added local folder                  */
+} ScriptSource;
 
 /* ================================================================== */
 /*  ThemeMode                                                           */
@@ -189,16 +204,17 @@ typedef struct {
 /*  Out: (consumed by Runner_Run, Meta_Parse, Paint_ScriptButton, etc.)*/
 /* ================================================================== */
 typedef struct {
-    WCHAR      name[MAX_NAME];
-    WCHAR      gh_path[MAX_APPPATH];
-    WCHAR      sha[MAX_SHA];
-    WCHAR      local[MAX_APPPATH];
-    ScriptMeta meta;
-    bool       meta_loaded;
-    bool       is_favourite;
-    bool       is_hidden;
-    int        run_count;
-    WCHAR      note[MAX_NOTE_LEN];
+    WCHAR        name[MAX_NAME];
+    WCHAR        gh_path[MAX_APPPATH];
+    WCHAR        sha[MAX_SHA];
+    WCHAR        local[MAX_APPPATH];
+    ScriptMeta   meta;
+    bool         meta_loaded;
+    bool         is_favourite;
+    bool         is_hidden;
+    int          run_count;
+    WCHAR        note[MAX_NOTE_LEN];
+    ScriptSource source;  /* where the script was loaded from          */
 } Script;
 
 /* ================================================================== */
@@ -351,6 +367,8 @@ typedef struct {
     /* Double-click repeat */
     bool      repeat_on_dblclick;        /* repeat main-window scripts on double-click (default: true) */
     bool      qbar_repeat_on_dblclick;   /* repeat Quick Bar scripts on double-click (default: true)   */
+    /* Script display */
+    bool      tint_script_sources;       /* tint local/extra-repo buttons differently (default: true)  */
 } Settings;
 
 /* ------------------------------------------------------------------ */
@@ -358,6 +376,11 @@ typedef struct {
 /* ------------------------------------------------------------------ */
 #define COL_BG_DARK        RGB(28,  28,  35)
 #define COL_BG_LIGHT       RGB(240, 240, 245)
+/* Source-tint colours (used when tint_script_sources is true) */
+#define COL_BTN_LOCAL_DARK   RGB(54,  42,  38)  /* warm brown for local-folder scripts  */
+#define COL_BTN_LOCAL_LIGHT  RGB(240, 220, 215)
+#define COL_BTN_EXTRA_DARK   RGB(38,  52,  42)  /* muted green for extra-repo scripts   */
+#define COL_BTN_EXTRA_LIGHT  RGB(215, 235, 218)
 #define COL_TOOLBAR_DARK   RGB(20,  20,  28)
 #define COL_TOOLBAR_LIGHT  RGB(210, 210, 220)
 #define COL_BTN_NORM_DARK  RGB(44,  46,  64)
@@ -467,6 +490,9 @@ typedef struct {
     int    run_fi;               /* folder index of the running script           */
     int    run_si;               /* script index of the running script           */
 
+    /* Script output log */
+    HWND   hwnd_log;             /* modeless log window; NULL when not open      */
+
 } AppState;
 
 extern AppState g;
@@ -497,6 +523,8 @@ static inline COLORREF COL_TEXT(void)      { return g.dark_mode ? COL_TEXT_DARK 
 static inline COLORREF COL_SUBTEXT(void)   { return g.dark_mode ? COL_SUBTEXT_DARK   : COL_SUBTEXT_LIGHT;   }
 static inline COLORREF COL_DIVIDER(void)   { return g.dark_mode ? COL_DIVIDER_DARK   : COL_DIVIDER_LIGHT;   }
 static inline COLORREF COL_TIP_BG(void)    { return g.dark_mode ? COL_TIP_BG_DARK    : COL_TIP_BG_LIGHT;    }
+static inline COLORREF COL_BTN_LOCAL(void) { return g.dark_mode ? COL_BTN_LOCAL_DARK : COL_BTN_LOCAL_LIGHT; }
+static inline COLORREF COL_BTN_EXTRA(void) { return g.dark_mode ? COL_BTN_EXTRA_DARK : COL_BTN_EXTRA_LIGHT; }
 
 /* ------------------------------------------------------------------ */
 /*  Prototypes                                                          */
@@ -604,6 +632,14 @@ INT_PTR CALLBACK ScriptDetailsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK RunWithArgsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ScriptNoteDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK HiddenScriptsDlgProc(HWND, UINT, WPARAM, LPARAM);
+
+/* log.c */
+void Log_Show(void);
+void Log_Append(const WCHAR *text);
+void Log_AddHeader(const WCHAR *script_name);
+void Log_Clear(void);
+void Log_Destroy(void);
+void Log_OnThemeChange(void);
 
 /* quickbar.c */
 void QuickBar_Register(HINSTANCE hInst);

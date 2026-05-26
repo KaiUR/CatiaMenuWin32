@@ -56,7 +56,7 @@
 #define IDC_EDIT_REFRESH_INTERVAL 414 /* sync interval in hours             */
 
 /* ------------------------------------------------------------------ */
-/*  Main window controls  (501–508)                                     */
+/*  Main window controls  (501–509)                                     */
 /* ------------------------------------------------------------------ */
 #define IDC_TAB_CTRL            501
 #define IDC_STATUS_BAR          507   /* was 502 — renumbered to avoid conflict with IDC_BTN_MENU */
@@ -66,6 +66,7 @@
 #define IDC_SCROLL_PANEL        505
 #define IDC_BTN_UPDATE_DEPS     506
 #define IDC_BTN_STOP            508
+#define IDC_BTN_LOG             509   /* script output log window button (visible in bg mode) */
 
 /* ------------------------------------------------------------------ */
 /*  Script buttons  (1000+)                                             */
@@ -277,5 +278,11 @@
 #define IDC_CHK_REPEAT_MAIN   468         /* Console tab: repeat main-window scripts  */
 #define IDC_CHK_REPEAT_QBAR   469         /* Quick Bar tab: repeat Quick Bar scripts  */
 #define IDC_CHK_OFFLINE_CACHE 470         /* Sync tab: show cached scripts when offline */
+
+/* ------------------------------------------------------------------ */
+/*  Settings dialog — Script Display controls  (471–472)               */
+/* ------------------------------------------------------------------ */
+#define IDC_CHK_TINT_SOURCES  471   /* Window tab: tint local/extra scripts differently */
+#define IDC_GRP_DISPLAY       472   /* Window tab: "Script Display" groupbox             */
 
 #endif /* RESOURCE_H */

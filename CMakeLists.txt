@@ -104,6 +104,7 @@ add_executable(CatiaMenuWin32 WIN32
     src/help.c
     src/paint.c
     src/quickbar.c
+    src/log.c
     "${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 )
 

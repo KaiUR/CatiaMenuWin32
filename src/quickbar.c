@@ -493,8 +493,17 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         bool rep = g.repeat_mode && g.repeat_fi == fi_btn && g.repeat_si == si_btn; /* repeating this script */
         bool run = g.script_running && !g.repeat_mode && g.run_fi == fi_btn && g.run_si == si_btn; /* running once */
 
-        /* Button background (rounded rect) */
-        COLORREF bg  = hot ? COL_BTN_HOT() : COL_BTN_NORM();
+        /* Fetch script pointer now so source tint decision can use it */
+        Script *s = QB_GetFav(i, NULL, NULL);
+        if (!s) continue;
+
+        /* Button background (rounded rect) — apply source tint when idle and tinting is enabled */
+        COLORREF idle_bg = COL_BTN_NORM();
+        if (!hot && g.cfg.tint_script_sources) {
+            if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
+            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+        }
+        COLORREF bg  = hot ? COL_BTN_HOT() : idle_bg;
         COLORREF brd = rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_DIVIDER());
         /* border priority: repeating > running > hovered > idle */
         HBRUSH br_btn = CreateSolidBrush(bg);
@@ -528,9 +537,7 @@ static void QB_Paint(HWND hwnd, HDC hdc)
             DeleteObject(ba);
         }
 
-        /* 2-letter abbreviation from script name */
-        Script *s = QB_GetFav(i, NULL, NULL);
-        if (!s) continue;
+        /* 2-letter abbreviation from script name — s already fetched above */
 
         WCHAR tmp[MAX_NAME];
         wcsncpy_s(tmp, MAX_NAME, s->name, _TRUNCATE);

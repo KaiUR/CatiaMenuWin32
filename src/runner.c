@@ -21,6 +21,9 @@ typedef struct {
     WCHAR script[MAX_APPPATH];
     bool  show_console;
     bool  keep_open;
+    /* Pipe handles for background-mode stdout/stderr capture (NULL when unused) */
+    HANDLE hPipe_read;   /* parent's read end; passed to LogReader_Thread */
+    HANDLE hPipe_write;  /* child's write end; set in STARTUPINFO, closed after CreateProcess */
 } RunArg;
 
 /* ================================================================== */
@@ -90,11 +93,48 @@ static void Runner_BuildLocalPath(int fi, int si, WCHAR *out, int max)
 }
 
 /* ================================================================== */
+/*  LogReader_Thread  (static)                                         */
+/*  Purpose: Reads raw bytes from the child process's stdout/stderr    */
+/*           pipe, converts them to wide characters (CP_ACP), and     */
+/*           posts WM_LOG_OUTPUT to the main window.  The heap buffer  */
+/*           in each message is freed by the WM_LOG_OUTPUT handler.   */
+/*           Runs until ReadFile returns 0 (child has exited and the   */
+/*           write end of the pipe is fully closed).                   */
+/*  In:  arg — inheritable read-end HANDLE cast to LPVOID; closed here */
+/*  Out: 0 (thread exit code)                                          */
+/* ================================================================== */
+static DWORD WINAPI LogReader_Thread(LPVOID arg)
+{
+    HANDLE hRead = (HANDLE)arg;
+    char   buf[1024];
+    DWORD  nRead;
+
+    while (ReadFile(hRead, buf, sizeof(buf) - 1, &nRead, NULL) && nRead > 0) {
+        /* Convert the ANSI/OEM bytes the child wrote to the console into wide chars */
+        int wlen = MultiByteToWideChar(CP_ACP, 0, buf, (int)nRead, NULL, 0);
+        if (wlen <= 0) continue;
+
+        WCHAR *wbuf = (WCHAR *)malloc((wlen + 1) * sizeof(WCHAR));
+        if (!wbuf) continue;
+
+        MultiByteToWideChar(CP_ACP, 0, buf, (int)nRead, wbuf, wlen);
+        wbuf[wlen] = L'\0';
+
+        /* Main thread's WM_LOG_OUTPUT handler owns wbuf and must free it */
+        PostMessage(g.hwnd, WM_LOG_OUTPUT, 0, (LPARAM)wbuf);
+    }
+
+    CloseHandle(hRead);
+    return 0;
+}
+
+/* ================================================================== */
 /*  Runner_Thread                                                       */
 /*  Purpose: Background thread that executes the Python script via     */
-/*           CreateProcessW.  When show_console is false it waits for  */
-/*           the process and posts the exit code to the status bar.   */
-/*           Frees the RunArg before returning.                        */
+/*           CreateProcessW.  In background mode it creates an         */
+/*           anonymous pipe, redirects stdout/stderr into it, starts   */
+/*           LogReader_Thread to forward output to the log window, and */
+/*           waits for the process.  Frees the RunArg before returning. */
 /*  In:  arg — pointer to a heap-allocated RunArg (freed on return)    */
 /*  Out: 0 (thread exit code)                                           */
 /* ================================================================== */
@@ -121,9 +161,41 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
     /* CREATE_NEW_CONSOLE shows a visible terminal; CREATE_NO_WINDOW runs silently in background */
     DWORD flags = ra->show_console ? CREATE_NEW_CONSOLE : CREATE_NO_WINDOW;
 
-    if (CreateProcessW(NULL, cmd, NULL, NULL, FALSE,
+    /* Background mode: create pipe so stdout/stderr are captured for the log window */
+    if (!ra->show_console) {
+        SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE}; /* TRUE = child can inherit write end */
+        if (CreatePipe(&ra->hPipe_read, &ra->hPipe_write, &sa, 0)) {
+            /* Make the read end non-inheritable so the child cannot hold it open */
+            SetHandleInformation(ra->hPipe_read, HANDLE_FLAG_INHERIT, 0);
+            si.hStdOutput = ra->hPipe_write;
+            si.hStdError  = ra->hPipe_write;
+            si.dwFlags   |= STARTF_USESTDHANDLES;
+        }
+    }
+
+    /* Inherit handles only when we connected a pipe; console runs do not need it */
+    BOOL inherit = (ra->hPipe_write != NULL);
+
+    if (CreateProcessW(NULL, cmd, NULL, NULL, inherit,
                        flags, NULL, NULL, &si, &pi)) {
         if (!ra->show_console) {
+            /* Close our copy of the write end — only the child keeps one open now.
+               When the child exits the last write end closes and ReadFile in the
+               reader thread returns 0 (EOF), naturally ending the reader loop. */
+            if (ra->hPipe_write) {
+                CloseHandle(ra->hPipe_write);
+                ra->hPipe_write = NULL;
+            }
+
+            /* Launch log reader; it owns hPipe_read and closes it on EOF */
+            if (ra->hPipe_read) {
+                HANDLE hRT = CreateThread(NULL, 0, LogReader_Thread,
+                                          ra->hPipe_read, 0, NULL);
+                if (hRT) CloseHandle(hRT);
+                else     CloseHandle(ra->hPipe_read); /* CreateThread failed — release handle */
+                ra->hPipe_read = NULL;                /* thread (or cleanup above) now owns it */
+            }
+
             /* Background run: duplicate the process handle into g.run_process so Runner_Stop can terminate it */
             HANDLE dup = NULL;
             DuplicateHandle(GetCurrentProcess(), pi.hProcess,
@@ -153,6 +225,9 @@ DWORD WINAPI Runner_Thread(LPVOID arg)
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     } else {
+        /* CreateProcess failed — release any pipe handles we may have opened */
+        if (ra->hPipe_write) { CloseHandle(ra->hPipe_write); ra->hPipe_write = NULL; }
+        if (ra->hPipe_read)  { CloseHandle(ra->hPipe_read);  ra->hPipe_read  = NULL; }
         DWORD err = GetLastError();
         PostStatus(L"Failed to launch Python. Error %lu.", err);
     }
@@ -255,6 +330,8 @@ bool Runner_Run(int fi, int si)
     wcsncpy_s(ra->script, MAX_APPPATH, local,  _TRUNCATE);
     ra->show_console = g.cfg.show_console;
     ra->keep_open    = g.cfg.show_console && g.cfg.console_keep_open;
+    ra->hPipe_read   = NULL;
+    ra->hPipe_write  = NULL;
 
     HANDLE hT = CreateThread(NULL, 0, Runner_Thread, ra, 0, NULL);
     if (hT) { CloseHandle(hT); return true; } /* thread owns ra now; close our copy of the thread handle */
@@ -279,7 +356,7 @@ void Runner_Stop(void)
     TerminateProcess(h, 1); /* exit code 1 distinguishes a forced stop from a clean exit (0) */
     CloseHandle(h);
     PostStatus(L"Script stopped.");
-    PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
+    PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 1); /* lp=1 signals user-initiated stop */
 }
 
 /* ================================================================== */

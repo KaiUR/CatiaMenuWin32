@@ -53,6 +53,7 @@ void Window_ApplyThemeToChildren(HWND hwnd)
     InvalidateRect(g.hwnd_tab,    NULL, TRUE);
     InvalidateRect(g.hwnd_status, NULL, TRUE);
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
+    Log_OnThemeChange(); /* update log window title bar and RichEdit colours */
 }
 
 /* ================================================================== */
@@ -701,10 +702,14 @@ void Window_Create(HINSTANCE hInst)
         WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_DISABLED,
         364, 5, 70, 28, g.hwnd,
         (HMENU)(UINT_PTR)IDC_BTN_STOP, hInst, NULL);
+    CreateWindow(L"BUTTON", L"\u2261  Log",
+        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
+        440, 5, 62, 28, g.hwnd,
+        (HMENU)(UINT_PTR)IDC_BTN_LOG, hInst, NULL);
 
     int ids[] = { IDC_BTN_MENU, IDC_BTN_REFRESH,
-                  IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP };
-    for (int i = 0; i < 5; i++) /* apply UI font to all 5 toolbar buttons */
+                  IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP, IDC_BTN_LOG };
+    for (int i = 0; i < 6; i++) /* apply UI font to all 6 toolbar buttons */
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 
