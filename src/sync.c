@@ -310,8 +310,11 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         return;
     }
 
-    /* Parse folders from root */
-    /* Reuse existing json parser logic inline */
+    /* Parse folders from root — use a separate buffer for folder-contents fetches
+       so that buf (root listing) remains valid throughout the outer loop. */
+    char *fbuf = (char *)malloc(HTTP_BUF_SIZE);
+    if (!fbuf) return;
+
     const char *p = buf;
     while ((p = strstr(p, "\"type\"")) != NULL) {
         char type_val[32] = {0};
@@ -346,7 +349,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         }
         if (!name_a[0] || strcmp(name_a, "setup") == 0 || name_a[0] == '.') { p = tp; continue; }
 
-        /* Get folder contents */
+        /* Get folder contents into fbuf so buf (root listing) stays intact */
         WCHAR folder_w[MAX_NAME] = {0};
         MultiByteToWideChar(CP_UTF8, 0, name_a, -1, folder_w, MAX_NAME);
 
@@ -354,7 +357,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         _snwprintf_s(folder_api, MAX_APPPATH, _TRUNCATE, L"/repos/%s/%s/contents/%s", owner, reponame, folder_w);
 
         DWORD flen = 0;
-        if (!GitHub_HttpGet(GITHUB_API_HOST, folder_api, tok, buf, &flen))
+        if (!GitHub_HttpGet(GITHUB_API_HOST, folder_api, tok, fbuf, &flen))
             { p = tp; continue; }
 
         /* Parse scripts */
@@ -366,7 +369,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
                    g.cfg.cache_dir, owner, reponame, folder_w);
         SHCreateDirectoryEx(NULL, cache_sub, NULL);
 
-        const char *fp = buf;
+        const char *fp = fbuf;
         while ((fp = strstr(fp, "\"type\"")) != NULL && script_count < MAX_SCRIPTS) {
             const char *fo = fp;
             while (fo > buf && *fo != '{') fo--;
@@ -430,7 +433,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         p = tp;
     }
 
-
+    free(fbuf);
 }
 
 /* ================================================================== */
@@ -553,7 +556,9 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
                GITHUB_OWNER, GITHUB_REPO);
 
     DWORD len = 0;
+    bool main_repo_ok = true;
     if (!GitHub_HttpGet(GITHUB_API_HOST, api_root, token, buf, &len)) {
+        main_repo_ok = false;
         sr->status = SR_NO_INTERNET;
         if (!g.cfg.offline_use_cache) {
             /* User opted out of offline mode \u2014 clear folders so the UI shows nothing */
@@ -572,10 +577,11 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             wcsncpy_s(sr->message, 256,
                 L"\u26a0 No internet connection. No cached scripts found.", _TRUNCATE);
         }
-        PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)sr, 0);
-        free(buf);
-        return 0;
+        /* Do NOT return here \u2014 fall through to sync extra repos and local dirs,
+           which may be reachable even when the main repo is not. */
     }
+
+    if (main_repo_ok) {
 
     /* Connected ─ clear folders so disabled sources don't linger before rebuild.
        Hold cs_folders to guard against a concurrent UI-thread paint reading freed pointers. */
@@ -757,6 +763,8 @@ DWORD WINAPI Sync_Thread(LPVOID unused)
             GitHub_DownloadRaw(gh_files[i], lpath, token);
         }
     }
+
+    } /* end if (main_repo_ok) */
 
     } else {
         /* Main repo disabled — clear now so extra repos and local dirs
