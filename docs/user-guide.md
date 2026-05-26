@@ -65,7 +65,7 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 ┌──────────────────────────────────────────────────────────────────┐
 │  CATIA Macro Menu                                      -  [ ]  x │
 ├──────────────────────────────────────────────────────────────────┤
-│  [Menu] [Refresh] [Settings] [Deps] [Stop]          v2.1.0.128   │
+│  [Menu] [Refresh] [Settings] [Deps] [Stop] [Log]    v2.2.0.xxx   │
 ├──────────────────────────────────────────────────────────────────┤
 │  Filter scripts...                                               │
 ├──────────────────────────────────────────────────────────────────┤
@@ -97,6 +97,7 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 - **⚙ Settings** — open the settings dialog
 - **↓ Deps** — install/update Python dependencies
 - **■ Stop** — terminate the currently running background script (grayed out when idle; red when active)
+- **≡ Log** — open the script output log window to view stdout/stderr from background script runs
 
 **Tab bar:**
 - Each tab corresponds to a script folder
@@ -130,6 +131,43 @@ Without **Show console**, scripts run silently in the background.
 Click the **■ Stop** toolbar button to immediately terminate the running script. The button is grayed out when no script is running and turns red when one is active.
 
 > **Note:** Only background (no-console) runs can be stopped this way. If **Show console** is enabled, close the console window directly, or press `Ctrl+C` inside it.
+
+### Script Output Log
+
+When scripts run in background mode (no console), all stdout and stderr output is captured and shown in the **Script Output Log** window.
+
+- Click **≡ Log** in the toolbar to open the log window at any time — even before a script runs or after it finishes.
+- Each run is framed by a **timestamped header** and a **completion footer**:
+  ```
+  === ScriptName  (HH:MM:SS) ===
+  ... script output ...
+  --- Finished successfully. ---
+  ```
+  The footer reads `--- Stopped by user. ---` if the script was terminated via the **■ Stop** button, or `--- Exited with code N. ---` for a non-zero exit.
+- **Syntax highlighting** — output is colour-coded automatically:
+  - Header lines (`===`) → accent blue
+  - `--- Finished successfully. ---` → green
+  - `--- Stopped by user. ---` → amber
+  - `--- Exited with code N. ---` → red
+  - Lines containing `Error`, `Exception`, `Traceback`, `Fatal` → red
+  - Lines containing `Warning` → amber
+- Output is **buffered internally** — nothing is lost even if the log window is closed during a run. Open it afterwards to see the full history.
+- The log accumulates output across all runs for the session.
+- The window is non-blocking and follows the current dark/light theme.
+
+> **Note:** Output is only captured in background mode. When **Show console** is enabled, output appears in the console window instead.
+
+### Script Source Tinting
+
+When **Tint local and extra-repo script buttons differently** is enabled in **Settings → Window** (default: On), script buttons are given a subtle background tint based on their source:
+
+| Tint | Source |
+|------|--------|
+| Warm rose | Script is from a local folder |
+| Cool green | Script is from an extra GitHub repository |
+| No tint | Script is from the built-in KaiUR/Pycatia_Scripts repository |
+
+The same tinting applies to Quick Launch Bar buttons. Disable the option in Settings → Window if you prefer a uniform appearance.
 
 ---
 

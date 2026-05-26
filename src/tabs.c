@@ -202,7 +202,7 @@ void Tabs_RebuildButtons(void)
 
         HWND hb = CreateWindow(
             L"BUTTON", f->scripts[i].name,
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_OWNERDRAW,
             BTN_MX, y, btn_w, BTN_H,
             g.hwnd_scroll, (HMENU)(UINT_PTR)id, hInst, NULL);
 
@@ -367,7 +367,11 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
             si.nPos   = pos;
             SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
             ScrollWindowEx(hwnd, 0, delta, NULL, NULL, NULL, NULL,
-                           SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+                           SW_SCROLLCHILDREN | SW_INVALIDATE);
+            /* SW_ERASE intentionally omitted: asking the panel to erase before
+               the children repaint causes the white flash visible when scrolling fast.
+               The buttons themselves suppress WM_ERASEBKGND and fill their full surface
+               in WM_DRAWITEM, so no background erase is needed here. */
             g.scroll_y = pos;
         }
         return 0;

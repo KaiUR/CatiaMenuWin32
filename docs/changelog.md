@@ -9,6 +9,20 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.2.0 — Script source tinting, scroll flicker fix, script output log
+
+### Added
+- **Script source tinting** — script buttons (main window and Quick Launch Bar) can now be tinted based on their origin: a warm rose tint for scripts from local folder sources and a cool green tint for scripts from extra GitHub repositories. Built-in scripts from KaiUR/Pycatia_Scripts remain untinted. Enabled by default.
+- **Settings → Window → Tint local and extra-repo script buttons differently** — new checkbox to toggle source tinting. Default: **On**.
+- **Script Output Log window** — when scripts run in background (no-console) mode, a **≡ Log** toolbar button opens a persistent modeless log window that displays all stdout and stderr output captured from every script run. Each run is framed by a timestamped header (`=== ScriptName  (HH:MM:SS) ===`) and a completion footer (`--- Finished successfully. ---`, `--- Stopped by user. ---`, or `--- Exited with code N. ---`). The window uses a Consolas monospace font and retains the full session history. Output is buffered internally so nothing is lost even if the window is closed during a run.
+- **Log window syntax highlighting** — output lines are colour-coded automatically: header lines in accent blue, completion footers in green/amber/red, and Python runtime output containing keywords such as `Error`, `Exception`, `Traceback`, `Fatal`, or `Warning` highlighted in red or amber respectively. Colours follow the current app theme (dark/light).
+- **Log window dark mode and icon** — the log window title bar, background, and text now match the current app theme. The app icon appears in the title bar and taskbar button. Theme changes (including live switching) are applied without reopening the window.
+
+### Fixed
+- **Scroll flicker when scrolling quickly** — eliminated white flash artefacts when scrolling through the script panel at high speed. Three-part fix: removed `SW_ERASE` from the `ScrollWindowEx` call so the background is not erased before sibling buttons are repositioned; added `WM_ERASEBKGND` returning 1 to the button subclass procedure to prevent each button from self-erasing; and added `WS_CLIPSIBLINGS` to every script button so overlapping sibling windows cannot overdraw each other during a scroll.
+
+---
+
 ## v2.1.6 — Show cached scripts when offline
 
 ### Added

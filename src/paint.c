@@ -206,7 +206,13 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
-    COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : COL_BTN_NORM();
+    /* Idle background: apply source tint when tinting is enabled and state is neither hot nor pressed */
+    COLORREF idle_bg = COL_BTN_NORM();
+    if (!pressed && !hot && s && g.cfg.tint_script_sources) {
+        if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
+        else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+    }
+    COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : idle_bg;
     COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER(); /* border priority: repeat > running > hot > idle */
     DrawRoundRect(mem, 0,      0, main_w,     h, 7, bg, bdr);
     DrawRoundRect(mem, main_w, 0, INFO_BTN_W, h, 7,
@@ -524,6 +530,10 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         }
         break;
     }
+
+    case WM_ERASEBKGND:
+        return 1; /* suppress default erase — Paint_ScriptButton fills the entire button surface,
+                     so letting Windows erase first causes a white flash when scrolling */
 
     case WM_NCDESTROY:
         RemoveWindowSubclass(hwnd, BtnSubclassProc, uid);

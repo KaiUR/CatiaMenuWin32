@@ -93,6 +93,9 @@ void Settings_Load(Settings *s)
     s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",    1, ini) != 0;
     s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick",1, ini) != 0;
 
+    /* Script display */
+    s->tint_script_sources     = GetPrivateProfileInt(L"Options", L"TintScriptSources",   1, ini) != 0; /* default 1 = on */
+
     if (!s->cache_dir[0]) /* no cache dir stored — default to %APPDATA%\CatiaMenuWin32\scripts */
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
     SHCreateDirectoryEx(NULL, s->cache_dir, NULL); /* create directory if it doesn't exist yet */
@@ -172,6 +175,10 @@ void Settings_Save(const Settings *s)
     WritePrivateProfileString(L"Options", L"QBarRepeatOnDblClick",
                               s->qbar_repeat_on_dblclick ? L"1" : L"0", ini);
 
+    /* Script display */
+    WritePrivateProfileString(L"Options", L"TintScriptSources",
+                              s->tint_script_sources ? L"1" : L"0", ini);
+
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
 }
@@ -242,6 +249,8 @@ static const int s_stab3[] = {   /* Window */
     IDC_RAD_THEME_SYSTEM, IDC_RAD_THEME_DARK, IDC_RAD_THEME_LIGHT,
     IDC_GRP_SORT,
     IDC_RAD_SORT_DEFAULT, IDC_RAD_SORT_ALPHA, IDC_RAD_SORT_DATE, IDC_RAD_SORT_USED,
+    IDC_GRP_DISPLAY,
+    IDC_CHK_TINT_SOURCES,
     -1
 };
 static const int s_stab4[] = {   /* Quick Bar */
@@ -373,6 +382,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_RAD_SORT_ALPHA,   s->sort_mode == SORT_ALPHA    ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_SORT_DATE,    s->sort_mode == SORT_DATE     ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_SORT_USED,    s->sort_mode == SORT_MOST_USED? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_TINT_SOURCES, s->tint_script_sources        ? BST_CHECKED : BST_UNCHECKED);
 
         /* ── Tab 4: Quick Bar ───────────────────────────────────── */
         CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  s->qbar_enabled           ? BST_CHECKED : BST_UNCHECKED);
@@ -535,6 +545,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_RAD_SORT_ALPHA,    BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_RAD_SORT_DATE,     BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_RAD_SORT_USED,     BST_UNCHECKED);
+            s->tint_script_sources = true;
+            CheckDlgButton(hwnd, IDC_CHK_TINT_SOURCES,  BST_CHECKED);
 
             CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE,  BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT,    BST_CHECKED);
@@ -594,6 +606,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_DATE)  == BST_CHECKED) s->sort_mode = SORT_DATE;
             else if (IsDlgButtonChecked(hwnd, IDC_RAD_SORT_USED)  == BST_CHECKED) s->sort_mode = SORT_MOST_USED;
             else                                                                   s->sort_mode = SORT_ORDER; /* fall through to SORT_ORDER (GitHub/disk order) */
+            s->tint_script_sources = IsDlgButtonChecked(hwnd, IDC_CHK_TINT_SOURCES) == BST_CHECKED;
 
             /* Quick Bar */
             s->qbar_enabled              = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
@@ -620,6 +633,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             Settings_ApplyAutorun(s->start_with_windows, s->start_minimized);
             Tabs_ApplySort(g.active_tab);
             Tabs_RebuildButtons();
+            if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE); /* repaint quick bar in case tint setting changed */
 
             if (s->qbar_enabled) {
                 if (s->qbar_horizontal != old_qbar_horiz) {

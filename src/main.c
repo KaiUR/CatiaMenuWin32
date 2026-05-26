@@ -429,7 +429,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 id == IDC_BTN_REFRESH ||
                 id == IDC_BTN_SETTINGS ||
                 id == IDC_BTN_UPDATE_DEPS ||
-                id == IDC_BTN_STOP) {
+                id == IDC_BTN_STOP ||
+                id == IDC_BTN_LOG) {
                 Paint_ToolbarButton(dis);
                 return TRUE;
             }
@@ -495,6 +496,17 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
+    case WM_LOG_OUTPUT:
+    {
+        /* lp = heap-allocated WCHAR* from LogReader_Thread; we own it and must free it */
+        WCHAR *text = (WCHAR *)lp;
+        if (text) {
+            Log_Append(text);
+            free(text);
+        }
+        return 0;
+    }
+
     case WM_SCRIPT_STARTED:
         g.script_running = true;
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), TRUE);
@@ -503,6 +515,14 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
         }
         if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+        /* Add a timestamped header in the log window for this run */
+        {
+            const WCHAR *sname =
+                (g.run_fi >= 0 && g.run_fi < g.folder_count &&
+                 g.run_si >= 0 && g.run_si < g.folders[g.run_fi].count)
+                ? g.folders[g.run_fi].scripts[g.run_si].name : L"Script";
+            Log_AddHeader(sname);
+        }
         return 0;
 
     case WM_SCRIPT_STOPPED:
@@ -513,6 +533,20 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
         }
         if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+        /* Append a completion footer to the log.
+           lp=1 = Runner_Stop was called (user terminated);
+           lp=0 = natural exit; wp = exit code. */
+        if (lp) {
+            Log_Append(L"--- Stopped by user. ---\r\n\r\n");
+        } else if (wp == 0) {
+            Log_Append(L"--- Finished successfully. ---\r\n\r\n");
+        } else {
+            WCHAR _lf[80];
+            _snwprintf_s(_lf, 79, _TRUNCATE,
+                         L"--- Exited with code %llu. ---\r\n\r\n",
+                         (unsigned long long)wp);
+            Log_Append(_lf);
+        }
         if (g.repeat_mode) {
             if (wp != 0) { /* non-zero exit code = script failed; stop repeating */
                 Repeat_Stop();
@@ -546,6 +580,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             UnhookWindowsHookEx(g.kbd_repeat_hook);
             g.kbd_repeat_hook = NULL;
         }
+        Log_Destroy();
         QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
@@ -918,6 +953,10 @@ apply_theme: /* shared apply: resolve, rebuild GDI, repaint */
     case IDC_BTN_STOP:
         Repeat_Stop();
         Runner_Stop();
+        break;
+
+    case IDC_BTN_LOG:
+        Log_Show();
         break;
 
     case IDM_EXIT:

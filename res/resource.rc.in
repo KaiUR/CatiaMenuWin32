@@ -67,6 +67,9 @@ BEGIN
     AUTORADIOBUTTON "By Date",                                  426, 16, 173, 130, 12
     AUTORADIOBUTTON "Most Used",                                427,160, 173, 120, 12
 
+    GROUPBOX "Script Display",                                  472, 10, 208, 344, 30
+    AUTOCHECKBOX "Tint local and extra-repo script buttons differently", 471, 16, 222, 324, 12
+
     /* ── Tab 4: Quick Bar ───────────────────────────────────────── */
     AUTOCHECKBOX "Enable Quick Launch Bar",                     428, 16,  28, 210, 12
     GROUPBOX "Orientation",                                     462, 10,  44, 344, 36
