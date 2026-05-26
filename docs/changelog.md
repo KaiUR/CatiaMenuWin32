@@ -9,6 +9,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.2.2 — Extra repository sync fix
+
+### Fixed
+- **Extra GitHub repositories were not synced when the main repo was unreachable** — if the main repository failed to connect (no internet, rate limit, certificate error, etc.) the sync thread posted an immediate "no internet" result and returned, skipping extra repo and local dir sync entirely. Extra repos now always run through their own sync pass regardless of the main repo's connectivity.
+- **Only the first folder of an extra repository was ever downloaded** — `Sync_ExtraRepo` reused a single buffer for both the root directory listing and each sub-folder contents fetch. After the first folder fetch overwrote the buffer, the outer root-parsing loop's pointers into it became invalid, so every folder after the first was silently skipped. The folder-contents fetch now uses a separate allocation so the root listing stays intact throughout the loop.
+
+---
+
 ## v2.2.1 — Open script location, open with default app, open in editor
 
 ### Added
