@@ -552,6 +552,13 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
                    L"Script Details...");
         AppendMenu(hm, MF_STRING, IDM_SCRIPT_RUN_ARGS,
                    L"Run with Arguments...");
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_OPEN_LOCATION,
+                   L"Open Script Location");
+        AppendMenu(hm, MF_STRING, IDM_SCRIPT_OPEN_DEFAULT,
+                   L"Open with Default App");
+        if (s->source == SCRIPT_SRC_LOCAL)
+            AppendMenu(hm, MF_STRING, IDM_SCRIPT_OPEN_EDITOR,
+                       L"Open in Editor");
         AppendMenu(hm, MF_SEPARATOR, 0, NULL);
 
         AppendMenu(hm, MF_STRING, IDM_SCRIPT_FAVOURITE,
@@ -612,6 +619,22 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
                 Tabs_RebuildButtons();
             break;
         }
+        case IDM_SCRIPT_OPEN_LOCATION:
+        {
+            /* Build the parent folder path by stripping the filename */
+            WCHAR dir[MAX_APPPATH];
+            wcsncpy_s(dir, MAX_APPPATH, s->local, _TRUNCATE);
+            WCHAR *slash = wcsrchr(dir, L'\\');
+            if (slash) *slash = L'\0';
+            ShellExecuteW(NULL, L"explore", dir, NULL, NULL, SW_SHOWNORMAL);
+            break;
+        }
+        case IDM_SCRIPT_OPEN_DEFAULT:
+            ShellExecuteW(NULL, L"open", s->local, NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case IDM_SCRIPT_OPEN_EDITOR:
+            ShellExecuteW(NULL, L"edit", s->local, NULL, NULL, SW_SHOWNORMAL);
+            break;
         case IDM_SCRIPT_NOTE:
             DialogBoxParam(GetModuleHandle(NULL),
                 MAKEINTRESOURCE(IDD_SCRIPT_NOTE),

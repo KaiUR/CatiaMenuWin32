@@ -116,13 +116,16 @@
 #define IDM_HIDDEN_SCRIPTS  223
 
 /* ------------------------------------------------------------------ */
-/*  Script context menu commands  (230–234)                             */
+/*  Script context menu commands  (230–237)                             */
 /* ------------------------------------------------------------------ */
-#define IDM_SCRIPT_DETAILS  230
-#define IDM_SCRIPT_FAVOURITE 231
-#define IDM_SCRIPT_HIDE     232
-#define IDM_SCRIPT_NOTE     233
-#define IDM_SCRIPT_RUN_ARGS 234
+#define IDM_SCRIPT_DETAILS        230
+#define IDM_SCRIPT_FAVOURITE      231
+#define IDM_SCRIPT_HIDE           232
+#define IDM_SCRIPT_NOTE           233
+#define IDM_SCRIPT_RUN_ARGS       234
+#define IDM_SCRIPT_OPEN_LOCATION  235
+#define IDM_SCRIPT_OPEN_DEFAULT   236
+#define IDM_SCRIPT_OPEN_EDITOR    237
 
 /* ------------------------------------------------------------------ */
 /*  Script details dialog  (304, 701–713)                               */

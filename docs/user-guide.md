@@ -243,6 +243,20 @@ Right-click any script → **Run with Arguments...** to pass custom command line
 
 ---
 
+## 📂 Opening Scripts
+
+The right-click context menu provides three options for opening script files directly:
+
+| Option | Available for | Action |
+|--------|--------------|--------|
+| **Open Script Location** | All scripts | Opens the folder containing the script in Windows Explorer |
+| **Open with Default App** | All scripts | Opens the script file with the Windows default application for its file type |
+| **Open in Editor** | Local folder scripts only | Opens the script in the registered editor for the file type (e.g. VS Code, Notepad++, IDLE) |
+
+> **Note:** For GitHub-synced scripts, edits made to the cached file will be overwritten on the next sync. Use **Open in Editor** on local scripts to safely edit your own scripts.
+
+---
+
 ## 🔢 Sorting Scripts
 
 **☰ Menu → View → Sort Scripts** offers four sort modes:
