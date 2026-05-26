@@ -9,6 +9,15 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.2.1 — Open script location, open with default app, open in editor
+
+### Added
+- **Open Script Location** (right-click menu) — opens the folder containing the script file in Windows Explorer. Available for all scripts.
+- **Open with Default App** (right-click menu) — opens the script file with the Windows default application for its file type (e.g. Python, an IDE). Available for all scripts.
+- **Open in Editor** (right-click menu) — opens the script file using the shell `edit` verb, which invokes whatever app is registered as the editor for that file type (e.g. VS Code, Notepad++, IDLE). Shown only for local folder scripts.
+
+---
+
 ## v2.2.0 — Script source tinting, scroll flicker fix, script output log
 
 ### Added
