@@ -20,7 +20,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up MSVC environment
-      uses: ilammy/msvc-dev-cmd@v1
+      uses: ilammy/msvc-dev-cmd@v2
 
     - name: Add LLVM to PATH
       run: echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
