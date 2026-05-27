@@ -309,16 +309,29 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
 
 /* ================================================================== */
 /*  SettingsTransferParams  (struct)                                    */
-/*  Purpose: Carries the direction and section choices for the         */
-/*           Settings Transfer dialog.  Passed as lParam to            */
-/*           DialogBoxParam and populated by SettingsTransferDlgProc   */
-/*           when the user clicks Continue.                            */
+/*  Purpose: Carries all state for the Settings Transfer dialog.       */
+/*           The caller sets is_export and (for import) src_path,      */
+/*           then passes a pointer as lParam to DialogBoxParam.        */
+/*           SettingsTransferDlgProc fills repos[], dirs[], and the    */
+/*           incl_* / *_selected[] fields on IDOK.                    */
 /* ================================================================== */
 typedef struct {
-    bool is_export;    /* true  = Export flow; false = Import flow     */
-    bool incl_general; /* include Python/Options/Window/QuickBar sections */
-    bool incl_sources; /* include Sources section (repos, local dirs)  */
-    bool incl_tokens;  /* include GitHub token and per-repo tokens     */
+    /* ── Input fields (set by caller before DialogBoxParam) ───────── */
+    bool  is_export;                  /* true = Export; false = Import */
+    WCHAR src_path[MAX_APPPATH];      /* import only: source INI path  */
+
+    /* ── Items shown in the dialog (filled in WM_INITDIALOG) ──────── */
+    /* Export: mirrored from g.cfg.  Import: read from src_path.       */
+    ExtraRepo repos[MAX_EXTRA_REPOS];
+    int       repo_count;
+    LocalDir  dirs[MAX_LOCAL_DIRS];
+    int       dir_count;
+
+    /* ── Output fields (populated on IDOK) ────────────────────────── */
+    bool incl_general;
+    bool incl_tokens;
+    bool repo_selected[MAX_EXTRA_REPOS]; /* true = user ticked this repo */
+    bool dir_selected[MAX_LOCAL_DIRS];   /* true = user ticked this dir  */
 } SettingsTransferParams;
 
 /* ================================================================== */
@@ -374,50 +387,6 @@ static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini)
     WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
 }
 
-/* ================================================================== */
-/*  Settings_WriteSourcesTo  (static)                                   */
-/*  Purpose: Writes the Sources section (main repo flag, extra repos,  */
-/*           local dirs) to the given INI file path.  Per-repo token   */
-/*           values are written only when incl_tokens is true;         */
-/*           otherwise an empty string is stored so the key exists but */
-/*           carries no sensitive data.                                 */
-/*  In:  s            — settings to write (const)                      */
-/*       ini          — destination INI file path                      */
-/*       incl_tokens  — true to write per-repo tokens; false = blank   */
-/*  Out: (void)                                                         */
-/* ================================================================== */
-static void Settings_WriteSourcesTo(const Settings *s, const WCHAR *ini, bool incl_tokens)
-{
-    WCHAR tmp[8];
-
-    WritePrivateProfileString(L"Sources", L"MainRepoEnabled",
-                              s->main_repo_enabled ? L"1" : L"0", ini);
-    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->extra_repo_count);
-    WritePrivateProfileString(L"Sources", L"ExtraRepoCount", tmp, ini);
-    for (int i = 0; i < s->extra_repo_count; i++) {
-        WCHAR key[32];
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     i);
-        WritePrivateProfileString(L"Sources", key, s->extra_repos[i].url, ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i);
-        WritePrivateProfileString(L"Sources", key, s->extra_repos[i].branch, ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i);
-        WritePrivateProfileString(L"Sources", key,
-                                  incl_tokens ? s->extra_repos[i].token : L"", ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i);
-        WritePrivateProfileString(L"Sources", key,
-                                  s->extra_repos[i].enabled ? L"1" : L"0", ini);
-    }
-    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->local_dir_count);
-    WritePrivateProfileString(L"Sources", L"LocalDirCount", tmp, ini);
-    for (int i = 0; i < s->local_dir_count; i++) {
-        WCHAR key[32];
-        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i);
-        WritePrivateProfileString(L"Sources", key, s->local_dirs[i].path, ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i);
-        WritePrivateProfileString(L"Sources", key,
-                                  s->local_dirs[i].enabled ? L"1" : L"0", ini);
-    }
-}
 
 /* ================================================================== */
 /*  Settings_ReadGeneralFrom  (static)                                  */
@@ -472,61 +441,17 @@ static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini)
         Runner_FindPython(s->python_exe, MAX_APPPATH);
 }
 
-/* ================================================================== */
-/*  Settings_ReadSourcesFrom  (static)                                  */
-/*  Purpose: Reads the Sources section from the given INI file into s, */
-/*           fully replacing all extra-repo and local-dir entries.     */
-/*           Per-repo tokens are read only when incl_tokens is true;   */
-/*           otherwise existing token fields stay empty (zeroed by the */
-/*           ZeroMemory below).                                         */
-/*  In:  s            — settings struct to update                      */
-/*       ini          — source INI file path                           */
-/*       incl_tokens  — true to read per-repo tokens; false = skip    */
-/*  Out: (void — s->extra_repos, s->local_dirs, counts are replaced)  */
-/* ================================================================== */
-static void Settings_ReadSourcesFrom(Settings *s, const WCHAR *ini, bool incl_tokens)
-{
-    s->main_repo_enabled = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled", 1, ini) != 0;
-
-    ZeroMemory(s->extra_repos, sizeof(s->extra_repos)); /* clear before filling so stale entries can't persist */
-    s->extra_repo_count = GetPrivateProfileInt(L"Sources", L"ExtraRepoCount", 0, ini);
-    if (s->extra_repo_count > MAX_EXTRA_REPOS) s->extra_repo_count = MAX_EXTRA_REPOS;
-    for (int i = 0; i < s->extra_repo_count; i++) {
-        WCHAR key[32];
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",    i);
-        GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].url, 511, ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch", i);
-        GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
-        if (incl_tokens) {
-            _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken", i);
-            GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token, 255, ini);
-        }
-        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i);
-        s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
-        if (!s->extra_repos[i].branch[0])
-            wcsncpy_s(s->extra_repos[i].branch, 64, L"main", _TRUNCATE);
-    }
-
-    ZeroMemory(s->local_dirs, sizeof(s->local_dirs));
-    s->local_dir_count = GetPrivateProfileInt(L"Sources", L"LocalDirCount", 0, ini);
-    if (s->local_dir_count > MAX_LOCAL_DIRS) s->local_dir_count = MAX_LOCAL_DIRS;
-    for (int i = 0; i < s->local_dir_count; i++) {
-        WCHAR key[32];
-        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i);
-        GetPrivateProfileString(L"Sources", key, L"", s->local_dirs[i].path, MAX_APPPATH - 1, ini);
-        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i);
-        s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
-    }
-}
 
 /* ================================================================== */
 /*  SettingsTransferDlgProc  (static)                                   */
-/*  Purpose: Dialog procedure for IDD_SETTINGS_TRANSFER.  Shared by   */
-/*           both the Export and Import flows.  The caller passes a    */
-/*           SettingsTransferParams* as lParam; on IDOK the struct is  */
-/*           filled with the user's checkbox choices.                  */
-/*           Caption, groupbox label, and Continue button text are set */
-/*           dynamically from SettingsTransferParams.is_export.        */
+/*  Purpose: Dialog procedure for IDD_SETTINGS_TRANSFER.  Used for    */
+/*           both Export and Import.  In WM_INITDIALOG the two        */
+/*           ListViews are populated:                                  */
+/*             Export — items from g.cfg                               */
+/*             Import — items read from p->src_path                   */
+/*           Each item starts checked.  On IDOK the check state of    */
+/*           every item is read back into p->repo_selected[] and      */
+/*           p->dir_selected[], and the incl_* flags are set.         */
 /*  In:  hwnd — dialog handle                                          */
 /*       msg  — Windows message                                        */
 /*       wp   — WPARAM (control ID on WM_COMMAND)                      */
@@ -540,21 +465,98 @@ static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
     case WM_INITDIALOG:
     {
         SetWindowLongPtr(hwnd, GWLP_USERDATA, lp);
-        const SettingsTransferParams *p = (SettingsTransferParams *)lp;
+        SettingsTransferParams *p = (SettingsTransferParams *)lp;
 
-        if (p->is_export) {
-            SetWindowText(hwnd, L"Export Settings");
-            SetDlgItemText(hwnd, IDC_GRP_TRANS_WHAT, L"Include in export:");
-        } else {
-            SetWindowText(hwnd, L"Import Settings");
-            SetDlgItemText(hwnd, IDC_GRP_TRANS_WHAT, L"Apply from imported file:");
-            /* Rename the default button to make the action explicit */
+        SetWindowText(hwnd, p->is_export ? L"Export Settings" : L"Import Settings");
+        if (!p->is_export)
             SetDlgItemText(hwnd, IDOK, L"Import");
+
+        /* ── Populate repos and dirs arrays ─────────────────────── */
+        if (p->is_export) {
+            p->repo_count = g.cfg.extra_repo_count;
+            for (int i = 0; i < p->repo_count; i++)
+                p->repos[i] = g.cfg.extra_repos[i];
+            p->dir_count = g.cfg.local_dir_count;
+            for (int i = 0; i < p->dir_count; i++)
+                p->dirs[i] = g.cfg.local_dirs[i];
+        } else {
+            /* Read sources available in the import file */
+            p->repo_count = GetPrivateProfileInt(L"Sources", L"ExtraRepoCount", 0, p->src_path);
+            if (p->repo_count > MAX_EXTRA_REPOS) p->repo_count = MAX_EXTRA_REPOS;
+            for (int i = 0; i < p->repo_count; i++) {
+                WCHAR key[32];
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     i);
+                GetPrivateProfileString(L"Sources", key, L"", p->repos[i].url,    511, p->src_path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i);
+                GetPrivateProfileString(L"Sources", key, L"main", p->repos[i].branch, 63, p->src_path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i);
+                GetPrivateProfileString(L"Sources", key, L"", p->repos[i].token,  255, p->src_path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i);
+                p->repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, p->src_path) != 0;
+                if (!p->repos[i].branch[0])
+                    wcsncpy_s(p->repos[i].branch, 64, L"main", _TRUNCATE);
+            }
+            p->dir_count = GetPrivateProfileInt(L"Sources", L"LocalDirCount", 0, p->src_path);
+            if (p->dir_count > MAX_LOCAL_DIRS) p->dir_count = MAX_LOCAL_DIRS;
+            for (int i = 0; i < p->dir_count; i++) {
+                WCHAR key[32];
+                _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i);
+                GetPrivateProfileString(L"Sources", key, L"", p->dirs[i].path, MAX_APPPATH - 1, p->src_path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i);
+                p->dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, p->src_path) != 0;
+            }
         }
 
-        /* Default all three sections to checked */
+        /* ── Repos ListView ──────────────────────────────────────── */
+        HWND hRepos = GetDlgItem(hwnd, IDC_LST_TRANS_REPOS);
+        ListView_SetExtendedListViewStyle(hRepos, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+        {
+            RECT rc; GetClientRect(hRepos, &rc);
+            LVCOLUMN lvc; ZeroMemory(&lvc, sizeof(lvc));
+            lvc.mask = LVCF_WIDTH;
+            lvc.cx   = rc.right;
+            ListView_InsertColumn(hRepos, 0, &lvc);
+        }
+        for (int i = 0; i < p->repo_count; i++) {
+            WCHAR label[600];
+            _snwprintf_s(label, 599, _TRUNCATE, L"%s  [%s]",
+                         p->repos[i].url, p->repos[i].branch);
+            LVITEM lvi; ZeroMemory(&lvi, sizeof(lvi));
+            lvi.mask    = LVIF_TEXT;
+            lvi.iItem   = i;
+            lvi.pszText = label;
+            ListView_InsertItem(hRepos, &lvi);
+            ListView_SetCheckState(hRepos, i, TRUE);
+        }
+        if (p->repo_count == 0) {
+            ShowWindow(GetDlgItem(hwnd, IDC_LBL_TRANS_REPOS), SW_HIDE);
+            ShowWindow(hRepos, SW_HIDE);
+        }
+
+        /* ── Dirs ListView ───────────────────────────────────────── */
+        HWND hDirs = GetDlgItem(hwnd, IDC_LST_TRANS_DIRS);
+        ListView_SetExtendedListViewStyle(hDirs, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+        {
+            RECT rc; GetClientRect(hDirs, &rc);
+            LVCOLUMN lvc; ZeroMemory(&lvc, sizeof(lvc));
+            lvc.mask = LVCF_WIDTH;
+            lvc.cx   = rc.right;
+            ListView_InsertColumn(hDirs, 0, &lvc);
+        }
+        for (int i = 0; i < p->dir_count; i++) {
+            LVITEM lvi; ZeroMemory(&lvi, sizeof(lvi));
+            lvi.mask    = LVIF_TEXT;
+            lvi.iItem   = i;
+            lvi.pszText = p->dirs[i].path;
+            ListView_InsertItem(hDirs, &lvi);
+            ListView_SetCheckState(hDirs, i, TRUE);
+        }
+        if (p->dir_count == 0) {
+            ShowWindow(GetDlgItem(hwnd, IDC_LBL_TRANS_DIRS), SW_HIDE);
+            ShowWindow(hDirs, SW_HIDE);
+        }
+
         CheckDlgButton(hwnd, IDC_CHK_TRANS_GENERAL, BST_CHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_TRANS_SOURCES, BST_CHECKED);
         CheckDlgButton(hwnd, IDC_CHK_TRANS_TOKENS,  BST_CHECKED);
         return TRUE;
     }
@@ -566,11 +568,24 @@ static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
             SettingsTransferParams *p =
                 (SettingsTransferParams *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
             p->incl_general = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_GENERAL) == BST_CHECKED;
-            p->incl_sources = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_SOURCES) == BST_CHECKED;
             p->incl_tokens  = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_TOKENS)  == BST_CHECKED;
 
-            if (!p->incl_general && !p->incl_sources && !p->incl_tokens) {
-                MessageBox(hwnd, L"Please select at least one category.",
+            HWND hRepos = GetDlgItem(hwnd, IDC_LST_TRANS_REPOS);
+            for (int i = 0; i < p->repo_count; i++)
+                p->repo_selected[i] = ListView_GetCheckState(hRepos, i) != 0;
+
+            HWND hDirs = GetDlgItem(hwnd, IDC_LST_TRANS_DIRS);
+            for (int i = 0; i < p->dir_count; i++)
+                p->dir_selected[i] = ListView_GetCheckState(hDirs, i) != 0;
+
+            /* Require at least one item selected */
+            bool any = p->incl_general || p->incl_tokens;
+            for (int i = 0; i < p->repo_count && !any; i++)
+                if (p->repo_selected[i]) any = true;
+            for (int i = 0; i < p->dir_count && !any; i++)
+                if (p->dir_selected[i]) any = true;
+            if (!any) {
+                MessageBox(hwnd, L"Please select at least one item.",
                            p->is_export ? L"Export Settings" : L"Import Settings",
                            MB_ICONWARNING | MB_OK);
                 return TRUE;
@@ -757,15 +772,16 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         /* ================================================================== */
         /*  IDC_BTN_EXPORT_SETTINGS                                           */
-        /*  Purpose: Asks the user which sections to export via               */
-        /*           IDD_SETTINGS_TRANSFER, then writes only those sections   */
-        /*           to a user-chosen file.  Exports g.cfg (the last-saved   */
-        /*           state) — unsaved dialog changes are not included.        */
-        /*           prefs.ini (favourites, notes, run counts) is not written.*/
+        /*  Purpose: Shows IDD_SETTINGS_TRANSFER so the user picks which     */
+        /*           general settings, individual repos, and individual local  */
+        /*           folders to include, then writes only those items to a    */
+        /*           user-chosen file.  Exports g.cfg (last-saved state) —   */
+        /*           unsaved dialog changes are not included.                 */
+        /*           prefs.ini is never written.                              */
         /* ================================================================== */
         case IDC_BTN_EXPORT_SETTINGS:
         {
-            /* Step 1: Let the user choose which sections to include */
+            /* Step 1: Show selection dialog */
             SettingsTransferParams tp;
             ZeroMemory(&tp, sizeof(tp));
             tp.is_export = true;
@@ -774,30 +790,64 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                                hwnd, SettingsTransferDlgProc, (LPARAM)&tp) != IDOK)
                 break;
 
-            /* Step 2: Choose the destination file */
+            /* Step 2: Choose destination file */
             WCHAR path[MAX_APPPATH] = {0};
             OPENFILENAME ofn;
             ZeroMemory(&ofn, sizeof(ofn));
-            ofn.lStructSize  = sizeof(ofn);
-            ofn.hwndOwner    = hwnd;
-            ofn.lpstrFilter  = L"INI Files\0*.ini\0All Files\0*.*\0";
-            ofn.lpstrFile    = path;
-            ofn.nMaxFile     = MAX_APPPATH;
-            ofn.lpstrDefExt  = L"ini";
-            ofn.lpstrTitle   = L"Export Settings";
-            ofn.Flags        = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner   = hwnd;
+            ofn.lpstrFilter = L"INI Files\0*.ini\0All Files\0*.*\0";
+            ofn.lpstrFile   = path;
+            ofn.nMaxFile    = MAX_APPPATH;
+            ofn.lpstrDefExt = L"ini";
+            ofn.lpstrTitle  = L"Export Settings";
+            ofn.Flags       = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
             if (!GetSaveFileName(&ofn)) break;
 
-            /* Step 3: Delete any existing file so sections don't merge with stale data */
+            /* Step 3: Clear any existing file so stale keys don't persist */
             DeleteFileW(path);
 
-            /* Step 4: Write only the selected sections */
+            /* Step 4: Write general settings and/or GitHub token */
             if (tp.incl_general)
                 Settings_WriteGeneralTo(&g.cfg, path);
             if (tp.incl_tokens)
                 WritePrivateProfileString(L"GitHub", L"Token", g.cfg.github_token, path);
-            if (tp.incl_sources)
-                Settings_WriteSourcesTo(&g.cfg, path, tp.incl_tokens);
+
+            /* Step 5: Write only the individually selected repos */
+            WCHAR tmp[8];
+            int n_repos = 0;
+            for (int i = 0; i < tp.repo_count; i++) {
+                if (!tp.repo_selected[i]) continue;
+                WCHAR key[32];
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     n_repos);
+                WritePrivateProfileString(L"Sources", key, tp.repos[i].url, path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  n_repos);
+                WritePrivateProfileString(L"Sources", key, tp.repos[i].branch, path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   n_repos);
+                WritePrivateProfileString(L"Sources", key,
+                                          tp.incl_tokens ? tp.repos[i].token : L"", path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", n_repos);
+                WritePrivateProfileString(L"Sources", key,
+                                          tp.repos[i].enabled ? L"1" : L"0", path);
+                n_repos++;
+            }
+            _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", n_repos);
+            WritePrivateProfileString(L"Sources", L"ExtraRepoCount", tmp, path);
+
+            /* Step 6: Write only the individually selected local dirs */
+            int n_dirs = 0;
+            for (int i = 0; i < tp.dir_count; i++) {
+                if (!tp.dir_selected[i]) continue;
+                WCHAR key[32];
+                _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    n_dirs);
+                WritePrivateProfileString(L"Sources", key, tp.dirs[i].path, path);
+                _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", n_dirs);
+                WritePrivateProfileString(L"Sources", key,
+                                          tp.dirs[i].enabled ? L"1" : L"0", path);
+                n_dirs++;
+            }
+            _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", n_dirs);
+            WritePrivateProfileString(L"Sources", L"LocalDirCount", tmp, path);
 
             MessageBox(hwnd, L"Settings exported successfully.",
                        L"Export Settings", MB_ICONINFORMATION | MB_OK);
@@ -806,56 +856,111 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         /* ================================================================== */
         /*  IDC_BTN_IMPORT_SETTINGS                                           */
-        /*  Purpose: Lets the user choose an exported file and which sections */
-        /*           to import from it.  Only the selected sections are merged */
-        /*           into g.cfg; the rest stay untouched.  The merged result  */
-        /*           is saved to settings.ini and all side effects are applied */
-        /*           immediately.  The dialog closes via IDCANCEL so the open  */
-        /*           controls do not overwrite the newly imported settings.    */
+        /*  Purpose: Lets the user pick an exported file and then choose      */
+        /*           which individual repos, local dirs, and/or general       */
+        /*           settings to import.  Selected repos and dirs are         */
+        /*           appended to the current config.  Duplicate URLs/paths    */
+        /*           are skipped silently; if the duplicate carries a token   */
+        /*           the user is prompted to keep the old or new one.         */
+        /*           The dialog closes via IDCANCEL so its open controls      */
+        /*           do not overwrite the newly imported settings.            */
         /* ================================================================== */
         case IDC_BTN_IMPORT_SETTINGS:
         {
-            /* Step 1: Choose the source file */
+            /* Step 1: Choose source file */
             WCHAR path[MAX_APPPATH] = {0};
             OPENFILENAME ofn;
             ZeroMemory(&ofn, sizeof(ofn));
-            ofn.lStructSize  = sizeof(ofn);
-            ofn.hwndOwner    = hwnd;
-            ofn.lpstrFilter  = L"INI Files\0*.ini\0All Files\0*.*\0";
-            ofn.lpstrFile    = path;
-            ofn.nMaxFile     = MAX_APPPATH;
-            ofn.lpstrTitle   = L"Import Settings";
-            ofn.Flags        = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner   = hwnd;
+            ofn.lpstrFilter = L"INI Files\0*.ini\0All Files\0*.*\0";
+            ofn.lpstrFile   = path;
+            ofn.nMaxFile    = MAX_APPPATH;
+            ofn.lpstrTitle  = L"Import Settings";
+            ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
             if (!GetOpenFileName(&ofn)) break;
 
-            /* Step 2: Ask which sections to apply */
+            /* Step 2: Show selection dialog (reads repos/dirs from file) */
             SettingsTransferParams tp;
             ZeroMemory(&tp, sizeof(tp));
             tp.is_export = false;
+            wcsncpy_s(tp.src_path, MAX_APPPATH, path, _TRUNCATE);
             if (DialogBoxParam(GetModuleHandle(NULL),
                                MAKEINTRESOURCE(IDD_SETTINGS_TRANSFER),
                                hwnd, SettingsTransferDlgProc, (LPARAM)&tp) != IDOK)
                 break;
 
-            /* Step 3: Capture state for delta side effects */
+            /* Step 3: Capture state for side-effect delta */
             bool old_dark       = g.dark_mode;
             bool old_qbar_en    = g.cfg.qbar_enabled;
             bool old_qbar_horiz = g.cfg.qbar_horizontal;
 
-            /* Step 4: Selectively merge only the chosen sections into g.cfg */
+            /* Step 4: Apply general settings and/or GitHub token */
             if (tp.incl_general)
                 Settings_ReadGeneralFrom(&g.cfg, path);
             if (tp.incl_tokens)
                 GetPrivateProfileString(L"GitHub", L"Token", L"",
                                         g.cfg.github_token, 256, path);
-            if (tp.incl_sources)
-                Settings_ReadSourcesFrom(&g.cfg, path, tp.incl_tokens);
 
-            /* Step 5: Persist the merged result back to settings.ini */
+            /* Step 5: Append selected repos; prompt on token conflict for duplicates */
+            for (int i = 0; i < tp.repo_count; i++) {
+                if (!tp.repo_selected[i]) continue;
+
+                /* Search for an existing entry with the same URL */
+                int dup = -1;
+                for (int j = 0; j < g.cfg.extra_repo_count; j++) {
+                    if (_wcsicmp(g.cfg.extra_repos[j].url, tp.repos[i].url) == 0) {
+                        dup = j;
+                        break;
+                    }
+                }
+
+                if (dup >= 0) {
+                    /* Duplicate: only prompt when the imported entry carries a token */
+                    if (tp.incl_tokens && tp.repos[i].token[0]) {
+                        WCHAR msg[720];
+                        _snwprintf_s(msg, 719, _TRUNCATE,
+                            L"This repository is already in your sources:\n%s\n\n"
+                            L"Which token do you want to keep?\n\n"
+                            L"Yes  →  Keep existing token\n"
+                            L"No   →  Use imported token",
+                            tp.repos[i].url);
+                        if (MessageBox(hwnd, msg, L"Duplicate Repository",
+                                       MB_ICONQUESTION | MB_YESNO) == IDNO)
+                            wcsncpy_s(g.cfg.extra_repos[dup].token, 256,
+                                      tp.repos[i].token, _TRUNCATE);
+                    }
+                    /* else: no token to conflict over — skip silently */
+                } else if (g.cfg.extra_repo_count < MAX_EXTRA_REPOS) {
+                    /* New repo — append */
+                    g.cfg.extra_repos[g.cfg.extra_repo_count] = tp.repos[i];
+                    if (!tp.incl_tokens)
+                        g.cfg.extra_repos[g.cfg.extra_repo_count].token[0] = L'\0';
+                    g.cfg.extra_repo_count++;
+                }
+            }
+
+            /* Step 6: Append selected local dirs; duplicates skipped silently */
+            for (int i = 0; i < tp.dir_count; i++) {
+                if (!tp.dir_selected[i]) continue;
+
+                bool dup = false;
+                for (int j = 0; j < g.cfg.local_dir_count; j++) {
+                    if (_wcsicmp(g.cfg.local_dirs[j].path, tp.dirs[i].path) == 0) {
+                        dup = true;
+                        break;
+                    }
+                }
+                if (!dup && g.cfg.local_dir_count < MAX_LOCAL_DIRS) {
+                    g.cfg.local_dirs[g.cfg.local_dir_count] = tp.dirs[i];
+                    g.cfg.local_dir_count++;
+                }
+            }
+
+            /* Step 7: Persist merged result and apply side effects */
             Settings_Save(&g.cfg);
             SHCreateDirectoryEx(NULL, g.cfg.cache_dir, NULL);
 
-            /* Step 6: Apply side effects matching the IDOK path */
             App_ResolveTheme();
             if (g.dark_mode != old_dark) {
                 App_RebuildGDI();
@@ -889,8 +994,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 L"The dialog will now close.",
                 L"Import Settings", MB_ICONINFORMATION | MB_OK);
 
-            /* Close with IDCANCEL so the dialog's open controls do not
-               write back over the settings we just imported from disk. */
+            /* Close via IDCANCEL so the open dialog controls do not
+               write back over the settings we just imported. */
             EndDialog(hwnd, IDCANCEL);
             break;
         }

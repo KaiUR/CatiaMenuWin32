@@ -279,21 +279,23 @@ END
 
 /* ================================================================== */
 /*  Settings Transfer dialog  (IDD_SETTINGS_TRANSFER = 310)           */
-/*  Caption and groupbox label are set dynamically in WM_INITDIALOG   */
-/*  depending on whether the user opened Export or Import.             */
+/*  Caption is set dynamically (Export / Import).  The two ListViews  */
+/*  are populated in WM_INITDIALOG and hidden if empty.               */
 /* ================================================================== */
-310 DIALOG 0, 0, 300, 128
+310 DIALOG 0, 0, 340, 262
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Settings"
 FONT 9, "Segoe UI"
 BEGIN
-    GROUPBOX "",                                                                            478,  7,  7, 286, 92
-    AUTOCHECKBOX "General settings (Python path, options, theme, window, Quick Bar)",       475, 14, 22, 272, 12
-    AUTOCHECKBOX "Script sources (extra repositories and local folders)",                   476, 14, 38, 272, 12
-    AUTOCHECKBOX "Tokens (GitHub token and per-repository tokens)",                        477, 14, 54, 272, 12
-    LTEXT "Note: uncheck Tokens to keep sensitive data private.",                          -1,  14, 72, 272, 10
-    DEFPUSHBUTTON "Continue",  1, 182, 108, 56, 14
-    PUSHBUTTON    "Cancel",    2, 242, 108, 56, 14
+    AUTOCHECKBOX "General settings (Python path, options, theme, window, Quick Bar)",              475,  7,  7, 326, 12
+    LTEXT    "Extra Repositories:",                                                                 476,  7, 25, 160, 10
+    CONTROL  "", 479, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7, 37, 326, 64
+    LTEXT    "Local Folders:",                                                                      478,  7,107, 160, 10
+    CONTROL  "", 480, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7,119, 326, 64
+    AUTOCHECKBOX "Include tokens (GitHub token and per-repository tokens)",                        477,  7,189, 280, 12
+    LTEXT    "Note: uncheck Tokens to keep sensitive data private.",                               -1,   7,203, 280, 10
+    DEFPUSHBUTTON "Continue",  1, 222, 240, 56, 14
+    PUSHBUTTON    "Cancel",    2, 282, 240, 56, 14
 END
 
 VS_VERSION_INFO VERSIONINFO
