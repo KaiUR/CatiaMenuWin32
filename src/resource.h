@@ -295,14 +295,16 @@
 #define IDC_BTN_IMPORT_SETTINGS  474  /* import settings.ini from a chosen file   */
 
 /* ------------------------------------------------------------------ */
-/*  Settings Transfer dialog  (310, 475–478)                           */
-/*  Shown before export/import to let the user choose which sections   */
-/*  to include.                                                         */
+/*  Settings Transfer dialog  (310, 475–480)                           */
+/*  Shown before export/import to let the user choose which items to   */
+/*  include.  The two ListViews are populated dynamically.             */
 /* ------------------------------------------------------------------ */
 #define IDD_SETTINGS_TRANSFER    310
-#define IDC_CHK_TRANS_GENERAL    475  /* General settings (Python, options, theme, window, QuickBar) */
-#define IDC_CHK_TRANS_SOURCES    476  /* Script sources (extra repos and local folders)              */
-#define IDC_CHK_TRANS_TOKENS     477  /* Tokens (GitHub main token and per-repo tokens)              */
-#define IDC_GRP_TRANS_WHAT       478  /* Groupbox — caption set dynamically                         */
+#define IDC_CHK_TRANS_GENERAL    475  /* General settings checkbox                          */
+#define IDC_LBL_TRANS_REPOS      476  /* "Extra Repositories:" label                        */
+#define IDC_CHK_TRANS_TOKENS     477  /* Include tokens checkbox                            */
+#define IDC_LBL_TRANS_DIRS       478  /* "Local Folders:" label                             */
+#define IDC_LST_TRANS_REPOS      479  /* ListView — extra repos with per-item checkboxes   */
+#define IDC_LST_TRANS_DIRS       480  /* ListView — local dirs with per-item checkboxes    */
 
 #endif /* RESOURCE_H */

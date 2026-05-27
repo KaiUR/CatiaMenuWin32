@@ -9,11 +9,18 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.3.1 — Export / Import per-item selection fix
+
+### Fixed
+- **Export / Import Settings per-item selection** — the initial v2.3.0 release showed three coarse all-or-nothing checkboxes (General / Sources / Tokens) instead of individual checkboxes per repository and local folder as intended. The dialog now lists each extra repository and local folder as a separate checkable item so the user can pick exactly which ones to transfer.
+
+---
+
 ## v2.3.0 — Selective Import / Export Settings, Open in Editor fix (Windows 10)
 
 ### Added
-- **Export Settings** (Settings dialog → Export...) — saves selected sections of your configuration to any `.ini` file. Before the file picker opens, a dialog lets you choose which sections to include: **General settings** (Python path, all options, theme, window, Quick Bar), **Script sources** (extra repositories and local folders), and/or **Tokens** (GitHub main token and per-repo tokens). Uncheck Tokens to produce a portable file that can be shared without exposing sensitive data.
-- **Import Settings** (Settings dialog → Import...) — merges selected sections from a previously exported file into the running configuration. The same section-selection dialog appears so you can import only what you need (e.g. sources only, leaving your current theme and paths intact). Settings take effect immediately (theme, autorun, Quick Bar, sort mode) and the dialog closes. `prefs.ini` (favourites, notes, run counts) is not affected.
+- **Export Settings** (Settings dialog → Export...) — saves a selective export to any `.ini` file. A dialog lists every extra repository and local folder with individual checkboxes so you can pick exactly which ones to include, plus a **General settings** checkbox and an **Include tokens** toggle. Uncheck Tokens to produce a portable file that can be shared without exposing sensitive data.
+- **Import Settings** (Settings dialog → Import...) — after choosing the source file, the same per-item dialog appears showing the repos and folders available in that file. Selected repos and local folders are **appended** to your current sources (nothing is replaced). Duplicate URLs/paths are skipped silently; if a duplicate repo carries a token the app prompts you to keep the existing or imported token. Settings take effect immediately and the dialog closes. `prefs.ini` (favourites, notes, run counts) is not affected.
 
 ### Fixed
 - **Open in Editor did not work on Windows 10** — `ShellExecuteW` with the `"edit"` verb fails silently on Windows 10 when no application registers an `"edit"` handler for `.py` files (common on Windows 10; less so on Windows 11 where modern IDEs register the verb). The handler now uses `ShellExecuteExW` with `SEE_MASK_FLAG_NO_UI` to suppress any error dialog, then falls back to the `"open"` verb (the user's default handler for the file type) if `"edit"` is unavailable.
