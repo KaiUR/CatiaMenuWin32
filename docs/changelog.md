@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.1 — Local script run fix
+
+### Fixed
+- **Local scripts could not be run** — `Runner_Run` always called `Runner_BuildLocalPath`, which reconstructs the script path from `s->gh_path`. For local directory scripts, `gh_path` holds a Windows absolute path (used as a uniqueness key, not a real GitHub path). `wcsrchr` found no forward slash, so the entire Windows path was appended to the cache directory, producing a garbage path. The missing-file check then triggered a `GitHub_DownloadRaw` call with that garbage path, which failed with "Failed to download script from GitHub." Local scripts now bypass `Runner_BuildLocalPath`, download, and SHA verification entirely and execute directly from `s->local`.
+
+---
+
 ## v2.4.0 — Improved help window, Open in Editor fix (Windows 10)
 
 ### Improved

@@ -117,7 +117,7 @@ GitHub sync thread and local directory scanning.
 ### `runner.c`
 Script execution and dependency management.
 
-- `Runner_Run` — verifies SHA, finds Python, invalidates the previously highlighted button before overwriting `g.run_fi`/`g.run_si` (ensures only one button is green at a time), then launches script in a thread
+- `Runner_Run` — finds Python, then branches on `s->source`: local scripts (`SCRIPT_SRC_LOCAL`) use `s->local` directly and skip download and SHA checks entirely; GitHub-sourced scripts go through `Runner_BuildLocalPath`, optional download, and SHA verification before launch. Invalidates the previously highlighted button before overwriting `g.run_fi`/`g.run_si` (ensures only one button is green at a time), then launches script in a thread
 - `Runner_Thread` — creates process for `python script.py` (with optional `cmd /k` wrapper); for background runs, duplicates the process handle into `g.run_process`, posts `WM_SCRIPT_STARTED`, waits up to 30 minutes, then atomically clears the handle and posts `WM_SCRIPT_STOPPED`
 - `Runner_Stop` — atomically claims `g.run_process` via `InterlockedExchangePointer`, calls `TerminateProcess`, and posts `WM_SCRIPT_STOPPED` to disable the Stop button
 - `Runner_FindPython` — searches PATH, `cfg.python_exe`, and common install locations

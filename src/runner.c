@@ -257,7 +257,6 @@ bool Runner_Run(int fi, int si)
     Script *s = &g.folders[fi].scripts[si];
 
     WCHAR local[MAX_APPPATH] = {0};
-    Runner_BuildLocalPath(fi, si, local, MAX_APPPATH);
 
     WCHAR python[MAX_APPPATH] = {0};
     if (!Runner_FindPython(python, MAX_APPPATH)) {
@@ -268,45 +267,58 @@ bool Runner_Run(int fi, int si)
         return false;
     }
 
-    bool missing = (GetFileAttributes(local) == INVALID_FILE_ATTRIBUTES);
-    if (missing || g.cfg.download_before_run) {
-        /* Download if the cached file is absent or if the user wants a fresh copy every run */
-        PostStatus(L"Downloading %s\u2026", s->name);
-        const WCHAR *tok = g.cfg.github_token[0] ? g.cfg.github_token : NULL;
-        if (!GitHub_DownloadRaw(s->gh_path, local, tok)) {
+    if (s->source == SCRIPT_SRC_LOCAL) {
+        /* Local scripts are already on disk \u2014 use the stored path directly; no download or SHA check */
+        wcsncpy_s(local, MAX_APPPATH, s->local, _TRUNCATE);
+        if (GetFileAttributes(local) == INVALID_FILE_ATTRIBUTES) {
             MessageBox(g.hwnd,
-                       L"Failed to download script from GitHub.",
-                       L"Download Error", MB_ICONERROR | MB_OK);
+                       L"Local script file not found.\n\nThe file may have been moved or deleted.",
+                       L"File Not Found", MB_ICONERROR | MB_OK);
             return false;
         }
-        wcsncpy_s(s->local, MAX_APPPATH, local, _TRUNCATE);
-    }
+    } else {
+        Runner_BuildLocalPath(fi, si, local, MAX_APPPATH);
 
-    /* SHA verification: only run if the manifest has a known SHA for this script */
-    if (s->sha[0] && !GitHub_VerifyScriptSHA(s)) {
-        int res = MessageBox(g.hwnd,
-            L"Warning: Script SHA does not match the expected value from GitHub.\n\n"
-            L"The local file may have been tampered with.\n\n"
-            L"Do you want to re-download and run the script?",
-            L"Security Warning", MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
-        if (res == IDYES) {
-            /* User chose to trust GitHub \u2014 force a fresh download */
+        bool missing = (GetFileAttributes(local) == INVALID_FILE_ATTRIBUTES);
+        if (missing || g.cfg.download_before_run) {
+            /* Download if the cached file is absent or if the user wants a fresh copy every run */
+            PostStatus(L"Downloading %s\u2026", s->name);
             const WCHAR *tok = g.cfg.github_token[0] ? g.cfg.github_token : NULL;
             if (!GitHub_DownloadRaw(s->gh_path, local, tok)) {
-                MessageBox(g.hwnd, L"Failed to re-download script.",
-                           L"Error", MB_ICONERROR | MB_OK);
-                return false;
-            }
-            /* Verify once more; a second mismatch means the repo itself is suspect */
-            if (!GitHub_VerifyScriptSHA(s)) {
                 MessageBox(g.hwnd,
-                    L"SHA still does not match after re-download.\n"
-                    L"Script will not run.",
-                    L"Security Error", MB_ICONERROR | MB_OK);
+                           L"Failed to download script from GitHub.",
+                           L"Download Error", MB_ICONERROR | MB_OK);
                 return false;
             }
-        } else {
-            return false; /* user declined to run \u2014 abort silently */
+            wcsncpy_s(s->local, MAX_APPPATH, local, _TRUNCATE);
+        }
+
+        /* SHA verification: only run if the manifest has a known SHA for this script */
+        if (s->sha[0] && !GitHub_VerifyScriptSHA(s)) {
+            int res = MessageBox(g.hwnd,
+                L"Warning: Script SHA does not match the expected value from GitHub.\n\n"
+                L"The local file may have been tampered with.\n\n"
+                L"Do you want to re-download and run the script?",
+                L"Security Warning", MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+            if (res == IDYES) {
+                /* User chose to trust GitHub \u2014 force a fresh download */
+                const WCHAR *tok = g.cfg.github_token[0] ? g.cfg.github_token : NULL;
+                if (!GitHub_DownloadRaw(s->gh_path, local, tok)) {
+                    MessageBox(g.hwnd, L"Failed to re-download script.",
+                               L"Error", MB_ICONERROR | MB_OK);
+                    return false;
+                }
+                /* Verify once more; a second mismatch means the repo itself is suspect */
+                if (!GitHub_VerifyScriptSHA(s)) {
+                    MessageBox(g.hwnd,
+                        L"SHA still does not match after re-download.\n"
+                        L"Script will not run.",
+                        L"Security Error", MB_ICONERROR | MB_OK);
+                    return false;
+                }
+            } else {
+                return false; /* user declined to run \u2014 abort silently */
+            }
         }
     }
 
