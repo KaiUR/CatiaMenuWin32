@@ -295,16 +295,19 @@
 #define IDC_BTN_IMPORT_SETTINGS  474  /* import settings.ini from a chosen file   */
 
 /* ------------------------------------------------------------------ */
-/*  Settings Transfer dialog  (310, 475–480)                           */
+/*  Settings Transfer dialog  (310, 475–483)                           */
 /*  Shown before export/import to let the user choose which items to   */
-/*  include.  The two ListViews are populated dynamically.             */
+/*  include.  The three ListViews are populated dynamically.           */
 /* ------------------------------------------------------------------ */
 #define IDD_SETTINGS_TRANSFER    310
-#define IDC_CHK_TRANS_GENERAL    475  /* General settings checkbox                          */
+#define IDC_CHK_TRANS_PYTHON     475  /* "Python path" checkbox                             */
 #define IDC_LBL_TRANS_REPOS      476  /* "Extra Repositories:" label                        */
-#define IDC_CHK_TRANS_TOKENS     477  /* Include tokens checkbox                            */
+#define IDC_LBL_TRANS_TOKENS     477  /* "Tokens:" label                                    */
 #define IDC_LBL_TRANS_DIRS       478  /* "Local Folders:" label                             */
 #define IDC_LST_TRANS_REPOS      479  /* ListView — extra repos with per-item checkboxes   */
 #define IDC_LST_TRANS_DIRS       480  /* ListView — local dirs with per-item checkboxes    */
+#define IDC_CHK_TRANS_CACHE      481  /* "Cache folder" checkbox                            */
+#define IDC_CHK_TRANS_OPTIONS    482  /* "Options, theme, window & Quick Bar" checkbox      */
+#define IDC_LST_TRANS_TOKENS     483  /* ListView — tokens with per-item checkboxes         */
 
 #endif /* RESOURCE_H */
