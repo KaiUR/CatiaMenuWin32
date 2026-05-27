@@ -50,18 +50,18 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Getting Started}\\par\\par"
-            "{\\b Requirements}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Getting Started}\\par\\par"
+            "{\\b\\cf1 Requirements}\\par\\par"
             "\\bullet  Windows 10 or later\\par"
             "\\bullet  Python 3.9+ installed and in your PATH\\par"
             "\\bullet  PyCATIA: {\\f1\\cf3 pip install pycatia}\\par"
             "\\bullet  CATIA V5 must be running for scripts that interact with it\\par\\par"
-            "{\\b Installation}\\par\\par"
+            "{\\b\\cf1 Installation}\\par\\par"
             "1. Download {\\b CatiaMenuWin32.exe} from the GitHub releases page.\\par"
             "2. Place it anywhere on your machine \\emdash no installer required.\\par"
             "3. Double-click to run.\\par\\par"
-            "{\\b First Launch}\\par\\par"
+            "{\\b\\cf1 First Launch}\\par\\par"
             "On first launch the app will:\\par"
             "\\bullet  Create {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\} to store settings and scripts.\\par"
             "\\bullet  Auto-detect your Python installation.\\par"
@@ -75,9 +75,9 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 The Interface}\\par\\par"
-            "{\\b Toolbar}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 The Interface}\\par\\par"
+            "{\\b\\cf1 Toolbar}\\par\\par"
             "\\bullet  {\\b \\u9776?  Menu} \\emdash Access all app functions\\par"
             "\\bullet  {\\b \\u8635?  Refresh} \\emdash Re-sync scripts from all sources\\par"
             "\\bullet  {\\b \\u9881?  Settings} \\emdash Open the settings dialog\\par"
@@ -86,25 +86,25 @@ static const char *Help_GetRTF(HelpTopic topic)
             "(grayed out when idle, red when active)\\par"
             "\\bullet  {\\b \\u8801?  Log} \\emdash Open the script output log window to view stdout/stderr "
             "captured from background script runs\\par\\par"
-            "{\\b Script Button Tinting}\\par\\par"
+            "{\\b\\cf1 Script Button Tinting}\\par\\par"
             "When enabled in Settings (Window tab), script buttons are tinted based on their source:\\par"
             "\\bullet  {\\b Warm tint} (subtle rose) \\emdash script is from a local folder source\\par"
             "\\bullet  {\\b Cool tint} (subtle green) \\emdash script is from an extra GitHub repository\\par"
             "\\bullet  No tint \\emdash script is from the built-in KaiUR/Pycatia_Scripts repository\\par\\par"
-            "{\\b Search Bar}\\par\\par"
+            "{\\b\\cf1 Search Bar}\\par\\par"
             "The filter bar below the toolbar filters scripts in real time by name or purpose. "
             "Type any text to filter, clear it to show all scripts.\\par\\par"
-            "{\\b Tab Bar}\\par\\par"
+            "{\\b\\cf1 Tab Bar}\\par\\par"
             "Each tab corresponds to a script folder. Click a tab to switch categories. "
             "When more tabs exist than fit, {\\b \\u9668?  } and {\\b \\u9658?  } arrows appear. "
             "Use the mouse wheel over the tab bar to scroll.\\par\\par"
-            "{\\b Script Buttons}\\par\\par"
+            "{\\b\\cf1 Script Buttons}\\par\\par"
             "\\bullet  {\\b Left-click} the main area to run the script.\\par"
             "\\bullet  {\\b Hover} the {\\b i} badge on the right to see script info in a tooltip.\\par"
             "\\bullet  {\\b Right-click} any button to see the full context menu.\\par\\par"
-            "{\\b Status Bar}\\par\\par"
+            "{\\b\\cf1 Status Bar}\\par\\par"
             "Shows sync progress, script launch status, and exit codes.\\par\\par"
-            "{\\b Quick Launch Bar}\\par\\par"
+            "{\\b\\cf1 Quick Launch Bar}\\par\\par"
             "An optional floating toolbar that pins your favourite scripts as icon buttons outside "
             "the main window. Enable it in {\\b Settings \\u8594?  Quick Bar} or "
             "{\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Enable Quick Bar}. "
@@ -115,32 +115,32 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Running Scripts}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Running Scripts}\\par\\par"
             "Click any script button to run it. The app will:\\par"
             "\\bullet  Verify the script SHA hash against GitHub to confirm it has not been tampered with.\\par"
             "\\bullet  Launch Python with the script path.\\par"
             "\\bullet  Show the status in the status bar.\\par\\par"
-            "{\\b Console Options}\\par\\par"
+            "{\\b\\cf1 Console Options}\\par\\par"
             "Configurable in Settings:\\par\\par"
             "\\bullet  {\\b Show console} \\emdash Opens a visible Python console when the script runs.\\par"
             "\\bullet  {\\b Keep console open} \\emdash Window stays open after the script finishes "
             "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par\\par"
             "Without Show console, scripts run silently in the background.\\par\\par"
-            "{\\b Running Script Highlight}\\par\\par"
+            "{\\b\\cf1 Running Script Highlight}\\par\\par"
             "In background mode (no console) the button you clicked turns {\\b green} \\emdash "
             "border, left accent bar, and label text \\emdash for the duration of the run. "
             "The highlight clears automatically when the script exits or is stopped.\\par\\par"
-            "{\\b Stopping a Running Script}\\par\\par"
+            "{\\b\\cf1 Stopping a Running Script}\\par\\par"
             "Click the {\\b \\u9632?  Stop} toolbar button to immediately terminate a running "
             "background script. The button is grayed out when no script is running and turns red "
             "when one is active. Only background (no-console) runs can be stopped this way \\emdash "
             "if Show console is enabled, close the console window directly or press "
             "{\\f1\\cf3 Ctrl+C} inside it.\\par\\par"
-            "{\\b Run with Arguments}\\par\\par"
+            "{\\b\\cf1 Run with Arguments}\\par\\par"
             "Right-click any script and select {\\b Run with Arguments...} to pass custom "
             "command line arguments to the script.\\par\\par"
-            "{\\b Repeat Mode}\\par\\par"
+            "{\\b\\cf1 Repeat Mode}\\par\\par"
             "{\\b Double-click} any script button to enter repeat mode: the script re-runs "
             "automatically after each completion until you stop it.\\par\\par"
             "\\bullet  The button turns {\\b amber} (border, accent bar, label and \\u8635? symbol) "
@@ -151,11 +151,11 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\bullet  Click {\\b \\u9632?  Stop} to cancel repeat and terminate the current run.\\par\\par"
             "Toggle repeat mode on/off via {\\b Menu \\u8594?  Run \\u8594?  Repeat Script on Double-Click} "
             "or in {\\b Settings \\u8594?  Console}.\\par\\par"
-            "> Note: Repeat mode is not available when {\\b Show console} is enabled in Settings.\\par\\par"
-            "{\\b Download Before Run}\\par\\par"
+            "{\\b\\cf1 Note:}\\cf2  Repeat mode is not available when {\\b Show console} is enabled in Settings.\\par\\par"
+            "{\\b\\cf1 Download Before Run}\\par\\par"
             "Enable {\\b Always download latest before running} in Settings to always fetch "
             "the newest version of a script before execution.\\par\\par"
-            "{\\b Script Output Log}\\par\\par"
+            "{\\b\\cf1 Script Output Log}\\par\\par"
             "When scripts run in background mode (no console), all stdout and stderr output is "
             "captured and shown in the Script Output Log window.\\par\\par"
             "\\bullet  Click {\\b \\u8801?  Log} in the toolbar to open the log window at any time.\\par"
@@ -164,7 +164,7 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\f1\\cf3   --- Finished successfully. ---}\\par\\par"
             "The footer reads {\\f1\\cf3 --- Stopped by user. ---} if the script was terminated "
             "with the {\\b Stop} button, or {\\f1\\cf3 --- Exited with code N. ---} for a non-zero exit.\\par\\par"
-            "{\\b Syntax highlighting}\\par\\par"
+            "{\\b\\cf1 Syntax highlighting}\\par\\par"
             "\\bullet  {\\b Header lines} (===) \\emdash accent blue\\par"
             "\\bullet  {\\b Finished successfully} \\emdash green\\par"
             "\\bullet  {\\b Stopped by user} \\emdash amber\\par"
@@ -173,92 +173,104 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\bullet  Lines containing Warning \\emdash amber\\par\\par"
             "\\bullet  Output is buffered internally \\emdash nothing is lost if the window is closed during a run.\\par"
             "\\bullet  The window follows the current app theme (dark/light) and uses a Consolas monospace font.\\par\\par"
-            "> Note: Output is only captured in background mode. When {\\b Show console} is enabled "
+            "{\\b\\cf1 Note:}\\cf2  Output is only captured in background mode. When {\\b Show console} is enabled "
             "in Settings, output appears in the console window instead.\\par"
             "}";
 
     case HELP_SETTINGS:
-        return "{\\rtf1\\ansi\\deff0"
-            "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
-            "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Settings}\\par\\par"
-            "Open via the {\\b \\u2699?  Settings} toolbar button or {\\b Menu \\u8594?  File \\u8594?  Settings...}. "
-            "The dialog has five tabs:\\par\\par"
-            "{\\b General Tab}\\par\\par"
-            "\\bullet  {\\b Python Interpreter} \\emdash Path to {\\f1\\cf3 python.exe}. "
-            "Browse or leave blank to auto-detect from PATH.\\par"
-            "\\bullet  {\\b Script Cache Folder} \\emdash Where downloaded scripts are stored "
-            "(defaults to {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\scripts}).\\par"
-            "\\bullet  {\\b GitHub Token} \\emdash Optional Personal Access Token. "
-            "Raises the API rate limit from 60 to 5000 req/hr. Required for private repositories.\\par\\par"
-            "{\\b Sync Tab}\\par\\par"
-            "\\bullet  {\\b Sync on startup} \\emdash Download latest scripts when the app starts.\\par"
-            "\\bullet  {\\b Always download latest before running} \\emdash Fetch the newest version of a script before each launch.\\par"
-            "\\bullet  {\\b Check for updates} \\emdash Notify when a newer app version is available.\\par"
-            "\\bullet  {\\b Auto-install updates} \\emdash Download and install new versions automatically.\\par"
-            "\\bullet  {\\b Auto-refresh every N hours} \\emdash Background sync interval (0 = disabled, default 6).\\par"
-            "\\bullet  {\\b Show cached scripts when offline} \\emdash When off (default), no buttons appear if GitHub cannot be reached. "
-            "When on, previously synced scripts are shown with an amber status-bar warning.\\par\\par"
-            "{\\b Console Tab}\\par\\par"
-            "\\bullet  {\\b Show console} \\emdash Open a visible Python console window when running scripts.\\par"
-            "\\bullet  {\\b Keep console open} \\emdash Keep the window open after the script finishes "
-            "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par"
-            "\\bullet  {\\b Keep Deps Console Open} \\emdash Keep the dependency install window open until you close it.\\par"
-            "\\bullet  {\\b Repeat on double-click (main window)} \\emdash Enable repeat mode for scripts in the main window "
-            "(see {\\b Running Scripts} topic for details).\\par\\par"
-            "{\\b Window Tab}\\par\\par"
-            "\\bullet  {\\b Always on Top} \\emdash Keep the main window above other applications such as CATIA.\\par"
-            "\\bullet  {\\b Minimize to Tray} \\emdash Hide to the system tray instead of the taskbar when minimized.\\par"
-            "\\bullet  {\\b Start with Windows} \\emdash Launch automatically at login.\\par"
-            "\\bullet  {\\b Start Minimized} \\emdash Start hidden in the tray.\\par"
-            "\\bullet  {\\b Theme} \\emdash Dark, Light, or System (follows Windows setting).\\par"
-            "\\bullet  {\\b Sort Scripts} \\emdash Default Order, Alphabetical, By Date, or Most Used.\\par"
-            "\\bullet  {\\b Tint local and extra-repo script buttons differently} \\emdash Applies a subtle "
-            "background tint to buttons loaded from local folders (warm) or extra GitHub repositories (cool). "
-            "Makes it easy to see which source a script comes from at a glance. Enabled by default.\\par\\par"
-            "{\\b Quick Bar Tab}\\par\\par"
-            "\\bullet  {\\b Enable Quick Launch Bar} \\emdash Show the floating icon toolbar for favourite scripts.\\par"
-            "\\bullet  {\\b Orientation} \\emdash Vertical (stacked column) or Horizontal (row).\\par"
-            "\\bullet  {\\b Stay on Top with Target App} \\emdash Auto-elevate the bar when the target application is in the foreground.\\par"
-            "\\bullet  {\\b Target App} \\emdash Window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
-            "Leave empty for the bar to always remain visible.\\par"
-            "\\bullet  {\\b Target Exe} \\emdash Process executable name to match alongside Target App "
-            "(e.g. {\\f1\\cf3 CNEXT.exe}). Prevents false positives from other windows whose titles "
-            "contain the same substring. Leave empty to match any process.\\par\\par"
-            "{\\b Reset to Defaults}\\par\\par"
-            "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
-            "Sources (extra repos and local folders) are not affected.\\par\\par"
-            "{\\b Export / Import Settings}\\par\\par"
-            "Both buttons open a selection dialog with three sections:\\par\\par"
-            "{\\b General settings} \\emdash three checkboxes let you choose independently:\\par"
-            "\\bullet  {\\b Python path} \\emdash machine-specific; uncheck when sharing with other users.\\par"
-            "\\bullet  {\\b Cache folder} \\emdash machine-specific; uncheck when sharing.\\par"
-            "\\bullet  {\\b Options, theme, window \\& Quick Bar} \\emdash portable preference settings.\\par\\par"
-            "{\\b Extra Repositories} and {\\b Local Folders} \\emdash each item has its own checkbox "
-            "so you pick exactly which sources to transfer.\\par\\par"
-            "{\\b Tokens} \\emdash one checkbox per token (GitHub account token and individual repo tokens). "
-            "Uncheck any tokens you do not want to include to keep sensitive data private.\\par\\par"
-            "{\\b Export:} choose what to include, then pick a destination {\\f1\\cf3 .ini} file.\\par\\par"
-            "{\\b Import:} choose the source file first, then the same dialog shows what is available in that file. "
-            "Repos and local folders are {\\b appended} to your current sources \\emdash nothing is replaced. "
-            "Duplicate URLs or paths are skipped silently; if a duplicate repo carries a token you are prompted "
-            "to keep the existing or imported one. Settings take effect immediately and the dialog closes. "
-            "{\\f1\\cf3 prefs.ini} (favourites, notes, run counts) is never affected.\\par"
-            "}";
+    {
+        /* Split across two static arrays to stay within the ISO C99 4095-char
+           string literal limit; concatenated once into s_buf on first call. */
+        static char s_buf[6400] = {0};
+        if (!s_buf[0]) {
+            static const char part1[] =
+                "{\\rtf1\\ansi\\deff0"
+                "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
+                "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
+                "\\f0\\fs22\\cf2"
+                "{\\b\\fs32\\cf1 Settings}\\par\\par"
+                "Open via the {\\b \\u2699?  Settings} toolbar button or {\\b Menu \\u8594?  File \\u8594?  Settings...}. "
+                "The dialog has five tabs:\\par\\par"
+                "{\\b\\cf1 General Tab}\\par\\par"
+                "\\bullet  {\\b Python Interpreter} \\emdash Path to {\\f1\\cf3 python.exe}. "
+                "Browse or leave blank to auto-detect from PATH.\\par"
+                "\\bullet  {\\b Script Cache Folder} \\emdash Where downloaded scripts are stored "
+                "(defaults to {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\scripts}).\\par"
+                "\\bullet  {\\b GitHub Token} \\emdash Optional Personal Access Token. "
+                "Raises the API rate limit from 60 to 5000 req/hr. Required for private repositories.\\par\\par"
+                "{\\b\\cf1 Sync Tab}\\par\\par"
+                "\\bullet  {\\b Sync on startup} \\emdash Download latest scripts when the app starts.\\par"
+                "\\bullet  {\\b Always download latest before running} \\emdash Fetch the newest version of a script before each launch.\\par"
+                "\\bullet  {\\b Check for updates} \\emdash Notify when a newer app version is available.\\par"
+                "\\bullet  {\\b Auto-install updates} \\emdash Download and install new versions automatically.\\par"
+                "\\bullet  {\\b Auto-refresh every N hours} \\emdash Background sync interval (0 = disabled, default 6).\\par"
+                "\\bullet  {\\b Show cached scripts when offline} \\emdash When off (default), no buttons appear if GitHub cannot be reached. "
+                "When on, previously synced scripts are shown with an amber status-bar warning.\\par\\par"
+                "{\\b\\cf1 Console Tab}\\par\\par"
+                "\\bullet  {\\b Show console} \\emdash Open a visible Python console window when running scripts.\\par"
+                "\\bullet  {\\b Keep console open} \\emdash Keep the window open after the script finishes "
+                "({\\f1\\cf3 cmd /k} mode) so you can read output and errors.\\par"
+                "\\bullet  {\\b Keep Deps Console Open} \\emdash Keep the dependency install window open until you close it.\\par"
+                "\\bullet  {\\b Repeat on double-click (main window)} \\emdash Enable repeat mode for scripts in the main window "
+                "(see {\\b Running Scripts} topic for details).\\par\\par";
+            static const char part2[] =
+                "{\\b\\cf1 Window Tab}\\par\\par"
+                "\\bullet  {\\b Always on Top} \\emdash Keep the main window above other applications such as CATIA.\\par"
+                "\\bullet  {\\b Minimize to Tray} \\emdash Hide to the system tray instead of the taskbar when minimized.\\par"
+                "\\bullet  {\\b Start with Windows} \\emdash Launch automatically at login.\\par"
+                "\\bullet  {\\b Start Minimized} \\emdash Start hidden in the tray.\\par"
+                "\\bullet  {\\b Theme} \\emdash Dark, Light, or System (follows Windows setting).\\par"
+                "\\bullet  {\\b Sort Scripts} \\emdash Default Order, Alphabetical, By Date, or Most Used.\\par"
+                "\\bullet  {\\b Tint local and extra-repo script buttons differently} \\emdash Applies a subtle "
+                "background tint to buttons loaded from local folders (warm) or extra GitHub repositories (cool). "
+                "Makes it easy to see which source a script comes from at a glance. Enabled by default.\\par\\par"
+                "{\\b\\cf1 Quick Bar Tab}\\par\\par"
+                "\\bullet  {\\b Enable Quick Launch Bar} \\emdash Show the floating icon toolbar for favourite scripts.\\par"
+                "\\bullet  {\\b Orientation} \\emdash Vertical (stacked column) or Horizontal (row).\\par"
+                "\\bullet  {\\b Stay on Top with Target App} \\emdash Auto-elevate the bar when the target application is in the foreground.\\par"
+                "\\bullet  {\\b Target App} \\emdash Window title substring to watch (e.g. {\\f1\\cf3 CATIA V5}). "
+                "Leave empty for the bar to always remain visible.\\par"
+                "\\bullet  {\\b Target Exe} \\emdash Process executable name to match alongside Target App "
+                "(e.g. {\\f1\\cf3 CNEXT.exe}). Prevents false positives from other windows whose titles "
+                "contain the same substring. Leave empty to match any process.\\par\\par"
+                "{\\b\\cf1 Reset to Defaults}\\par\\par"
+                "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
+                "Sources (extra repos and local folders) are not affected.\\par\\par"
+                "{\\b\\cf1 Export / Import Settings}\\par\\par"
+                "Both buttons open a selection dialog with three sections:\\par\\par"
+                "{\\b General settings} \\emdash three checkboxes let you choose independently:\\par"
+                "\\bullet  {\\b Python path} \\emdash machine-specific; uncheck when sharing with other users.\\par"
+                "\\bullet  {\\b Cache folder} \\emdash machine-specific; uncheck when sharing.\\par"
+                "\\bullet  {\\b Options, theme, window \\& Quick Bar} \\emdash portable preference settings.\\par\\par"
+                "{\\b Extra Repositories} and {\\b Local Folders} \\emdash each item has its own checkbox "
+                "so you pick exactly which sources to transfer.\\par\\par"
+                "{\\b Tokens} \\emdash one checkbox per token (GitHub account token and individual repo tokens). "
+                "Uncheck any tokens you do not want to include to keep sensitive data private.\\par\\par"
+                "{\\b Export:} choose what to include, then pick a destination {\\f1\\cf3 .ini} file.\\par\\par"
+                "{\\b Import:} choose the source file first, then the same dialog shows what is available in that file. "
+                "Repos and local folders are {\\b appended} to your current sources \\emdash nothing is replaced. "
+                "Duplicate URLs or paths are skipped silently; if a duplicate repo carries a token you are prompted "
+                "to keep the existing or imported one. Settings take effect immediately and the dialog closes. "
+                "{\\f1\\cf3 prefs.ini} (favourites, notes, run counts) is never affected.\\par"
+                "}";
+            strcpy_s(s_buf, sizeof(s_buf), part1);
+            strcat_s(s_buf, sizeof(s_buf), part2);
+        }
+        return s_buf;
+    }
 
     case HELP_SOURCES:
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Script Sources}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Script Sources}\\par\\par"
             "Open via {\\b Menu \\u8594?  File \\u8594?  Sources...}\\par\\par"
             "The app can load scripts from three types of sources simultaneously:\\par\\par"
-            "{\\b Built-in Repository}\\par\\par"
+            "{\\b\\cf1 Built-in Repository}\\par\\par"
             "The KaiUR/Pycatia_Scripts repository is always the primary source. "
             "Use the checkbox at the top of the Sources dialog to enable or disable it.\\par\\par"
-            "{\\b Additional GitHub Repositories}\\par\\par"
+            "{\\b\\cf1 Additional GitHub Repositories}\\par\\par"
             "Add any GitHub repository that uses the same folder structure:\\par"
             "1. Click {\\b Add...} under Additional GitHub Repositories.\\par"
             "2. Enter the full URL: {\\f1\\cf3 https://github.com/owner/repo}\\par"
@@ -266,13 +278,13 @@ static const char *Help_GetRTF(HelpTopic topic)
             "4. Optionally add a token for private repos or higher rate limits.\\par"
             "5. Click OK.\\par\\par"
             "If two repositories have a folder with the same name, their scripts are merged into one tab.\\par\\par"
-            "{\\b Local Script Folders}\\par\\par"
+            "{\\b\\cf1 Local Script Folders}\\par\\par"
             "Add a folder on your machine that contains subfolders with .py files:\\par"
             "{\\f1\\cf3 My_Scripts\\\\}\\par"
             "{\\f1\\cf3   Any_Document_Scripts\\\\my_script.py}\\par"
             "{\\f1\\cf3   Part_Document_Scripts\\\\another.py}\\par\\par"
             "Local scripts run directly from disk \\emdash no downloading or SHA checking.\\par\\par"
-            "{\\b Setup Folder}\\par\\par"
+            "{\\b\\cf1 Setup Folder}\\par\\par"
             "If a source has a {\\f1\\cf3 setup/requirements.txt} file, clicking {\\b Deps} "
             "will install those dependencies. The {\\f1\\cf3 setup/} folder never becomes a tab.\\par"
             "}";
@@ -281,16 +293,16 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Favourites & Search}\\par\\par"
-            "{\\b Favourites}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Favourites & Search}\\par\\par"
+            "{\\b\\cf1 Favourites}\\par\\par"
             "Right-click any script \\u8594?  {\\b Add to Favourites} to add it to a dedicated "
             "{\\b \\u9733?  Favourites} tab at the top of the tab bar.\\par\\par"
             "\\bullet  The tab only appears when you have at least one favourite.\\par"
             "\\bullet  It disappears automatically when all favourites are removed.\\par"
             "\\bullet  Favourites are stored in {\\f1\\cf3 %APPDATA%\\\\CatiaMenuWin32\\\\prefs.ini}.\\par\\par"
             "To remove a favourite: right-click the script \\u8594?  {\\b Remove from Favourites}.\\par\\par"
-            "{\\b Search / Filter}\\par\\par"
+            "{\\b\\cf1 Search / Filter}\\par\\par"
             "The filter bar below the toolbar filters scripts in the current tab in real time.\\par\\par"
             "\\bullet  Filters by both script name and purpose line.\\par"
             "\\bullet  Case-insensitive \\emdash searching {\\f1\\cf3 iges} matches {\\b IGES Export Curve AXIS}.\\par"
@@ -301,9 +313,9 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Script Details & Notes}\\par\\par"
-            "{\\b Script Details}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Script Details & Notes}\\par\\par"
+            "{\\b\\cf1 Script Details}\\par\\par"
             "Right-click any script \\u8594?  {\\b Script Details...} opens a full details dialog showing:\\par"
             "\\bullet  Name, Purpose, Author, Version, Date\\par"
             "\\bullet  Code environment (e.g. Python 3.10.4, PyCATIA 0.8.3)\\par"
@@ -313,7 +325,7 @@ static const char *Help_GetRTF(HelpTopic topic)
             "\\bullet  Your personal note\\par"
             "\\bullet  Favourite and Hidden toggles\\par\\par"
             "Changes to the note, favourite, and hidden state are saved when you click OK.\\par\\par"
-            "{\\b Script Notes}\\par\\par"
+            "{\\b\\cf1 Script Notes}\\par\\par"
             "Right-click any script \\u8594?  {\\b Add Note...} (or {\\b Edit Note...}) to attach "
             "a personal note to a script.\\par\\par"
             "Notes are visible in the Script Details dialog and stored in "
@@ -324,16 +336,16 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Sort & Hide Scripts}\\par\\par"
-            "{\\b Sorting}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Sort & Hide Scripts}\\par\\par"
+            "{\\b\\cf1 Sorting}\\par\\par"
             "{\\b Menu \\u8594?  View \\u8594?  Sort Scripts} offers four sort modes:\\par\\par"
             "\\bullet  {\\b Default Order} \\emdash Order from GitHub API or disk\\par"
             "\\bullet  {\\b Alphabetical} \\emdash A to Z by script name\\par"
             "\\bullet  {\\b By Date} \\emdash Most recent scripts first (from script header Date field)\\par"
             "\\bullet  {\\b Most Used} \\emdash Scripts you run most often appear first\\par\\par"
             "The sort mode is saved in Settings and applied to all tabs.\\par\\par"
-            "{\\b Hiding Scripts}\\par\\par"
+            "{\\b\\cf1 Hiding Scripts}\\par\\par"
             "Right-click any script \\u8594?  {\\b Hide Script} removes it from view.\\par\\par"
             "\\bullet  Hidden scripts are not deleted \\emdash They remain in the cache.\\par"
             "\\bullet  Hidden scripts will not reappear after a sync.\\par"
@@ -345,8 +357,8 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Update Dependencies}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Update Dependencies}\\par\\par"
             "Click {\\b \\u8615?  Deps} (or {\\b Menu \\u8594?  Run \\u8594?  Update Dependencies}) "
             "to install Python packages required by the scripts.\\par\\par"
             "The app runs {\\f1\\cf3 pip install -r requirements.txt} for each source that has a "
@@ -355,10 +367,10 @@ static const char *Help_GetRTF(HelpTopic topic)
             "2. Each extra GitHub repository's requirements\\par"
             "3. Each local folder's requirements\\par\\par"
             "Each source runs in its own console window sequentially.\\par\\par"
-            "{\\b Keep Deps Console Open}\\par\\par"
+            "{\\b\\cf1 Keep Deps Console Open}\\par\\par"
             "Enable this in Settings to keep each console window visible until you close it manually. "
             "Useful to read pip output and check for errors.\\par\\par"
-            "{\\b Adding Dependencies to Your Scripts}\\par\\par"
+            "{\\b\\cf1 Adding Dependencies to Your Scripts}\\par\\par"
             "Place a {\\f1\\cf3 requirements.txt} file in the {\\f1\\cf3 setup/} subfolder of "
             "your script repository or local folder. The app will find and run it automatically.\\par"
             "}";
@@ -367,38 +379,38 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Quick Launch Bar}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Quick Launch Bar}\\par\\par"
             "The Quick Launch Bar is a small floating toolbar that displays your favourite scripts as "
             "icon buttons, always within reach outside the main window.\\par\\par"
-            "{\\b Enabling}\\par\\par"
+            "{\\b\\cf1 Enabling}\\par\\par"
             "\\bullet  Open {\\b \\u2699?  Settings \\u8594?  Quick Bar tab} and check {\\b Enable Quick Launch Bar}.\\par"
             "\\bullet  Or use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Enable Quick Bar}.\\par\\par"
-            "{\\b Populating the Bar}\\par\\par"
+            "{\\b\\cf1 Populating the Bar}\\par\\par"
             "Right-click any script \\u8594?  {\\b Add to Favourites}. "
             "Every script you mark as a favourite automatically appears on the Quick Bar.\\par\\par"
-            "{\\b Orientation}\\par\\par"
+            "{\\b\\cf1 Orientation}\\par\\par"
             "Switch between {\\b Vertical} (stacked column) and {\\b Horizontal} (row) layouts "
             "from {\\b Settings \\u8594?  Quick Bar} or {\\b Menu \\u8594?  View \\u8594?  Quick Bar}.\\par\\par"
-            "{\\b Moving the Bar}\\par\\par"
+            "{\\b\\cf1 Moving the Bar}\\par\\par"
             "Click and drag the bar to reposition it anywhere on screen. "
             "The position is saved automatically.\\par"
             "Use {\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Reset Position} to move it back to the default location.\\par\\par"
-            "{\\b Stay on Top with Target Application}\\par\\par"
+            "{\\b\\cf1 Stay on Top with Target Application}\\par\\par"
             "When a {\\b Target App} is configured, the Quick Bar automatically elevates to topmost "
             "when that application\\u8217?s window is in the foreground (e.g. CATIA V5), and lowers "
             "itself when a different window becomes active.\\par\\par"
             "\\bullet  Set the target in {\\b Settings \\u8594?  Quick Bar \\u8594?  Target App field}.\\par"
             "\\bullet  Leave the field empty to keep the bar always visible on top.\\par"
             "\\bullet  Toggle the behaviour with {\\b Settings \\u8594?  Quick Bar \\u8594?  Stay on Top with Target App}.\\par\\par"
-            "{\\b Repeat on Double-Click}\\par\\par"
+            "{\\b\\cf1 Repeat on Double-Click}\\par\\par"
             "{\\b Double-click} any Quick Bar button to enter repeat mode: the script re-runs after each "
             "completion until you stop it. The button turns amber with a \\u8635? loop symbol.\\par\\par"
             "\\bullet  Press {\\b Escape} to cancel repeat and stop the running background script.\\par"
             "\\bullet  Single-click any button to cancel (same = no re-run, different = run that script).\\par"
             "\\bullet  Toggle via right-click \\u8594?  {\\b Repeat on Double-Click} or "
             "{\\b Menu \\u8594?  View \\u8594?  Quick Bar \\u8594?  Repeat on Double-Click}.\\par\\par"
-            "{\\b Process Executable Filter}\\par\\par"
+            "{\\b\\cf1 Process Executable Filter}\\par\\par"
             "If another application has the same window-title substring as your target, the bar will "
             "incorrectly respond to it. The {\\b Target Exe} field adds a second filter: the window\\u8217?s "
             "owning process must also match the given executable filename.\\par\\par"
@@ -414,8 +426,8 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Keyboard Shortcuts}\\par\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Keyboard Shortcuts}\\par\\par"
             "\\pard\\tx2160"
             "{\\b Shortcut}\\tab{\\b Action}\\par"
             "{\\f1\\cf3 F5}\\tab Refresh + Sync\\par"
@@ -425,7 +437,7 @@ static const char *Help_GetRTF(HelpTopic topic)
             "{\\f1\\cf3 Ctrl+Shift+Tab}\\tab Previous tab\\par"
             "{\\f1\\cf3 Escape}\\tab Cancel repeat mode and stop running script (when active)\\par"
             "\\pard\\par"
-            "{\\b Right-click Menu}\\par\\par"
+            "{\\b\\cf1 Right-click Menu}\\par\\par"
             "Right-clicking any script button shows:\\par"
             "\\bullet  Script Details...\\par"
             "\\bullet  Run with Arguments...\\par"
@@ -442,26 +454,26 @@ static const char *Help_GetRTF(HelpTopic topic)
         return "{\\rtf1\\ansi\\deff0"
             "{\\fonttbl{\\f0 Segoe UI;}{\\f1 Consolas;}}"
             "{\\colortbl ;\\red82\\green155\\blue245;\\red210\\green215\\blue240;\\red110\\green116\\blue148;}"
-            "\\f0\\fs20\\cf2"
-            "{\\b\\fs28\\cf1 Troubleshooting}\\par\\par"
-            "{\\b \\u8220? Connect to internet to sync\\u8221? }\\par"
+            "\\f0\\fs22\\cf2"
+            "{\\b\\fs32\\cf1 Troubleshooting}\\par\\par"
+            "{\\b\\cf1 \\u8220? Connect to internet to sync\\u8221? }\\par"
             "\\bullet  Check your internet connection.\\par"
             "\\bullet  You may have hit the GitHub API rate limit (60 req/hr without a token). "
             "Add a GitHub token in Settings.\\par"
             "\\bullet  Corporate firewalls may block {\\f1\\cf3 api.github.com}.\\par\\par"
-            "{\\b Tooltips or Script Details are blank}\\par"
+            "{\\b\\cf1 Tooltips or Script Details are blank}\\par"
             "This happens on first launch before scripts have downloaded. "
             "Wait for the sync to complete then hover the script again.\\par\\par"
-            "{\\b Script fails with \\u8220? Python Not Found\\u8221? }\\par"
+            "{\\b\\cf1 Script fails with \\u8220? Python Not Found\\u8221? }\\par"
             "Open Settings and click Browse next to Python Interpreter to locate "
             "{\\f1\\cf3 python.exe}.\\par\\par"
-            "{\\b SHA mismatch warning}\\par"
+            "{\\b\\cf1 SHA mismatch warning}\\par"
             "The local cached script differs from GitHub. Click {\\b Yes} to re-download. "
             "If it persists, delete the cache folder in Settings and re-sync.\\par\\par"
-            "{\\b A script has disappeared}\\par"
+            "{\\b\\cf1 A script has disappeared}\\par"
             "It may have been hidden. Check {\\b Menu \\u8594?  File \\u8594?  Manage Hidden Scripts }. "
             "Also check if the search filter box has text in it.\\par\\par"
-            "{\\b Update prompt appears on local builds }\\par"
+            "{\\b\\cf1 Update prompt appears on local builds }\\par"
             "Run {\\f1\\cf3 git fetch --tags} and {\\f1\\cf3 git pull origin main} then delete "
             "the build folder and rebuild.\\par"
             "}";
@@ -553,9 +565,9 @@ static void Help_LoadTopic(HWND hEdit, HelpTopic topic)
 /*  HelpDlgProc  (static)                                              */
 /*  Purpose: Dialog procedure for the in-app help window. On init it   */
 /*           creates a borderless, flat-select TreeView of topics and a */
-/*           RichEdit display pane.  Handles resizing, topic selection, */
-/*           dark mode, background painting (WM_ERASEBKGND fills with  */
-/*           COL_BG), and a COL_DIVIDER vertical separator (WM_PAINT). */
+/*           RichEdit display pane with a coloured topic header strip.  */
+/*           Handles resizing, topic selection, dark mode, background   */
+/*           painting, the header strip (WM_PAINT), and the divider.   */
 /*  In:  hwnd — dialog window handle                                   */
 /*       msg  — window message identifier                              */
 /*       wp   — WPARAM (message-dependent)                             */
@@ -569,6 +581,8 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
 {
     static HWND hTree = NULL, hEdit = NULL;
     static int  splitter = 200; /* 200 px — TreeView pane width */
+    static WCHAR s_header_text[64]; /* current topic label shown in header strip */
+    static const int HDR_H = 40;   /* header strip height in pixels */
 
     switch (msg)
     {
@@ -600,18 +614,18 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
         TreeView_SetTextColor(hTree, COL_TEXT());
         SendMessage(hTree, WM_SETFONT, (WPARAM)g.font_ui, FALSE);
 
-        /* Create RichEdit */
+        /* Create RichEdit — top is offset by HDR_H to leave room for the header strip */
         hEdit = CreateWindowEx(0, RICHEDIT_CLASS, L"",
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPSIBLINGS |
             ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
-            splitter + 1, 0, 400, 400,
+            splitter + 1, HDR_H, 400, 400,
             hwnd, (HMENU)(UINT_PTR)IDC_HELP_RICHEDIT,
             GetModuleHandle(NULL), NULL);
 
         /* Style RichEdit */
         SendMessage(hEdit, EM_SETBKGNDCOLOR, 0, (LPARAM)COL_BG());
         SendMessage(hEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN,
-                    MAKELONG(14, 14)); /* 14 px padding on left and right edges */
+                    MAKELONG(16, 16)); /* 16 px padding on left and right edges */
 
         /* Populate TreeView */
         for (int i = 0; i < HELP_TOPIC_COUNT; i++) {
@@ -624,12 +638,13 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             TreeView_InsertItem(hTree, &tvi);
         }
 
-        /* Select first item */
+        /* Select first item and initialise header text */
         HTREEITEM first = TreeView_GetRoot(hTree);
         if (first) {
             TreeView_SelectItem(hTree, first);
             Help_LoadTopic(hEdit, HELP_GETTING_STARTED);
         }
+        wcsncpy_s(s_header_text, 64, Help_TopicLabel(HELP_GETTING_STARTED), _TRUNCATE);
 
         /* Apply dark mode — "DarkMode_Explorer" visual style gives the TreeView dark scrollbars */
         SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
@@ -651,16 +666,33 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
 
     case WM_PAINT:
     {
-        /* Draw a subtle vertical divider between the tree and the content pane */
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
         RECT rc; GetClientRect(hwnd, &rc);
+
+        /* Header strip — accent-coloured bar above the RichEdit showing the current topic name */
+        RECT hdr = { splitter + 1, 0, rc.right, HDR_H };
+        HBRUSH br_hdr = CreateSolidBrush(COL_ACCENT);
+        FillRect(hdc, &hdr, br_hdr);
+        DeleteObject(br_hdr);
+
+        /* Topic label in white, left-aligned with padding, vertically centred */
+        HFONT old_font = (HFONT)SelectObject(hdc, g.font_ui);
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, RGB(255, 255, 255));
+        RECT text_rc = { splitter + 18, 0, rc.right - 8, HDR_H };
+        DrawTextW(hdc, s_header_text, -1, &text_rc,
+                  DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+        SelectObject(hdc, old_font);
+
+        /* Vertical divider between tree and content pane — full height including header */
         HPEN pen = CreatePen(PS_SOLID, 1, COL_DIVIDER());
         HPEN op  = SelectObject(hdc, pen);
         MoveToEx(hdc, splitter, 0, NULL);
         LineTo(hdc, splitter, rc.bottom);
         SelectObject(hdc, op);
         DeleteObject(pen);
+
         EndPaint(hwnd, &ps);
         return 0;
     }
@@ -672,12 +704,14 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             SetWindowPos(hTree, NULL, 0, 0, splitter, h,
                          SWP_NOZORDER | SWP_NOACTIVATE);
         if (hEdit)
-            SetWindowPos(hEdit, NULL, splitter + 1, 0,
-                         w - splitter - 1, h,
+            SetWindowPos(hEdit, NULL, splitter + 1, HDR_H,
+                         w - splitter - 1, h - HDR_H,
                          SWP_NOZORDER | SWP_NOACTIVATE);
-        /* Invalidate only the 3-px divider strip to avoid a full repaint */
+        /* Invalidate the divider strip and header area to force a repaint */
         RECT div = { splitter - 1, 0, splitter + 2, h };
         InvalidateRect(hwnd, &div, FALSE);
+        RECT hdr_inv = { splitter + 1, 0, w, HDR_H };
+        InvalidateRect(hwnd, &hdr_inv, FALSE);
         return 0;
     }
 
@@ -689,6 +723,11 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
             NMTREEVIEW *ntv = (NMTREEVIEW *)lp;
             HelpTopic t = (HelpTopic)ntv->itemNew.lParam; /* lParam is the topic index stored at insert time */
             if (hEdit) Help_LoadTopic(hEdit, t);
+            /* Update header strip label and repaint it */
+            wcsncpy_s(s_header_text, 64, Help_TopicLabel(t), _TRUNCATE);
+            RECT rc; GetClientRect(hwnd, &rc);
+            RECT hdr_inv = { splitter + 1, 0, rc.right, HDR_H };
+            InvalidateRect(hwnd, &hdr_inv, FALSE);
         }
         return 0;
     }
@@ -696,8 +735,8 @@ static INT_PTR CALLBACK HelpDlgProc(HWND hwnd, UINT msg,
     case WM_GETMINMAXINFO:
     {
         MINMAXINFO *mm = (MINMAXINFO *)lp;
-        mm->ptMinTrackSize.x = 600; /* 600 × 420 — minimum useful two-pane layout */
-        mm->ptMinTrackSize.y = 420;
+        mm->ptMinTrackSize.x = 680; /* 680 × 460 — minimum useful two-pane layout */
+        mm->ptMinTrackSize.y = 460;
         return 0;
     }
 

@@ -634,10 +634,12 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             break;
         case IDM_SCRIPT_OPEN_EDITOR:
         {
-            /* The "edit" verb may not be registered for .py files on Windows 10,
-               causing a silent no-op.  Use ShellExecuteExW with SEE_MASK_FLAG_NO_UI
-               so no error dialog appears on failure, then fall back to "open"
-               (the user's default handler) if the verb is unavailable. */
+            /* Try the "edit" verb first — works on systems where an editor
+               registers it (e.g. VS Code on Windows 11).  On Windows 10 the
+               verb is often absent for .py files, so on failure we query the
+               .txt open handler as a proxy for the user's preferred text
+               editor rather than falling back to "open", which would launch
+               the Python interpreter on Win10. */
             SHELLEXECUTEINFOW sei;
             ZeroMemory(&sei, sizeof(sei));
             sei.cbSize = sizeof(sei);
@@ -645,8 +647,13 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             sei.nShow  = SW_SHOWNORMAL;
             sei.lpVerb = L"edit";
             sei.lpFile = s->local;
-            if (!ShellExecuteExW(&sei))
-                ShellExecuteW(NULL, L"open", s->local, NULL, NULL, SW_SHOWNORMAL);
+            if (!ShellExecuteExW(&sei)) {
+                wchar_t editor[MAX_PATH] = {0};
+                DWORD len = MAX_PATH;
+                if (AssocQueryStringW(0, ASSOCSTR_EXECUTABLE, L".txt", L"open",
+                                      editor, &len) == S_OK && editor[0])
+                    ShellExecuteW(NULL, L"open", editor, s->local, NULL, SW_SHOWNORMAL);
+            }
             break;
         }
         case IDM_SCRIPT_NOTE:

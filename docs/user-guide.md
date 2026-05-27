@@ -685,7 +685,7 @@ with open(SETTINGS_FILE, 'w') as f:
 
 Press **F1** or go to **☰ Menu → Help → Help Contents** to open the built-in help window.
 
-The help window has a table of contents on the left and formatted topic content on the right. Click any topic to navigate to it. The window is resizable and stays open while you work.
+The help window has a topic list on the left and formatted content on the right. A coloured header strip above the content shows the current topic name at a glance. Click any topic to navigate to it. The window is resizable and stays open while you work.
 
 ---
 
