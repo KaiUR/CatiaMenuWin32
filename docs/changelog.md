@@ -9,6 +9,18 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.0 — Improved help window, Open in Editor fix (Windows 10)
+
+### Improved
+- **Help window — topic header strip** — the content pane now shows a coloured accent-blue header bar above the text, displaying the current topic name. Makes it immediately clear which topic is open after scrolling.
+- **Help window — RTF content styling** — body text increased from 10 pt to 11 pt; main topic titles from 14 pt to 16 pt; section sub-headings now rendered in accent blue bold for clearer visual hierarchy; `Note:` callouts styled with a bold accent label.
+- **Help window — minimum size** — bumped from 600 × 420 to 680 × 460 for a more comfortable reading layout.
+
+### Fixed
+- **Open in Editor — Windows 10** — the v2.3.0 fix fell back to the shell `open` verb when no `edit` verb was registered, which launches the Python interpreter on Windows 10. The handler now queries the `.txt` file-association's open handler via `AssocQueryStringW` as a proxy for the user's preferred text editor (VS Code, Notepad++, Notepad, etc.), so the correct editor opens on both Windows 10 and Windows 11.
+
+---
+
 ## v2.3.2 — Export / Import granular token and path selection
 
 ### Improved

@@ -87,7 +87,7 @@ All GDI rendering. Every function uses double-buffering (memory DC + `BitBlt`).
 - `Paint_ScriptButton` — draws a script button with accent bar, arrow, label, purpose text, and `i` info badge; accepts `bool repeat` and `bool running` — priority: repeat (amber) > running (green) > hot (blue)
 - `Paint_Tooltip` — draws the script info tooltip popup
 - `Tip_ComputeHeight` — measures tooltip height using `DT_CALCRECT` with correct font
-- `BtnSubclassProc` — subclass proc for script buttons; handles hover, `i` badge detection, tooltip show/hide
+- `BtnSubclassProc` — subclass proc for script buttons; handles hover, `i` badge detection, tooltip show/hide, and right-click context menu actions including Open in Editor (tries shell `edit` verb; falls back to `.txt` default app via `AssocQueryStringW` on Windows 10 where `.py` has no `edit` handler)
 
 ### `github.c`
 All GitHub API communication.
@@ -154,7 +154,7 @@ Scripts use the [PyCATIA](https://github.com/evereux/pycatia) library for CATIA 
 In-app help window implementation.
 
 - `Help_Show()` — opens the help window (or brings it to front if already open); called from F1 and Menu → Help → Help Contents
-- `HelpDlgProc` — modeless dialog proc; manages TreeView + RichEdit layout, resizing, and topic switching; paints the app-theme background (`WM_ERASEBKGND`) and a `COL_DIVIDER` vertical line between panes (`WM_PAINT`)
+- `HelpDlgProc` — modeless dialog proc; manages TreeView + RichEdit layout, resizing, and topic switching; paints the app-theme background (`WM_ERASEBKGND`), an accent-blue topic header strip above the RichEdit (`WM_PAINT`, `HDR_H = 40 px`, label stored in `s_header_text`), and a `COL_DIVIDER` vertical line between panes
 - `Help_GetRTF` — returns RTF-formatted content string for each of the 12 help topics
 - `Help_TopicLabel` — returns the display name for each topic
 - `Help_LoadTopic` — streams RTF content into the RichEdit control via `EM_STREAMIN`
