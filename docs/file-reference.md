@@ -77,7 +77,7 @@ Tab switching and script button management.
 - `Tabs_ScriptMatchesFilter` — returns true if the script's name or purpose contains `g.filter_text` (case-insensitive); always returns true when filter is empty
 - `Tabs_ApplySort` — sorts `folder.scripts[]` in-place via `qsort` using the active `SortMode`; `SORT_ORDER` is a no-op (preserves API/disk order)
 - `Tabs_FolderHasVisible` — returns true if the folder contains at least one non-hidden script; used to suppress empty tabs
-- `ScrollPanelProc` — scroll panel `WndProc`; handles `WM_VSCROLL`, `WM_MOUSEWHEEL`, `WM_DRAWITEM` for script buttons
+- `ScrollPanelProc` — scroll panel `WndProc`; handles `WM_VSCROLL`, `WM_MOUSEWHEEL`, `WM_DRAWITEM` for script buttons; `WM_DRAWITEM` copies the `Script` struct under `cs_folders` to prevent concurrent realloc from the sync thread invalidating the pointer during paint
 
 ### `paint.c`
 All GDI rendering. Every function uses double-buffering (memory DC + `BitBlt`).
@@ -85,9 +85,9 @@ All GDI rendering. Every function uses double-buffering (memory DC + `BitBlt`).
 - `Paint_MainWindow` — draws toolbar background, title, version, syncing indicator, update badge
 - `Paint_ToolbarButton` — owner-draw for `BS_OWNERDRAW` toolbar buttons (Menu, Refresh, Settings, Deps, Stop); renders pressed/hot/normal/disabled states; the Stop button uses a red accent when enabled
 - `Paint_ScriptButton` — draws a script button with accent bar, arrow, label, purpose text, and `i` info badge; accepts `bool repeat` and `bool running` — priority: repeat (amber) > running (green) > hot (blue)
-- `Paint_Tooltip` — draws the script info tooltip popup
+- `Paint_Tooltip` — draws the script info tooltip popup; copies the `Script` struct under `cs_folders` before painting to prevent use-after-free if the sync thread reallocs `f->scripts` concurrently
 - `Tip_ComputeHeight` — measures tooltip height using `DT_CALCRECT` with correct font
-- `BtnSubclassProc` — subclass proc for script buttons; handles hover, `i` badge detection, tooltip show/hide, and right-click context menu actions including Open in Editor (tries shell `edit` verb; falls back to `.txt` default app via `AssocQueryStringW` on Windows 10 where `.py` has no `edit` handler)
+- `BtnSubclassProc` — subclass proc for script buttons; handles hover, `i` badge detection, tooltip show/hide, and right-click context menu actions including Open in Editor (tries shell `edit` verb; falls back to `.txt` default app via `AssocQueryStringW` on Windows 10 where `.py` has no `edit` handler); tooltip hover acquires `cs_folders` to safely copy the script before calling `Meta_Parse` and `Tip_ComputeHeight`
 
 ### `github.c`
 All GitHub API communication.
@@ -99,8 +99,8 @@ All GitHub API communication.
 - `GitHub_ComputeFileSHA1` — computes Git blob SHA1 (`SHA1("blob <size>\0<content>")`) using Windows CryptAPI
 - `GitHub_VerifyScriptSHA` — compares computed SHA against `s->sha` from the API
 - `GitHub_ParseOwnerRepo` — extracts `owner` and `repo` from a full GitHub URL
-- `GitHub_ParseRoot` — parses the contents API JSON to find folder entries
-- `GitHub_ParseFolder` — parses a folder's contents JSON to find `.py` script entries
+- `GitHub_ParseRoot` — parses the contents API JSON to find folder entries; holds `cs_folders` for the entire function to guard `g.folder_count` modifications and `Folder_Free` calls
+- `GitHub_ParseFolder` — parses a folder's contents JSON to find `.py` script entries; holds `cs_folders` for the entire parse loop so `Folder_Push` reallocs cannot race with UI-thread reads of `f->scripts`
 
 ### `sync.c`
 GitHub sync thread and local directory scanning.
@@ -109,7 +109,7 @@ GitHub sync thread and local directory scanning.
 - `Sync_LoadManifest` — called at startup: scans `cache_dir` on disk to populate `g.folders[]` immediately without internet
 - `Sync_SaveManifest` — writes all current SHA values to `manifest.ini`
 - `Sync_GetLocalSHA` — reads a script's SHA from `manifest.ini`
-- `Sync_MergeFolder` — adds scripts to an existing folder or creates a new one; used for merging sources
+- `Sync_MergeFolder` — adds scripts to an existing folder or creates a new one; used for merging sources; holds `cs_folders` for the entire operation to guard `Folder_Push` reallocs and `g.folder_count` modifications
 - `Sync_ExtraRepo` — syncs one extra GitHub repository
 - `Sync_LocalDir` — scans a local folder, treats subfolders as tabs, skips `setup/`
 - `DeleteLocalScript` — deletes a cached script file and removes empty parent directories

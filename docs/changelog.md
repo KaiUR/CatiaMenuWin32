@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.2 — Thread-safety fix for Refresh crash
+
+### Fixed
+- **App crash on Refresh (especially shortly after pushing scripts)** — A race condition between the sync thread and the main UI thread caused heap corruption. `GitHub_ParseFolder` released `cs_folders` immediately after `Folder_Free`/`Folder_Alloc`, then continued calling `Folder_Push` without the lock. If `Folder_Push` triggered `realloc` (doubling the scripts buffer) while `WM_DRAWITEM` or the tooltip paint was concurrently reading `f->scripts`, the UI thread would dereference the freed pointer. The race was more likely immediately after a push since new/changed scripts caused extra `Folder_Push` calls, increasing the probability of a realloc. Fixes: `cs_folders` is now held for the entire parse loop in `GitHub_ParseFolder`; similarly wrapped in `GitHub_ParseRoot` and `Sync_MergeFolder`. On the UI side, `WM_DRAWITEM`, `Paint_Tooltip`, and the tooltip hover handler in `BtnSubclassProc` now copy the `Script` struct under `cs_folders` before reading it.
+
+---
+
 ## v2.4.1 — Local script run fix
 
 ### Fixed

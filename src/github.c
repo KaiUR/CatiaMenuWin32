@@ -447,6 +447,10 @@ static const char *json_str(const char *p, const char *key,
 /* ================================================================== */
 void GitHub_ParseRoot(const char *json)
 {
+    /* Hold cs_folders for the entire function — we modify g.folder_count and
+       g.folders[] struct fields, and Folder_Free is called on existing entries. */
+    EnterCriticalSection(&g.cs_folders);
+
     for (int _fi = 0; _fi < g.folder_count; _fi++) Folder_Free(&g.folders[_fi]);
     g.folder_count = 0;
 
@@ -478,6 +482,8 @@ void GitHub_ParseRoot(const char *json)
         }
         p = after;
     }
+
+    LeaveCriticalSection(&g.cs_folders);
 }
 
 /* ================================================================== */
@@ -494,13 +500,12 @@ void GitHub_ParseRoot(const char *json)
 void GitHub_ParseFolder(const char *json, int fi)
 {
     ScriptFolder *f = &g.folders[fi];
-    /* Free existing scripts and start fresh.
-       Hold cs_folders during the free so a concurrent UI paint cannot
-       dereference the scripts pointer between free and re-allocation. */
+    /* Hold cs_folders for the entire parse — Folder_Push may call realloc,
+       which moves f->scripts. Releasing before the loop would let a concurrent
+       WM_DRAWITEM or tooltip paint dereference the freed pointer. */
     EnterCriticalSection(&g.cs_folders);
     Folder_Free(f);
     Folder_Alloc(f, 64);
-    LeaveCriticalSection(&g.cs_folders);
 
     const char *p = json;
     while ((p = strstr(p, "\"type\"")) != NULL) {
@@ -547,4 +552,5 @@ void GitHub_ParseFolder(const char *json, int fi)
         p = after;
     }
     f->loaded = true;
+    LeaveCriticalSection(&g.cs_folders);
 }
