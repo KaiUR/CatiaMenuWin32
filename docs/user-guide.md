@@ -334,21 +334,30 @@ The **Reset to Defaults** button at the bottom left resets all settings to their
 ### Export / Import Settings
 Two buttons in the bottom button row let you back up and transfer your configuration selectively.
 
-Both open a dialog that lists each extra repository and local folder with its own checkbox, so you choose exactly which items to include. You can also toggle **General settings** and **Include tokens** independently.
+Both open a selection dialog divided into three sections:
+
+**General settings** — three independent checkboxes:
+- **Python path** — machine-specific; uncheck when sharing with other users.
+- **Cache folder** — machine-specific; uncheck when sharing.
+- **Options, theme, window & Quick Bar** — portable preference settings, safe to share.
+
+**Extra Repositories** and **Local Folders** — each item has its own checkbox so you pick exactly which sources to transfer.
+
+**Tokens** — one checkbox per available token (GitHub account token and individual repo tokens). Uncheck any tokens you do not want to include.
 
 **Export...**
-1. The selection dialog appears showing your current repos and local folders — all checked by default.
-2. Uncheck any items you do not want to export. Uncheck **Include tokens** to strip all tokens so the file is safe to share.
+1. The selection dialog appears — all items checked by default.
+2. Uncheck anything you do not want to export. Uncheck individual tokens to keep sensitive credentials out of the file.
 3. Choose a destination `.ini` file.
 
 **Import...**
 1. Choose the source `.ini` file.
-2. The selection dialog appears showing the repos and folders found in that file — all checked by default.
+2. The selection dialog appears showing what is available in that file — all items checked by default.
 3. Uncheck anything you do not want to add. Selected repos and folders are **appended** to your current sources — nothing is removed or replaced.
 4. If a repo URL already exists in your config and the imported entry carries a token, you are prompted to keep the existing or imported token. Exact duplicate paths with no token conflict are skipped silently.
 5. Settings take effect immediately and the dialog closes. Your `prefs.ini` (favourites, notes, run counts) is never affected.
 
-> **Tip:** To add a colleague's repositories to your own setup, ask them to export with only the relevant repos checked and **Include tokens** unchecked, then import that file on your machine.
+> **Tip:** To share only your portable preferences, uncheck **Python path** and **Cache folder** before exporting. The recipient gets your options, theme, and Quick Bar settings without machine-specific paths.
 
 ---
 

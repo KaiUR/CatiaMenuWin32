@@ -328,28 +328,40 @@ typedef struct {
     int       dir_count;
 
     /* ── Output fields (populated on IDOK) ────────────────────────── */
-    bool incl_general;
-    bool incl_tokens;
-    bool repo_selected[MAX_EXTRA_REPOS]; /* true = user ticked this repo */
-    bool dir_selected[MAX_LOCAL_DIRS];   /* true = user ticked this dir  */
+    bool incl_python_path;                        /* Python path checkbox          */
+    bool incl_cache_dir;                          /* Cache folder checkbox         */
+    bool incl_options;                            /* Options/theme/window/QBar     */
+    bool main_token_selected;                     /* GitHub account token          */
+    bool repo_token_selected[MAX_EXTRA_REPOS];    /* per-repo token                */
+    bool repo_selected[MAX_EXTRA_REPOS];          /* true = user ticked this repo  */
+    bool dir_selected[MAX_LOCAL_DIRS];            /* true = user ticked this dir   */
 } SettingsTransferParams;
 
 /* ================================================================== */
 /*  Settings_WriteGeneralTo  (static)                                   */
-/*  Purpose: Writes the Python, Scripts, Options, Window, and          */
-/*           QuickBar sections from s to the given INI file path.      */
+/*  Purpose: Selectively writes Python path, cache dir, and/or all    */
+/*           Options/Window/QuickBar keys to the given INI file path.  */
 /*           The GitHub/Token key is NOT written here; the caller      */
-/*           writes it separately when incl_tokens is true.            */
-/*  In:  s   — settings to write (const)                               */
-/*       ini — destination INI file path                               */
+/*           writes it separately per-token selection.                 */
+/*  In:  s                — settings to write (const)                  */
+/*       ini              — destination INI file path                  */
+/*       incl_python_path — write [Python] Executable                  */
+/*       incl_cache_dir   — write [Scripts] CacheDir                   */
+/*       incl_options     — write Options, Window, and QuickBar keys   */
 /*  Out: (void)                                                         */
 /* ================================================================== */
-static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini)
+static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini,
+                                    bool incl_python_path, bool incl_cache_dir,
+                                    bool incl_options)
 {
     WCHAR tmp[8];
 
-    WritePrivateProfileString(L"Python",  L"Executable", s->python_exe, ini);
-    WritePrivateProfileString(L"Scripts", L"CacheDir",   s->cache_dir,  ini);
+    if (incl_python_path)
+        WritePrivateProfileString(L"Python",  L"Executable", s->python_exe, ini);
+    if (incl_cache_dir)
+        WritePrivateProfileString(L"Scripts", L"CacheDir",   s->cache_dir,  ini);
+
+    if (!incl_options) return;
 
 #define WB(sec, key, val) WritePrivateProfileString(sec, key, (val) ? L"1" : L"0", ini)
     WB(L"Options", L"AutoSync",           s->auto_sync);
@@ -390,54 +402,62 @@ static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini)
 
 /* ================================================================== */
 /*  Settings_ReadGeneralFrom  (static)                                  */
-/*  Purpose: Reads Python, Scripts, Options, Window, and QuickBar      */
-/*           sections from the given INI file into s, fully replacing  */
-/*           those fields.  Applies the same auto-detect fallbacks as  */
-/*           Settings_Load (Python probe, default cache dir).          */
+/*  Purpose: Selectively reads Python path, cache dir, and/or all      */
+/*           Options/Window/QuickBar keys from the given INI into s.   */
+/*           Applies auto-detect fallbacks only for the selected items. */
 /*           Does NOT read the GitHub token; the caller handles that.  */
-/*  In:  s   — settings struct to update                               */
-/*       ini — source INI file path                                    */
+/*  In:  s                — settings struct to update                  */
+/*       ini              — source INI file path                       */
+/*       incl_python_path — read [Python] Executable                   */
+/*       incl_cache_dir   — read [Scripts] CacheDir                    */
+/*       incl_options     — read Options, Window, and QuickBar keys    */
 /*  Out: (void — relevant fields in s are overwritten)                 */
 /* ================================================================== */
-static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini)
+static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini,
+                                     bool incl_python_path, bool incl_cache_dir,
+                                     bool incl_options)
 {
-    GetPrivateProfileString(L"Python",  L"Executable", L"", s->python_exe, MAX_APPPATH, ini);
-    GetPrivateProfileString(L"Scripts", L"CacheDir",   L"", s->cache_dir,  MAX_APPPATH, ini);
+    if (incl_python_path)
+        GetPrivateProfileString(L"Python",  L"Executable", L"", s->python_exe, MAX_APPPATH, ini);
+    if (incl_cache_dir)
+        GetPrivateProfileString(L"Scripts", L"CacheDir",   L"", s->cache_dir,  MAX_APPPATH, ini);
 
-    s->auto_sync           = GetPrivateProfileInt(L"Options", L"AutoSync",           1, ini) != 0;
-    s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun",  0, ini) != 0;
-    s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",        0, ini) != 0;
-    s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",    1, ini) != 0;
-    s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",       1, ini) != 0;
-    s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",       0, ini) != 0;
-    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
-    s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",    0, ini) != 0;
-    s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
-    s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
-    s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",     1, ini) != 0;
-    s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick", 1, ini) != 0;
-    s->tint_script_sources     = GetPrivateProfileInt(L"Options", L"TintScriptSources",    1, ini) != 0;
+    if (incl_options) {
+        s->auto_sync           = GetPrivateProfileInt(L"Options", L"AutoSync",           1, ini) != 0;
+        s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun",  0, ini) != 0;
+        s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",        0, ini) != 0;
+        s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",    1, ini) != 0;
+        s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",       1, ini) != 0;
+        s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",       0, ini) != 0;
+        s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
+        s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",    0, ini) != 0;
+        s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
+        s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
+        s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",     1, ini) != 0;
+        s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick", 1, ini) != 0;
+        s->tint_script_sources     = GetPrivateProfileInt(L"Options", L"TintScriptSources",    1, ini) != 0;
 
-    s->always_on_top      = GetPrivateProfileInt(L"Window", L"AlwaysOnTop",      1, ini) != 0;
-    s->minimize_to_tray   = GetPrivateProfileInt(L"Window", L"MinimizeToTray",   1, ini) != 0;
-    s->start_with_windows = GetPrivateProfileInt(L"Window", L"StartWithWindows", 1, ini) != 0;
-    s->start_minimized    = GetPrivateProfileInt(L"Window", L"StartMinimized",   1, ini) != 0;
-    s->theme = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme", 0, ini);
-    if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
+        s->always_on_top      = GetPrivateProfileInt(L"Window", L"AlwaysOnTop",      1, ini) != 0;
+        s->minimize_to_tray   = GetPrivateProfileInt(L"Window", L"MinimizeToTray",   1, ini) != 0;
+        s->start_with_windows = GetPrivateProfileInt(L"Window", L"StartWithWindows", 1, ini) != 0;
+        s->start_minimized    = GetPrivateProfileInt(L"Window", L"StartMinimized",   1, ini) != 0;
+        s->theme = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme", 0, ini);
+        if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
 
-    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0;
-    s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
-    s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
-    s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
-    s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
-    GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
-                            s->qbar_target_app, MAX_NAME, ini);
-    GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
-                            s->qbar_target_exe, MAX_NAME, ini);
+        s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0;
+        s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
+        s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
+        s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
+        s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
+        GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
+                                s->qbar_target_app, MAX_NAME, ini);
+        GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
+                                s->qbar_target_exe, MAX_NAME, ini);
+    }
 
-    if (!s->cache_dir[0])
+    if (incl_cache_dir && !s->cache_dir[0])
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
-    if (!s->python_exe[0])
+    if (incl_python_path && !s->python_exe[0])
         Runner_FindPython(s->python_exe, MAX_APPPATH);
 }
 
@@ -556,8 +576,60 @@ static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
             ShowWindow(hDirs, SW_HIDE);
         }
 
-        CheckDlgButton(hwnd, IDC_CHK_TRANS_GENERAL, BST_CHECKED);
-        CheckDlgButton(hwnd, IDC_CHK_TRANS_TOKENS,  BST_CHECKED);
+        /* ── Tokens ListView ─────────────────────────────────────── */
+        HWND hTokens = GetDlgItem(hwnd, IDC_LST_TRANS_TOKENS);
+        ListView_SetExtendedListViewStyle(hTokens, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+        {
+            RECT rc; GetClientRect(hTokens, &rc);
+            LVCOLUMN lvc; ZeroMemory(&lvc, sizeof(lvc));
+            lvc.mask = LVCF_WIDTH;
+            lvc.cx   = rc.right;
+            ListView_InsertColumn(hTokens, 0, &lvc);
+        }
+        int tok_row = 0;
+
+        /* Main GitHub account token (lParam = -1) */
+        bool has_main_token;
+        if (p->is_export) {
+            has_main_token = g.cfg.github_token[0] != L'\0';
+        } else {
+            WCHAR tmp_tok[256] = {0};
+            GetPrivateProfileString(L"GitHub", L"Token", L"", tmp_tok, 255, p->src_path);
+            has_main_token = tmp_tok[0] != L'\0';
+        }
+        if (has_main_token) {
+            LVITEM lvi; ZeroMemory(&lvi, sizeof(lvi));
+            lvi.mask    = LVIF_TEXT | LVIF_PARAM;
+            lvi.iItem   = tok_row;
+            lvi.pszText = L"GitHub account token";
+            lvi.lParam  = (LPARAM)(-1);
+            ListView_InsertItem(hTokens, &lvi);
+            ListView_SetCheckState(hTokens, tok_row, TRUE);
+            tok_row++;
+        }
+
+        /* Per-repo tokens (lParam = repo index in p->repos[]) */
+        for (int i = 0; i < p->repo_count; i++) {
+            if (!p->repos[i].token[0]) continue;
+            WCHAR label[600];
+            _snwprintf_s(label, 599, _TRUNCATE, L"Token for %s", p->repos[i].url);
+            LVITEM lvi; ZeroMemory(&lvi, sizeof(lvi));
+            lvi.mask    = LVIF_TEXT | LVIF_PARAM;
+            lvi.iItem   = tok_row;
+            lvi.pszText = label;
+            lvi.lParam  = (LPARAM)(LONG_PTR)i;
+            ListView_InsertItem(hTokens, &lvi);
+            ListView_SetCheckState(hTokens, tok_row, TRUE);
+            tok_row++;
+        }
+        if (tok_row == 0) {
+            ShowWindow(GetDlgItem(hwnd, IDC_LBL_TRANS_TOKENS), SW_HIDE);
+            ShowWindow(hTokens, SW_HIDE);
+        }
+
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_PYTHON,  BST_CHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_CACHE,   BST_CHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_OPTIONS, BST_CHECKED);
         return TRUE;
     }
 
@@ -567,8 +639,9 @@ static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
         {
             SettingsTransferParams *p =
                 (SettingsTransferParams *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-            p->incl_general = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_GENERAL) == BST_CHECKED;
-            p->incl_tokens  = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_TOKENS)  == BST_CHECKED;
+            p->incl_python_path = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_PYTHON)  == BST_CHECKED;
+            p->incl_cache_dir   = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_CACHE)   == BST_CHECKED;
+            p->incl_options     = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_OPTIONS) == BST_CHECKED;
 
             HWND hRepos = GetDlgItem(hwnd, IDC_LST_TRANS_REPOS);
             for (int i = 0; i < p->repo_count; i++)
@@ -578,10 +651,26 @@ static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
             for (int i = 0; i < p->dir_count; i++)
                 p->dir_selected[i] = ListView_GetCheckState(hDirs, i) != 0;
 
+            /* Read token ListView — lParam identifies which token each row maps to */
+            HWND hTokens = GetDlgItem(hwnd, IDC_LST_TRANS_TOKENS);
+            int n_tok = ListView_GetItemCount(hTokens);
+            for (int row = 0; row < n_tok; row++) {
+                LVITEM lvi2; ZeroMemory(&lvi2, sizeof(lvi2));
+                lvi2.mask  = LVIF_PARAM;
+                lvi2.iItem = row;
+                ListView_GetItem(hTokens, &lvi2);
+                bool checked = ListView_GetCheckState(hTokens, row) != 0;
+                if (lvi2.lParam == (LPARAM)(-1))
+                    p->main_token_selected = checked;
+                else
+                    p->repo_token_selected[(int)lvi2.lParam] = checked;
+            }
+
             /* Require at least one item selected */
-            bool any = p->incl_general || p->incl_tokens;
+            bool any = p->incl_python_path || p->incl_cache_dir || p->incl_options
+                    || p->main_token_selected;
             for (int i = 0; i < p->repo_count && !any; i++)
-                if (p->repo_selected[i]) any = true;
+                if (p->repo_selected[i] || p->repo_token_selected[i]) any = true;
             for (int i = 0; i < p->dir_count && !any; i++)
                 if (p->dir_selected[i]) any = true;
             if (!any) {
@@ -807,10 +896,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             /* Step 3: Clear any existing file so stale keys don't persist */
             DeleteFileW(path);
 
-            /* Step 4: Write general settings and/or GitHub token */
-            if (tp.incl_general)
-                Settings_WriteGeneralTo(&g.cfg, path);
-            if (tp.incl_tokens)
+            /* Step 4: Write selectively — Python path, cache dir, options, GitHub token */
+            if (tp.incl_python_path || tp.incl_cache_dir || tp.incl_options)
+                Settings_WriteGeneralTo(&g.cfg, path,
+                                        tp.incl_python_path, tp.incl_cache_dir, tp.incl_options);
+            if (tp.main_token_selected)
                 WritePrivateProfileString(L"GitHub", L"Token", g.cfg.github_token, path);
 
             /* Step 5: Write only the individually selected repos */
@@ -825,7 +915,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 WritePrivateProfileString(L"Sources", key, tp.repos[i].branch, path);
                 _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   n_repos);
                 WritePrivateProfileString(L"Sources", key,
-                                          tp.incl_tokens ? tp.repos[i].token : L"", path);
+                                          tp.repo_token_selected[i] ? tp.repos[i].token : L"", path);
                 _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", n_repos);
                 WritePrivateProfileString(L"Sources", key,
                                           tp.repos[i].enabled ? L"1" : L"0", path);
@@ -895,10 +985,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             bool old_qbar_en    = g.cfg.qbar_enabled;
             bool old_qbar_horiz = g.cfg.qbar_horizontal;
 
-            /* Step 4: Apply general settings and/or GitHub token */
-            if (tp.incl_general)
-                Settings_ReadGeneralFrom(&g.cfg, path);
-            if (tp.incl_tokens)
+            /* Step 4: Apply selectively — Python path, cache dir, options, GitHub token */
+            if (tp.incl_python_path || tp.incl_cache_dir || tp.incl_options)
+                Settings_ReadGeneralFrom(&g.cfg, path,
+                                         tp.incl_python_path, tp.incl_cache_dir, tp.incl_options);
+            if (tp.main_token_selected)
                 GetPrivateProfileString(L"GitHub", L"Token", L"",
                                         g.cfg.github_token, 256, path);
 
@@ -916,8 +1007,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 }
 
                 if (dup >= 0) {
-                    /* Duplicate: only prompt when the imported entry carries a token */
-                    if (tp.incl_tokens && tp.repos[i].token[0]) {
+                    /* Duplicate: only prompt when the user selected this repo's token */
+                    if (tp.repo_token_selected[i] && tp.repos[i].token[0]) {
                         WCHAR msg[720];
                         _snwprintf_s(msg, 719, _TRUNCATE,
                             L"This repository is already in your sources:\n%s\n\n"
@@ -930,11 +1021,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                             wcsncpy_s(g.cfg.extra_repos[dup].token, 256,
                                       tp.repos[i].token, _TRUNCATE);
                     }
-                    /* else: no token to conflict over — skip silently */
+                    /* else: no token conflict — skip silently */
                 } else if (g.cfg.extra_repo_count < MAX_EXTRA_REPOS) {
                     /* New repo — append */
                     g.cfg.extra_repos[g.cfg.extra_repo_count] = tp.repos[i];
-                    if (!tp.incl_tokens)
+                    if (!tp.repo_token_selected[i])
                         g.cfg.extra_repos[g.cfg.extra_repo_count].token[0] = L'\0';
                     g.cfg.extra_repo_count++;
                 }

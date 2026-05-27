@@ -279,23 +279,27 @@ END
 
 /* ================================================================== */
 /*  Settings Transfer dialog  (IDD_SETTINGS_TRANSFER = 310)           */
-/*  Caption is set dynamically (Export / Import).  The two ListViews  */
-/*  are populated in WM_INITDIALOG and hidden if empty.               */
+/*  Caption is set dynamically (Export / Import).  The three          */
+/*  ListViews (repos, dirs, tokens) are populated in WM_INITDIALOG   */
+/*  and hidden if empty.                                              */
 /* ================================================================== */
-310 DIALOG 0, 0, 340, 262
+310 DIALOG 0, 0, 340, 295
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Settings"
 FONT 9, "Segoe UI"
 BEGIN
-    AUTOCHECKBOX "General settings (Python path, options, theme, window, Quick Bar)",              475,  7,  7, 326, 12
-    LTEXT    "Extra Repositories:",                                                                 476,  7, 25, 160, 10
-    CONTROL  "", 479, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7, 37, 326, 64
-    LTEXT    "Local Folders:",                                                                      478,  7,107, 160, 10
-    CONTROL  "", 480, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7,119, 326, 64
-    AUTOCHECKBOX "Include tokens (GitHub token and per-repository tokens)",                        477,  7,189, 280, 12
-    LTEXT    "Note: uncheck Tokens to keep sensitive data private.",                               -1,   7,203, 280, 10
-    DEFPUSHBUTTON "Continue",  1, 222, 240, 56, 14
-    PUSHBUTTON    "Cancel",    2, 282, 240, 56, 14
+    AUTOCHECKBOX "Python path",                                                                    475,  7,  7, 160, 12
+    AUTOCHECKBOX "Cache folder",                                                                   481,  7, 21, 160, 12
+    AUTOCHECKBOX "Options, theme, window && Quick Bar",                                            482,  7, 35, 260, 12
+    LTEXT    "Extra Repositories:",                                                                 476,  7, 51, 160, 10
+    CONTROL  "", 479, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7, 63, 326, 52
+    LTEXT    "Local Folders:",                                                                      478,  7,119, 160, 10
+    CONTROL  "", 480, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7,131, 326, 52
+    LTEXT    "Tokens:",                                                                             477,  7,187, 160, 10
+    CONTROL  "", 483, "SysListView32", LVS_REPORT | LVS_NOCOLUMNHEADER | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,  7,199, 326, 52
+    LTEXT    "Note: uncheck individual tokens to keep sensitive data private.",                    -1,   7,255, 300, 10
+    DEFPUSHBUTTON "Continue",  1, 222, 273, 56, 14
+    PUSHBUTTON    "Cancel",    2, 282, 273, 56, 14
 END
 
 VS_VERSION_INFO VERSIONINFO

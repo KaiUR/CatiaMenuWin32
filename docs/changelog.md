@@ -9,6 +9,14 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.3.2 — Export / Import granular token and path selection
+
+### Improved
+- **Export / Import Settings — per-token selection** — instead of a single "Include tokens" toggle, a dedicated **Tokens** list now shows one checkbox per available token: one for the GitHub account token and one for each extra repository that carries a token. Uncheck individual tokens to share a settings file without exposing sensitive credentials.
+- **Export / Import Settings — granular path selection** — the former "General settings" checkbox is split into three independent checkboxes: **Python path**, **Cache folder**, and **Options, theme, window & Quick Bar**. This allows sharing a portable settings file (options and preferences only) with other users without transferring machine-specific paths.
+
+---
+
 ## v2.3.1 — Export / Import per-item selection fix
 
 ### Fixed
