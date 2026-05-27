@@ -236,7 +236,10 @@ static void DeleteLocalScript(const WCHAR *local_path)
 /* ================================================================== */
 void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
 {
-    /* Ensure any existing folder with this name has its scripts freed first */
+    /* Hold cs_folders for the entire merge — Folder_Push may realloc f->scripts,
+       and we modify g.folder_count, both of which the UI thread reads concurrently. */
+    EnterCriticalSection(&g.cs_folders);
+
     /* Find existing folder with same name */
     for (int fi = 0; fi < g.folder_count; fi++) {
         if (_wcsicmp(g.folders[fi].name, folder_name) == 0) {
@@ -257,22 +260,26 @@ void Sync_MergeFolder(const WCHAR *folder_name, Script *scripts, int count)
                     if (dst) *dst = scripts[si];
                 }
             }
-            return;
+            goto done;
         }
     }
     /* New folder */
-    if (g.folder_count >= MAX_FOLDERS) return;
-    ScriptFolder *f = &g.folders[g.folder_count++];
-    ZeroMemory(f, sizeof(*f));
-    wcsncpy_s(f->name,    MAX_NAME, folder_name, _TRUNCATE);
-    wcsncpy_s(f->display, MAX_NAME, f->name,     _TRUNCATE);
-    Util_SnakeToTitle(f->display);
-    if (!Folder_Alloc(f, count > 0 ? count : 64)) { g.folder_count--; return; }
-    for (int i = 0; i < count; i++) {
-        Script *dst = Folder_Push(f);
-        if (dst) *dst = scripts[i];
+    if (g.folder_count >= MAX_FOLDERS) goto done;
+    {
+        ScriptFolder *f = &g.folders[g.folder_count++];
+        ZeroMemory(f, sizeof(*f));
+        wcsncpy_s(f->name,    MAX_NAME, folder_name, _TRUNCATE);
+        wcsncpy_s(f->display, MAX_NAME, f->name,     _TRUNCATE);
+        Util_SnakeToTitle(f->display);
+        if (!Folder_Alloc(f, count > 0 ? count : 64)) { g.folder_count--; goto done; }
+        for (int i = 0; i < count; i++) {
+            Script *dst = Folder_Push(f);
+            if (dst) *dst = scripts[i];
+        }
+        f->loaded = true;
     }
-    f->loaded = true;
+done:
+    LeaveCriticalSection(&g.cs_folders);
 }
 
 /* ================================================================== */

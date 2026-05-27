@@ -326,10 +326,17 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
         int fi  = g.active_tab;
         int idx = (int)GetWindowLongPtr(dis->hwndItem, GWLP_USERDATA); /* script index stored in WM_CREATE */
 
-        /* Bounds-check before dereferencing: folders can be rebuilt mid-paint */
-        const Script *s = (fi >= 0 && fi < g.folder_count &&
-                           idx >= 0 && idx < g.folders[fi].count)
-                          ? &g.folders[fi].scripts[idx] : NULL;
+        /* Copy the script under cs_folders to prevent a concurrent Folder_Push
+           realloc (in the sync thread) from freeing the pointer while we read it. */
+        Script       s_copy = {0};
+        const Script *s     = NULL;
+        EnterCriticalSection(&g.cs_folders);
+        if (fi >= 0 && fi < g.folder_count &&
+            idx >= 0 && idx < g.folders[fi].count) {
+            s_copy = g.folders[fi].scripts[idx];
+            s = &s_copy;
+        }
+        LeaveCriticalSection(&g.cs_folders);
 
         bool hot      = (g.hot_btn == (int)(UINT_PTR)dis->CtlID); /* mouse is hovering over this button */
         bool pressed  = (dis->itemState & ODS_SELECTED) != 0;      /* ODS_SELECTED = button is being clicked */

@@ -344,11 +344,19 @@ void Paint_Tooltip(HWND hwnd)
 
     int fi = g.active_tab;
     int si = g.tip_btn - IDC_SCRIPT_BTN_BASE; /* recover script index from stored button ID */
-    if (fi < 0 || fi >= g.folder_count ||
-        si < 0 || si >= g.folders[fi].count) goto done; /* invalid index — paint empty panel only */
+
+    /* Copy the script under cs_folders — the sync thread may realloc f->scripts. */
+    Script  s_copy    = {0};
+    EnterCriticalSection(&g.cs_folders);
+    bool tip_valid = (fi >= 0 && fi < g.folder_count &&
+                      si >= 0 && si < g.folders[fi].count);
+    if (tip_valid) s_copy = g.folders[fi].scripts[si];
+    LeaveCriticalSection(&g.cs_folders);
+
+    if (!tip_valid) goto done;
 
     {
-        Script *s = &g.folders[fi].scripts[si];
+        Script *s = &s_copy;
 
         struct { const WCHAR *lbl; const WCHAR *val; } rows[] = {
             { L"Script:",  s->name },
@@ -437,17 +445,19 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             g.tip_btn = (int)uid;
             int fi = g.active_tab;
             int si = (int)uid - IDC_SCRIPT_BTN_BASE;
-            if (fi >= 0 && fi < g.folder_count &&
-                si >= 0 && si < g.folders[fi].count)
-                Meta_Parse(&g.folders[fi].scripts[si]);
+
+            /* Parse metadata and copy under cs_folders so realloc in sync
+               thread cannot move f->scripts while we dereference it. */
+            EnterCriticalSection(&g.cs_folders);
+            bool meta_valid = (fi >= 0 && fi < g.folder_count &&
+                               si >= 0 && si < g.folders[fi].count);
+            if (meta_valid) Meta_Parse(&g.folders[fi].scripts[si]);
+            Script s_tip = {0};
+            if (meta_valid) s_tip = g.folders[fi].scripts[si];
+            LeaveCriticalSection(&g.cs_folders);
 
             /* Compute tooltip height based on description length */
-            Script *s = NULL;
-            if (fi >= 0 && fi < g.folder_count &&
-                si >= 0 && si < g.folders[fi].count)
-                s = &g.folders[fi].scripts[si];
-
-            int th = Tip_ComputeHeight(s);
+            int th = Tip_ComputeHeight(meta_valid ? &s_tip : NULL);
             g.tip_h = th;
 
             /* Get work area of the monitor the window is on
