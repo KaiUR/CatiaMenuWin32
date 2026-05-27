@@ -331,6 +331,20 @@ The Settings dialog is organised into five tabs:
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
 
+### Export / Import Settings
+Two buttons in the bottom button row let you back up and restore your configuration. Both open a **section-selection dialog** first so you can choose exactly what to transfer:
+
+| Section | What it covers |
+|---|---|
+| **General settings** | Python path, all options (sync, console, updates), theme, window behaviour, Quick Bar |
+| **Script sources** | Extra GitHub repositories and local script folders |
+| **Tokens** | GitHub main token and per-repository tokens |
+
+- **Export...** — writes only the selected sections to a new `.ini` file of your choice. Uncheck **Tokens** to produce a portable file that you can share without exposing sensitive data.
+- **Import...** — reads only the selected sections from a previously exported file and merges them into the current configuration; everything else stays as-is. Settings take effect immediately (theme, autorun, Quick Bar, sort mode) and the dialog closes automatically. Your `prefs.ini` (favourites, notes, run counts) is not affected.
+
+> **Tip:** To copy just your script sources to another machine, export with only **Script sources** checked (uncheck Tokens if you have per-repo tokens you don't want to share). On the other machine, import the same file with **Script sources** checked — your Python path and options are left untouched.
+
 ---
 
 ## Script Sources

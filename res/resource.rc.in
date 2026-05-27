@@ -86,7 +86,9 @@ BEGIN
     AUTOCHECKBOX "Repeat script on double-click (Quick Bar)",   469, 16, 198, 310, 12
 
     /* ── Close-group sentinel + bottom buttons ──────────────────── */
-    PUSHBUTTON    "Reset to Defaults", 420,   7, 288,  90, 16, WS_GROUP
+    PUSHBUTTON    "Reset to Defaults", 420,   7, 288,  78, 16, WS_GROUP
+    PUSHBUTTON    "Export...",         473,  89, 288,  56, 16
+    PUSHBUTTON    "Import...",         474, 149, 288,  56, 16
     DEFPUSHBUTTON "OK",                  1, 224, 288,  68, 16
     PUSHBUTTON    "Cancel",              2, 300, 288,  58, 16
 END
@@ -273,6 +275,25 @@ BEGIN
     PUSHBUTTON "Browse...",                                      762,247, 59,  46, 16
     DEFPUSHBUTTON "OK",     1, 188, 86, 50, 14
     PUSHBUTTON    "Cancel", 2, 244, 86, 50, 14
+END
+
+/* ================================================================== */
+/*  Settings Transfer dialog  (IDD_SETTINGS_TRANSFER = 310)           */
+/*  Caption and groupbox label are set dynamically in WM_INITDIALOG   */
+/*  depending on whether the user opened Export or Import.             */
+/* ================================================================== */
+310 DIALOG 0, 0, 300, 128
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Settings"
+FONT 9, "Segoe UI"
+BEGIN
+    GROUPBOX "",                                                                            478,  7,  7, 286, 92
+    AUTOCHECKBOX "General settings (Python path, options, theme, window, Quick Bar)",       475, 14, 22, 272, 12
+    AUTOCHECKBOX "Script sources (extra repositories and local folders)",                   476, 14, 38, 272, 12
+    AUTOCHECKBOX "Tokens (GitHub token and per-repository tokens)",                        477, 14, 54, 272, 12
+    LTEXT "Note: uncheck Tokens to keep sensitive data private.",                          -1,  14, 72, 272, 10
+    DEFPUSHBUTTON "Continue",  1, 182, 108, 56, 14
+    PUSHBUTTON    "Cancel",    2, 242, 108, 56, 14
 END
 
 VS_VERSION_INFO VERSIONINFO

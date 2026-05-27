@@ -228,7 +228,19 @@ static const char *Help_GetRTF(HelpTopic topic)
             "contain the same substring. Leave empty to match any process.\\par\\par"
             "{\\b Reset to Defaults}\\par\\par"
             "The {\\b Reset to Defaults} button resets all settings to their factory defaults. "
-            "Sources (extra repos and local folders) are not affected.\\par"
+            "Sources (extra repos and local folders) are not affected.\\par\\par"
+            "{\\b Export / Import Settings}\\par\\par"
+            "The {\\b Export...} and {\\b Import...} buttons at the bottom of the dialog let you back up "
+            "and restore your configuration selectively.\\par\\par"
+            "Both buttons open a section-selection dialog where you choose what to transfer:\\par"
+            "\\bullet  {\\b General settings} \\emdash Python path, all options, theme, window behaviour, Quick Bar.\\par"
+            "\\bullet  {\\b Script sources} \\emdash Extra GitHub repositories and local script folders.\\par"
+            "\\bullet  {\\b Tokens} \\emdash GitHub main token and per-repository tokens.\\par\\par"
+            "{\\b Export:} writes only the selected sections to a new {\\f1\\cf3 .ini} file. "
+            "Uncheck {\\b Tokens} to produce a portable file that does not contain sensitive data.\\par\\par"
+            "{\\b Import:} merges only the selected sections from a previously exported file into the running "
+            "configuration. Everything else stays as-is. Settings take effect immediately and the dialog closes. "
+            "{\\f1\\cf3 prefs.ini} (favourites, notes, run counts) is never affected.\\par"
             "}";
 
     case HELP_SOURCES:

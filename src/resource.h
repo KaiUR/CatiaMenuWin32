@@ -288,4 +288,21 @@
 #define IDC_CHK_TINT_SOURCES  471   /* Window tab: tint local/extra scripts differently */
 #define IDC_GRP_DISPLAY       472   /* Window tab: "Script Display" groupbox             */
 
+/* ------------------------------------------------------------------ */
+/*  Settings dialog — Import / Export buttons  (473–474)               */
+/* ------------------------------------------------------------------ */
+#define IDC_BTN_EXPORT_SETTINGS  473  /* export settings.ini to a chosen file     */
+#define IDC_BTN_IMPORT_SETTINGS  474  /* import settings.ini from a chosen file   */
+
+/* ------------------------------------------------------------------ */
+/*  Settings Transfer dialog  (310, 475–478)                           */
+/*  Shown before export/import to let the user choose which sections   */
+/*  to include.                                                         */
+/* ------------------------------------------------------------------ */
+#define IDD_SETTINGS_TRANSFER    310
+#define IDC_CHK_TRANS_GENERAL    475  /* General settings (Python, options, theme, window, QuickBar) */
+#define IDC_CHK_TRANS_SOURCES    476  /* Script sources (extra repos and local folders)              */
+#define IDC_CHK_TRANS_TOKENS     477  /* Tokens (GitHub main token and per-repo tokens)              */
+#define IDC_GRP_TRANS_WHAT       478  /* Groupbox — caption set dynamically                         */
+
 #endif /* RESOURCE_H */
