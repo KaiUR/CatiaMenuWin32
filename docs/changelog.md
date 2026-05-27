@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.3.1 — Export / Import per-item selection fix
+
+### Fixed
+- **Export / Import Settings per-item selection** — the initial v2.3.0 release showed three coarse all-or-nothing checkboxes (General / Sources / Tokens) instead of individual checkboxes per repository and local folder as intended. The dialog now lists each extra repository and local folder as a separate checkable item so the user can pick exactly which ones to transfer.
+
+---
+
 ## v2.3.0 — Selective Import / Export Settings, Open in Editor fix (Windows 10)
 
 ### Added
