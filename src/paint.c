@@ -633,8 +633,22 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             ShellExecuteW(NULL, L"open", s->local, NULL, NULL, SW_SHOWNORMAL);
             break;
         case IDM_SCRIPT_OPEN_EDITOR:
-            ShellExecuteW(NULL, L"edit", s->local, NULL, NULL, SW_SHOWNORMAL);
+        {
+            /* The "edit" verb may not be registered for .py files on Windows 10,
+               causing a silent no-op.  Use ShellExecuteExW with SEE_MASK_FLAG_NO_UI
+               so no error dialog appears on failure, then fall back to "open"
+               (the user's default handler) if the verb is unavailable. */
+            SHELLEXECUTEINFOW sei;
+            ZeroMemory(&sei, sizeof(sei));
+            sei.cbSize = sizeof(sei);
+            sei.fMask  = SEE_MASK_FLAG_NO_UI;
+            sei.nShow  = SW_SHOWNORMAL;
+            sei.lpVerb = L"edit";
+            sei.lpFile = s->local;
+            if (!ShellExecuteExW(&sei))
+                ShellExecuteW(NULL, L"open", s->local, NULL, NULL, SW_SHOWNORMAL);
             break;
+        }
         case IDM_SCRIPT_NOTE:
             DialogBoxParam(GetModuleHandle(NULL),
                 MAKEINTRESOURCE(IDD_SCRIPT_NOTE),

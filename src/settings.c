@@ -308,6 +308,286 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
 }
 
 /* ================================================================== */
+/*  SettingsTransferParams  (struct)                                    */
+/*  Purpose: Carries the direction and section choices for the         */
+/*           Settings Transfer dialog.  Passed as lParam to            */
+/*           DialogBoxParam and populated by SettingsTransferDlgProc   */
+/*           when the user clicks Continue.                            */
+/* ================================================================== */
+typedef struct {
+    bool is_export;    /* true  = Export flow; false = Import flow     */
+    bool incl_general; /* include Python/Options/Window/QuickBar sections */
+    bool incl_sources; /* include Sources section (repos, local dirs)  */
+    bool incl_tokens;  /* include GitHub token and per-repo tokens     */
+} SettingsTransferParams;
+
+/* ================================================================== */
+/*  Settings_WriteGeneralTo  (static)                                   */
+/*  Purpose: Writes the Python, Scripts, Options, Window, and          */
+/*           QuickBar sections from s to the given INI file path.      */
+/*           The GitHub/Token key is NOT written here; the caller      */
+/*           writes it separately when incl_tokens is true.            */
+/*  In:  s   — settings to write (const)                               */
+/*       ini — destination INI file path                               */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini)
+{
+    WCHAR tmp[8];
+
+    WritePrivateProfileString(L"Python",  L"Executable", s->python_exe, ini);
+    WritePrivateProfileString(L"Scripts", L"CacheDir",   s->cache_dir,  ini);
+
+#define WB(sec, key, val) WritePrivateProfileString(sec, key, (val) ? L"1" : L"0", ini)
+    WB(L"Options", L"AutoSync",           s->auto_sync);
+    WB(L"Options", L"DownloadBeforeRun",  s->download_before_run);
+    WB(L"Options", L"ShowConsole",        s->show_console);
+    WB(L"Options", L"ConsoleKeepOpen",    s->console_keep_open);
+    WB(L"Options", L"CheckUpdates",       s->check_updates);
+    WB(L"Options", L"DepsKeepOpen",       s->deps_keep_open);
+    WB(L"Options", L"AutoUpdate",         s->auto_update);
+    WB(L"Options", L"OfflineUseCache",    s->offline_use_cache);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->refresh_interval);
+    WritePrivateProfileString(L"Options", L"RefreshInterval", tmp, ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->sort_mode);
+    WritePrivateProfileString(L"Options", L"SortMode", tmp, ini);
+    WB(L"Options", L"RepeatOnDblClick",     s->repeat_on_dblclick);
+    WB(L"Options", L"QBarRepeatOnDblClick", s->qbar_repeat_on_dblclick);
+    WB(L"Options", L"TintScriptSources",    s->tint_script_sources);
+
+    WB(L"Window", L"AlwaysOnTop",      s->always_on_top);
+    WB(L"Window", L"MinimizeToTray",   s->minimize_to_tray);
+    WB(L"Window", L"StartWithWindows", s->start_with_windows);
+    WB(L"Window", L"StartMinimized",   s->start_minimized);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
+    WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
+
+    WB(L"QuickBar", L"Enabled",          s->qbar_enabled);
+    WB(L"QuickBar", L"Horizontal",       s->qbar_horizontal);
+    WB(L"QuickBar", L"TopmostWithCatia", s->qbar_topmost_with_catia);
+#undef WB
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->qbar_x);
+    WritePrivateProfileString(L"QuickBar", L"X", tmp, ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->qbar_y);
+    WritePrivateProfileString(L"QuickBar", L"Y", tmp, ini);
+    WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
+    WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
+}
+
+/* ================================================================== */
+/*  Settings_WriteSourcesTo  (static)                                   */
+/*  Purpose: Writes the Sources section (main repo flag, extra repos,  */
+/*           local dirs) to the given INI file path.  Per-repo token   */
+/*           values are written only when incl_tokens is true;         */
+/*           otherwise an empty string is stored so the key exists but */
+/*           carries no sensitive data.                                 */
+/*  In:  s            — settings to write (const)                      */
+/*       ini          — destination INI file path                      */
+/*       incl_tokens  — true to write per-repo tokens; false = blank   */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_WriteSourcesTo(const Settings *s, const WCHAR *ini, bool incl_tokens)
+{
+    WCHAR tmp[8];
+
+    WritePrivateProfileString(L"Sources", L"MainRepoEnabled",
+                              s->main_repo_enabled ? L"1" : L"0", ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->extra_repo_count);
+    WritePrivateProfileString(L"Sources", L"ExtraRepoCount", tmp, ini);
+    for (int i = 0; i < s->extra_repo_count; i++) {
+        WCHAR key[32];
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",     i);
+        WritePrivateProfileString(L"Sources", key, s->extra_repos[i].url, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch",  i);
+        WritePrivateProfileString(L"Sources", key, s->extra_repos[i].branch, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken",   i);
+        WritePrivateProfileString(L"Sources", key,
+                                  incl_tokens ? s->extra_repos[i].token : L"", ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i);
+        WritePrivateProfileString(L"Sources", key,
+                                  s->extra_repos[i].enabled ? L"1" : L"0", ini);
+    }
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", s->local_dir_count);
+    WritePrivateProfileString(L"Sources", L"LocalDirCount", tmp, ini);
+    for (int i = 0; i < s->local_dir_count; i++) {
+        WCHAR key[32];
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i);
+        WritePrivateProfileString(L"Sources", key, s->local_dirs[i].path, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i);
+        WritePrivateProfileString(L"Sources", key,
+                                  s->local_dirs[i].enabled ? L"1" : L"0", ini);
+    }
+}
+
+/* ================================================================== */
+/*  Settings_ReadGeneralFrom  (static)                                  */
+/*  Purpose: Reads Python, Scripts, Options, Window, and QuickBar      */
+/*           sections from the given INI file into s, fully replacing  */
+/*           those fields.  Applies the same auto-detect fallbacks as  */
+/*           Settings_Load (Python probe, default cache dir).          */
+/*           Does NOT read the GitHub token; the caller handles that.  */
+/*  In:  s   — settings struct to update                               */
+/*       ini — source INI file path                                    */
+/*  Out: (void — relevant fields in s are overwritten)                 */
+/* ================================================================== */
+static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini)
+{
+    GetPrivateProfileString(L"Python",  L"Executable", L"", s->python_exe, MAX_APPPATH, ini);
+    GetPrivateProfileString(L"Scripts", L"CacheDir",   L"", s->cache_dir,  MAX_APPPATH, ini);
+
+    s->auto_sync           = GetPrivateProfileInt(L"Options", L"AutoSync",           1, ini) != 0;
+    s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun",  0, ini) != 0;
+    s->show_console        = GetPrivateProfileInt(L"Options", L"ShowConsole",        0, ini) != 0;
+    s->console_keep_open   = GetPrivateProfileInt(L"Options", L"ConsoleKeepOpen",    1, ini) != 0;
+    s->check_updates       = GetPrivateProfileInt(L"Options", L"CheckUpdates",       1, ini) != 0;
+    s->deps_keep_open      = GetPrivateProfileInt(L"Options", L"DepsKeepOpen",       0, ini) != 0;
+    s->auto_update         = GetPrivateProfileInt(L"Options", L"AutoUpdate",         1, ini) != 0;
+    s->offline_use_cache   = GetPrivateProfileInt(L"Options", L"OfflineUseCache",    0, ini) != 0;
+    s->refresh_interval    = GetPrivateProfileInt(L"Options", L"RefreshInterval",    6, ini);
+    s->sort_mode           = (SortMode)GetPrivateProfileInt(L"Options", L"SortMode", 0, ini);
+    s->repeat_on_dblclick      = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick",     1, ini) != 0;
+    s->qbar_repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"QBarRepeatOnDblClick", 1, ini) != 0;
+    s->tint_script_sources     = GetPrivateProfileInt(L"Options", L"TintScriptSources",    1, ini) != 0;
+
+    s->always_on_top      = GetPrivateProfileInt(L"Window", L"AlwaysOnTop",      1, ini) != 0;
+    s->minimize_to_tray   = GetPrivateProfileInt(L"Window", L"MinimizeToTray",   1, ini) != 0;
+    s->start_with_windows = GetPrivateProfileInt(L"Window", L"StartWithWindows", 1, ini) != 0;
+    s->start_minimized    = GetPrivateProfileInt(L"Window", L"StartMinimized",   1, ini) != 0;
+    s->theme = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme", 0, ini);
+    if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM;
+
+    s->qbar_enabled            = GetPrivateProfileInt(L"QuickBar", L"Enabled",          1, ini) != 0;
+    s->qbar_horizontal         = GetPrivateProfileInt(L"QuickBar", L"Horizontal",       0, ini) != 0;
+    s->qbar_topmost_with_catia = GetPrivateProfileInt(L"QuickBar", L"TopmostWithCatia", 1, ini) != 0;
+    s->qbar_x                  = GetPrivateProfileInt(L"QuickBar", L"X",                0, ini);
+    s->qbar_y                  = GetPrivateProfileInt(L"QuickBar", L"Y",                0, ini);
+    GetPrivateProfileString(L"QuickBar", L"TargetApp", L"CATIA V5",
+                            s->qbar_target_app, MAX_NAME, ini);
+    GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
+                            s->qbar_target_exe, MAX_NAME, ini);
+
+    if (!s->cache_dir[0])
+        _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
+    if (!s->python_exe[0])
+        Runner_FindPython(s->python_exe, MAX_APPPATH);
+}
+
+/* ================================================================== */
+/*  Settings_ReadSourcesFrom  (static)                                  */
+/*  Purpose: Reads the Sources section from the given INI file into s, */
+/*           fully replacing all extra-repo and local-dir entries.     */
+/*           Per-repo tokens are read only when incl_tokens is true;   */
+/*           otherwise existing token fields stay empty (zeroed by the */
+/*           ZeroMemory below).                                         */
+/*  In:  s            — settings struct to update                      */
+/*       ini          — source INI file path                           */
+/*       incl_tokens  — true to read per-repo tokens; false = skip    */
+/*  Out: (void — s->extra_repos, s->local_dirs, counts are replaced)  */
+/* ================================================================== */
+static void Settings_ReadSourcesFrom(Settings *s, const WCHAR *ini, bool incl_tokens)
+{
+    s->main_repo_enabled = GetPrivateProfileInt(L"Sources", L"MainRepoEnabled", 1, ini) != 0;
+
+    ZeroMemory(s->extra_repos, sizeof(s->extra_repos)); /* clear before filling so stale entries can't persist */
+    s->extra_repo_count = GetPrivateProfileInt(L"Sources", L"ExtraRepoCount", 0, ini);
+    if (s->extra_repo_count > MAX_EXTRA_REPOS) s->extra_repo_count = MAX_EXTRA_REPOS;
+    for (int i = 0; i < s->extra_repo_count; i++) {
+        WCHAR key[32];
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dUrl",    i);
+        GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].url, 511, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dBranch", i);
+        GetPrivateProfileString(L"Sources", key, L"main", s->extra_repos[i].branch, 63, ini);
+        if (incl_tokens) {
+            _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dToken", i);
+            GetPrivateProfileString(L"Sources", key, L"", s->extra_repos[i].token, 255, ini);
+        }
+        _snwprintf_s(key, 31, _TRUNCATE, L"Repo%dEnabled", i);
+        s->extra_repos[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+        if (!s->extra_repos[i].branch[0])
+            wcsncpy_s(s->extra_repos[i].branch, 64, L"main", _TRUNCATE);
+    }
+
+    ZeroMemory(s->local_dirs, sizeof(s->local_dirs));
+    s->local_dir_count = GetPrivateProfileInt(L"Sources", L"LocalDirCount", 0, ini);
+    if (s->local_dir_count > MAX_LOCAL_DIRS) s->local_dir_count = MAX_LOCAL_DIRS;
+    for (int i = 0; i < s->local_dir_count; i++) {
+        WCHAR key[32];
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dPath",    i);
+        GetPrivateProfileString(L"Sources", key, L"", s->local_dirs[i].path, MAX_APPPATH - 1, ini);
+        _snwprintf_s(key, 31, _TRUNCATE, L"Local%dEnabled", i);
+        s->local_dirs[i].enabled = GetPrivateProfileInt(L"Sources", key, 1, ini) != 0;
+    }
+}
+
+/* ================================================================== */
+/*  SettingsTransferDlgProc  (static)                                   */
+/*  Purpose: Dialog procedure for IDD_SETTINGS_TRANSFER.  Shared by   */
+/*           both the Export and Import flows.  The caller passes a    */
+/*           SettingsTransferParams* as lParam; on IDOK the struct is  */
+/*           filled with the user's checkbox choices.                  */
+/*           Caption, groupbox label, and Continue button text are set */
+/*           dynamically from SettingsTransferParams.is_export.        */
+/*  In:  hwnd — dialog handle                                          */
+/*       msg  — Windows message                                        */
+/*       wp   — WPARAM (control ID on WM_COMMAND)                      */
+/*       lp   — LPARAM (SettingsTransferParams* on WM_INITDIALOG)     */
+/*  Out: INT_PTR — TRUE for handled messages; FALSE otherwise          */
+/* ================================================================== */
+static INT_PTR CALLBACK SettingsTransferDlgProc(HWND hwnd, UINT msg,
+                                                WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_INITDIALOG:
+    {
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, lp);
+        const SettingsTransferParams *p = (SettingsTransferParams *)lp;
+
+        if (p->is_export) {
+            SetWindowText(hwnd, L"Export Settings");
+            SetDlgItemText(hwnd, IDC_GRP_TRANS_WHAT, L"Include in export:");
+        } else {
+            SetWindowText(hwnd, L"Import Settings");
+            SetDlgItemText(hwnd, IDC_GRP_TRANS_WHAT, L"Apply from imported file:");
+            /* Rename the default button to make the action explicit */
+            SetDlgItemText(hwnd, IDOK, L"Import");
+        }
+
+        /* Default all three sections to checked */
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_GENERAL, BST_CHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_SOURCES, BST_CHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_TRANS_TOKENS,  BST_CHECKED);
+        return TRUE;
+    }
+
+    case WM_COMMAND:
+        switch (LOWORD(wp)) {
+        case IDOK:
+        {
+            SettingsTransferParams *p =
+                (SettingsTransferParams *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            p->incl_general = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_GENERAL) == BST_CHECKED;
+            p->incl_sources = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_SOURCES) == BST_CHECKED;
+            p->incl_tokens  = IsDlgButtonChecked(hwnd, IDC_CHK_TRANS_TOKENS)  == BST_CHECKED;
+
+            if (!p->incl_general && !p->incl_sources && !p->incl_tokens) {
+                MessageBox(hwnd, L"Please select at least one category.",
+                           p->is_export ? L"Export Settings" : L"Import Settings",
+                           MB_ICONWARNING | MB_OK);
+                return TRUE;
+            }
+            EndDialog(hwnd, IDOK);
+            return TRUE;
+        }
+        case IDCANCEL:
+            EndDialog(hwnd, IDCANCEL);
+            return TRUE;
+        }
+        return FALSE;
+    }
+    return FALSE;
+}
+
+/* ================================================================== */
 /*  SettingsDlgProc                                                     */
 /*  Purpose: Dialog procedure for the tabbed Settings dialog.          */
 /*           Five tabs: General, Sync, Console, Window, Quick Bar.     */
@@ -474,6 +754,146 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             Settings_QBarEnableControls(hwnd,
                 IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED);
             break;
+
+        /* ================================================================== */
+        /*  IDC_BTN_EXPORT_SETTINGS                                           */
+        /*  Purpose: Asks the user which sections to export via               */
+        /*           IDD_SETTINGS_TRANSFER, then writes only those sections   */
+        /*           to a user-chosen file.  Exports g.cfg (the last-saved   */
+        /*           state) — unsaved dialog changes are not included.        */
+        /*           prefs.ini (favourites, notes, run counts) is not written.*/
+        /* ================================================================== */
+        case IDC_BTN_EXPORT_SETTINGS:
+        {
+            /* Step 1: Let the user choose which sections to include */
+            SettingsTransferParams tp;
+            ZeroMemory(&tp, sizeof(tp));
+            tp.is_export = true;
+            if (DialogBoxParam(GetModuleHandle(NULL),
+                               MAKEINTRESOURCE(IDD_SETTINGS_TRANSFER),
+                               hwnd, SettingsTransferDlgProc, (LPARAM)&tp) != IDOK)
+                break;
+
+            /* Step 2: Choose the destination file */
+            WCHAR path[MAX_APPPATH] = {0};
+            OPENFILENAME ofn;
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize  = sizeof(ofn);
+            ofn.hwndOwner    = hwnd;
+            ofn.lpstrFilter  = L"INI Files\0*.ini\0All Files\0*.*\0";
+            ofn.lpstrFile    = path;
+            ofn.nMaxFile     = MAX_APPPATH;
+            ofn.lpstrDefExt  = L"ini";
+            ofn.lpstrTitle   = L"Export Settings";
+            ofn.Flags        = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+            if (!GetSaveFileName(&ofn)) break;
+
+            /* Step 3: Delete any existing file so sections don't merge with stale data */
+            DeleteFileW(path);
+
+            /* Step 4: Write only the selected sections */
+            if (tp.incl_general)
+                Settings_WriteGeneralTo(&g.cfg, path);
+            if (tp.incl_tokens)
+                WritePrivateProfileString(L"GitHub", L"Token", g.cfg.github_token, path);
+            if (tp.incl_sources)
+                Settings_WriteSourcesTo(&g.cfg, path, tp.incl_tokens);
+
+            MessageBox(hwnd, L"Settings exported successfully.",
+                       L"Export Settings", MB_ICONINFORMATION | MB_OK);
+            break;
+        }
+
+        /* ================================================================== */
+        /*  IDC_BTN_IMPORT_SETTINGS                                           */
+        /*  Purpose: Lets the user choose an exported file and which sections */
+        /*           to import from it.  Only the selected sections are merged */
+        /*           into g.cfg; the rest stay untouched.  The merged result  */
+        /*           is saved to settings.ini and all side effects are applied */
+        /*           immediately.  The dialog closes via IDCANCEL so the open  */
+        /*           controls do not overwrite the newly imported settings.    */
+        /* ================================================================== */
+        case IDC_BTN_IMPORT_SETTINGS:
+        {
+            /* Step 1: Choose the source file */
+            WCHAR path[MAX_APPPATH] = {0};
+            OPENFILENAME ofn;
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize  = sizeof(ofn);
+            ofn.hwndOwner    = hwnd;
+            ofn.lpstrFilter  = L"INI Files\0*.ini\0All Files\0*.*\0";
+            ofn.lpstrFile    = path;
+            ofn.nMaxFile     = MAX_APPPATH;
+            ofn.lpstrTitle   = L"Import Settings";
+            ofn.Flags        = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+            if (!GetOpenFileName(&ofn)) break;
+
+            /* Step 2: Ask which sections to apply */
+            SettingsTransferParams tp;
+            ZeroMemory(&tp, sizeof(tp));
+            tp.is_export = false;
+            if (DialogBoxParam(GetModuleHandle(NULL),
+                               MAKEINTRESOURCE(IDD_SETTINGS_TRANSFER),
+                               hwnd, SettingsTransferDlgProc, (LPARAM)&tp) != IDOK)
+                break;
+
+            /* Step 3: Capture state for delta side effects */
+            bool old_dark       = g.dark_mode;
+            bool old_qbar_en    = g.cfg.qbar_enabled;
+            bool old_qbar_horiz = g.cfg.qbar_horizontal;
+
+            /* Step 4: Selectively merge only the chosen sections into g.cfg */
+            if (tp.incl_general)
+                Settings_ReadGeneralFrom(&g.cfg, path);
+            if (tp.incl_tokens)
+                GetPrivateProfileString(L"GitHub", L"Token", L"",
+                                        g.cfg.github_token, 256, path);
+            if (tp.incl_sources)
+                Settings_ReadSourcesFrom(&g.cfg, path, tp.incl_tokens);
+
+            /* Step 5: Persist the merged result back to settings.ini */
+            Settings_Save(&g.cfg);
+            SHCreateDirectoryEx(NULL, g.cfg.cache_dir, NULL);
+
+            /* Step 6: Apply side effects matching the IDOK path */
+            App_ResolveTheme();
+            if (g.dark_mode != old_dark) {
+                App_RebuildGDI();
+                Window_ApplyDarkMode(g.hwnd);
+                Window_ApplyThemeToChildren(g.hwnd);
+                QuickBar_OnThemeChange();
+                Tabs_RebuildButtons();
+                InvalidateRect(g.hwnd, NULL, TRUE);
+            }
+            Window_ApplyAlwaysOnTop();
+            Settings_ApplyAutorun(g.cfg.start_with_windows, g.cfg.start_minimized);
+            Tabs_ApplySort(g.active_tab);
+            Tabs_RebuildButtons();
+            if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
+
+            if (g.cfg.qbar_enabled) {
+                if (g.cfg.qbar_horizontal != old_qbar_horiz) {
+                    QuickBar_Destroy();
+                    QuickBar_Register(GetModuleHandle(NULL));
+                    QuickBar_Create();
+                    QuickBar_Rebuild();
+                } else if (!old_qbar_en) {
+                    QuickBar_Show(true);
+                }
+            } else if (old_qbar_en) {
+                QuickBar_Show(false);
+            }
+
+            MessageBox(hwnd,
+                L"Settings imported successfully.\n\n"
+                L"The dialog will now close.",
+                L"Import Settings", MB_ICONINFORMATION | MB_OK);
+
+            /* Close with IDCANCEL so the dialog's open controls do not
+               write back over the settings we just imported from disk. */
+            EndDialog(hwnd, IDCANCEL);
+            break;
+        }
 
         case IDC_BTN_RESET:
         {
