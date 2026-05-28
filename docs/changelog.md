@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.4 — Empty folder sync fix
+
+### Fixed
+- **Sync hangs on extra repos with empty folders** — When an extra GitHub repository contained folders with no `.py` files (e.g. placeholder folders with only a `.gitkeep`), `Sync_ExtraRepo` still called `Sync_MergeFolder` with a zero-script count, creating empty tabs and wasting an API round-trip per empty folder. Empty folders are now silently skipped.
+
+---
+
 ## v2.4.3 — Offline refresh fixes and offline tint
 
 ### Fixed

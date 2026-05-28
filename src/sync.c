@@ -435,7 +435,8 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             fp = fsp ? fsp+1 : fp+1;
         }
 
-        Sync_MergeFolder(folder_w, scripts, script_count);
+        if (script_count > 0)
+            Sync_MergeFolder(folder_w, scripts, script_count);
         free(scripts);
         p = tp;
     }
