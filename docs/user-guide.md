@@ -169,6 +169,16 @@ When **Tint local and extra-repo script buttons differently** is enabled in **Se
 
 The same tinting applies to Quick Launch Bar buttons. Disable the option in Settings → Window if you prefer a uniform appearance.
 
+When the app is **offline** and **Show cached scripts when offline** is enabled, the tinting changes to indicate stale data:
+
+| Tint | Source |
+|------|--------|
+| Red | Script is from the built-in KaiUR/Pycatia_Scripts repository |
+| Dark orange-red | Script is from an extra GitHub repository |
+| Unchanged | Script is from a local folder (local scripts are always current) |
+
+Local scripts are never tinted red because they are read directly from disk and are not affected by connectivity.
+
 ---
 
 ## ⭐ Favourites
