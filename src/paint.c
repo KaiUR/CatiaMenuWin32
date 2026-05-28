@@ -206,11 +206,17 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
-    /* Idle background: apply source tint when tinting is enabled and state is neither hot nor pressed */
+    /* Idle background: offline tint takes priority over source tint; local scripts are never tinted red */
     COLORREF idle_bg = COL_BTN_NORM();
-    if (!pressed && !hot && s && g.cfg.tint_script_sources) {
-        if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
-        else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+    if (!pressed && !hot && s) {
+        if (g.status_offline && g.cfg.offline_use_cache) {
+            if      (s->source == SCRIPT_SRC_MAIN)  idle_bg = COL_BTN_OFFLINE_MAIN();
+            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_OFFLINE_EXTRA();
+            else if (g.cfg.tint_script_sources)     idle_bg = COL_BTN_LOCAL(); /* SCRIPT_SRC_LOCAL unchanged */
+        } else if (g.cfg.tint_script_sources) {
+            if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
+            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+        }
     }
     COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : idle_bg;
     COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER(); /* border priority: repeat > running > hot > idle */

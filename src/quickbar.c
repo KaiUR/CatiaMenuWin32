@@ -497,11 +497,17 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         Script *s = QB_GetFav(i, NULL, NULL);
         if (!s) continue;
 
-        /* Button background (rounded rect) — apply source tint when idle and tinting is enabled */
+        /* Button background — offline tint takes priority over source tint; local scripts never tinted red */
         COLORREF idle_bg = COL_BTN_NORM();
-        if (!hot && g.cfg.tint_script_sources) {
-            if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
-            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+        if (!hot) {
+            if (g.status_offline && g.cfg.offline_use_cache) {
+                if      (s->source == SCRIPT_SRC_MAIN)  idle_bg = COL_BTN_OFFLINE_MAIN();
+                else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_OFFLINE_EXTRA();
+                else if (g.cfg.tint_script_sources)     idle_bg = COL_BTN_LOCAL();
+            } else if (g.cfg.tint_script_sources) {
+                if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
+                else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+            }
         }
         COLORREF bg  = hot ? COL_BTN_HOT() : idle_bg;
         COLORREF brd = rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_DIVIDER());

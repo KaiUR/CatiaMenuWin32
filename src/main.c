@@ -986,11 +986,43 @@ static void Handle_SyncDone(SyncResult *sr)
         g.status_offline = true;
         InvalidateRect(g.hwnd_status, NULL, FALSE);
         SendMessage(g.hwnd_status, SB_SETTEXT, 0, (LPARAM)sr->message);
-        if (!g.cfg.offline_use_cache) { /* user opted out of showing cached scripts while offline */
+        if (!g.cfg.offline_use_cache) { /* user opted out — clear UI */
             Tabs_Build();
             Tabs_DestroyButtons();
             InvalidateRect(g.hwnd_tab,    NULL, TRUE);
             InvalidateRect(g.hwnd_scroll, NULL, TRUE);
+        } else {
+            /* Rebuild UI from the in-memory cached state.  Guarantees buttons are
+               visible even if they were destroyed during the sync, picks up any
+               local-dir scripts merged by Sync_LocalDir, and triggers the red
+               offline tint since g.status_offline is now true.
+               If the in-memory state was already cleared (e.g. offline_use_cache
+               was disabled during a previous offline sync), reload from the disk
+               cache so the user gets scripts back immediately without restarting. */
+            if (g.folder_count == 0)
+                Sync_LoadManifest();
+            Prefs_ApplyToFolders();
+            Tabs_BuildFavourites();
+            Tabs_Build();
+            if (g.folder_count > 0) {
+                int restore = 0;
+                if (g.active_folder_name[0]) {
+                    for (int fi = 0; fi < g.folder_count; fi++) {
+                        if (wcscmp(g.folders[fi].name, g.active_folder_name) == 0) {
+                            restore = fi;
+                            break;
+                        }
+                    }
+                } else {
+                    restore = (g.active_tab < g.folder_count) ? g.active_tab : 0;
+                }
+                Tabs_Switch(restore);
+            } else {
+                Tabs_DestroyButtons();
+                InvalidateRect(g.hwnd_tab,    NULL, TRUE);
+                InvalidateRect(g.hwnd_scroll, NULL, TRUE);
+            }
+            InvalidateRect(g.hwnd, NULL, FALSE);
         }
         free(sr);
         return;

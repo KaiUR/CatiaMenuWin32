@@ -139,6 +139,11 @@ void Tabs_DestroyButtons(void)
     s_btn_count    = 0;
     g.scroll_y     = 0;
     g.scroll_max   = 0;
+    /* Hide the tooltip and reset its state so it re-appears correctly after rebuild */
+    if (g.tip_btn != -1) {
+        g.tip_btn = -1;
+        ShowWindow(g.hwnd_tip, SW_HIDE);
+    }
 }
 
 /* ================================================================== */

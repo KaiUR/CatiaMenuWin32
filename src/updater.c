@@ -147,71 +147,57 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 }
 
 /* ================================================================== */
-/*  Updater_AutoUpdate                                                  */
-/*  Purpose: Prompts the user to confirm an automatic update, then     */
-/*           downloads the new executable via WinINet, writes a batch  */
-/*           script that replaces the running exe and restarts it, and */
-/*           exits. Falls back to Updater_PromptAndInstall on failure. */
-/*  In:  latest_tag — version string without leading 'v' (e.g. "1.3.10")*/
-/*  Out: (void — exits the process on success; falls back otherwise)   */
+/*  UpdateDlParam  (static)                                            */
+/*  Thread parameter passed from Updater_AutoUpdate to               */
+/*  Updater_DownloadThread.  Heap-allocated; the thread frees it.    */
 /* ================================================================== */
-void Updater_AutoUpdate(const WCHAR *latest_tag)
-{
-    /* Download latest release exe and replace self */
-    WCHAR url[512];
-    _snwprintf_s(url, 511, _TRUNCATE,
-        L"https://github.com/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
-        latest_tag);
+typedef struct { WCHAR tag[32]; } UpdateDlParam;
 
-    /* Download to temp file */
+/* ================================================================== */
+/*  Updater_DownloadThread  (static)                                  */
+/*  Purpose: Background thread that performs the actual exe download, */
+/*           writes the update batch script, launches it, and posts  */
+/*           WM_CLOSE(1) to exit the app.  Runs off the UI thread so */
+/*           the window remains fully responsive during the download. */
+/*  In:  lp — heap-allocated UpdateDlParam* (freed before return)    */
+/*  Out: 0 on success; 1 on any failure (falls back to browser page) */
+/* ================================================================== */
+static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
+{
+    UpdateDlParam *p = (UpdateDlParam *)lp;
+    WCHAR latest_tag[32] = {0};
+    wcsncpy_s(latest_tag, 32, p->tag, _TRUNCATE);
+    free(p);
+
+    /* Temp file for the downloaded exe */
     WCHAR temp_path[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, temp_path);
     wcsncat_s(temp_path, MAX_APPPATH, L"CatiaMenuWin32_update.exe", _TRUNCATE);
+    DeleteFile(temp_path); /* remove any leftover from a previous attempt */
 
-    /* Delete any leftover temp file from a previous attempt */
-    DeleteFile(temp_path);
-
-    int res = MessageBox(g.hwnd,
-        L"A new version is available. Download and install automatically?\n\n"
-        L"The application will restart after the update.",
-        L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
-
-    if (res != IDYES) {
-        /* User declined the auto-install — fall back to opening the releases page */
-        Updater_PromptAndInstall(latest_tag);
-        return;
-    }
-
-    /* Get current exe path before anything else */
+    /* Current exe path — needed for the batch replace */
     WCHAR exe_path[MAX_APPPATH] = {0};
     GetModuleFileNameW(NULL, exe_path, MAX_APPPATH - 1);
 
-    /* Use WinINet directly to download — URLDownloadToFile blocks the
-       UI thread on some systems. Use GitHub_HttpGet instead which we
-       already trust. */
-    PostStatus(L"Downloading update v%s...", latest_tag);
-
-    /* Convert URL to path component for GitHub_HttpGet */
+    /* Download */
     WCHAR raw_path[512] = {0};
     _snwprintf_s(raw_path, 511, _TRUNCATE,
         L"/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
         latest_tag);
 
-    char *buf = (char *)malloc(8 * 1024 * 1024); /* 8 MB — sized to hold the release exe */
-    if (!buf) { Updater_PromptAndInstall(latest_tag); return; }
+    char *buf = (char *)malloc(8 * 1024 * 1024); /* 8 MB buffer sized for the release exe */
+    if (!buf) { Updater_PromptAndInstall(latest_tag); return 1; }
 
-    DWORD len = 8 * 1024 * 1024; /* pass buffer capacity to GitHub_HttpGet as the in/out size */
+    DWORD len = 8 * 1024 * 1024;
     bool ok = GitHub_HttpGet(L"github.com", raw_path,
                              g.cfg.github_token[0] ? g.cfg.github_token : NULL,
                              buf, &len);
-
     if (!ok || len == 0) {
-        /* Download failed — degrade gracefully to browser-based install */
         free(buf);
         MessageBox(g.hwnd, L"Download failed. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
         Updater_PromptAndInstall(latest_tag);
-        return;
+        return 1;
     }
 
     /* Write downloaded exe to temp file */
@@ -220,7 +206,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     if (hf == INVALID_HANDLE_VALUE) {
         free(buf);
         Updater_PromptAndInstall(latest_tag);
-        return;
+        return 1;
     }
     DWORD written = 0;
     WriteFile(hf, buf, len, &written, NULL);
@@ -228,32 +214,25 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     free(buf);
 
     if (written != len || GetFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES) {
-        /* written != len means the WriteFile call was truncated; verify file also exists */
         DeleteFile(temp_path);
         MessageBox(g.hwnd, L"Download incomplete. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
         Updater_PromptAndInstall(latest_tag);
-        return;
+        return 1;
     }
 
     PostStatus(L"Update downloaded. Closing to install...");
 
     /* Convert paths to 8.3 short form so the batch file is pure ASCII.
-       cmd.exe reads .bat files as ANSI, and non-Latin user profiles can have
-       Unicode characters in %TEMP% or the exe path that ANSI cannot represent.
-       GetShortPathNameW succeeds here because both files already exist on disk. */
-    WCHAR s_exe[MAX_APPPATH]  = {0};
-    WCHAR s_tmp[MAX_APPPATH]  = {0};
+       cmd.exe reads .bat files as ANSI; non-Latin user profiles can have
+       Unicode characters in %TEMP% or the exe path that ANSI cannot represent. */
+    WCHAR s_exe[MAX_APPPATH] = {0}, s_tmp[MAX_APPPATH] = {0};
     if (!GetShortPathNameW(exe_path,  s_exe, MAX_APPPATH) || !s_exe[0])
-        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE); /* fall back to long path if short path fails */
+        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE);
     if (!GetShortPathNameW(temp_path, s_tmp, MAX_APPPATH) || !s_tmp[0])
         wcsncpy_s(s_tmp, MAX_APPPATH, temp_path, _TRUNCATE);
 
-    /* Derive the bat path from the short temp directory so fopen_s gets
-       an ASCII-safe narrow path (the file itself does not exist yet, so
-       we shorten the directory and append the filename). */
-    WCHAR tmp_dir[MAX_APPPATH]       = {0};
-    WCHAR short_tmp_dir[MAX_APPPATH] = {0};
+    WCHAR tmp_dir[MAX_APPPATH] = {0}, short_tmp_dir[MAX_APPPATH] = {0};
     GetTempPath(MAX_APPPATH - 1, tmp_dir);
     if (!GetShortPathNameW(tmp_dir, short_tmp_dir, MAX_APPPATH) || !short_tmp_dir[0])
         wcsncpy_s(short_tmp_dir, MAX_APPPATH, tmp_dir, _TRUNCATE);
@@ -262,8 +241,7 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     _snwprintf_s(bat_path, MAX_APPPATH - 1, _TRUNCATE,
                  L"%sCatiaMenuWin32_update.bat", short_tmp_dir);
 
-    /* Convert all three short (ASCII) paths to narrow for fopen_s / fprintf */
-    char bat_a[MAX_APPPATH] = {0};
+    char bat_a[MAX_APPPATH]   = {0};
     char s_exe_a[MAX_APPPATH] = {0};
     char s_tmp_a[MAX_APPPATH] = {0};
     WideCharToMultiByte(CP_ACP, 0, bat_path, -1, bat_a,   MAX_APPPATH, NULL, NULL);
@@ -273,7 +251,8 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     /* Write a plain ANSI batch file — cmd.exe reads ANSI, not UTF-16 */
     FILE *f = NULL;
     if (fopen_s(&f, bat_a, "w") != 0 || !f) {
-        Updater_PromptAndInstall(latest_tag); return;
+        Updater_PromptAndInstall(latest_tag);
+        return 1;
     }
     fprintf(f, "@echo off\r\n");
     fprintf(f, "timeout /t 2 /nobreak >nul\r\n");
@@ -288,9 +267,48 @@ void Updater_AutoUpdate(const WCHAR *latest_tag)
     fprintf(f, "pause\r\n");
     fclose(f);
 
-    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE); /* launch batch file invisibly */
-    Sleep(500); /* 500 ms — give the batch process time to start before this process exits */
-    PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wParam=1 = force quit; WndProc skips the tray-minimize check */
+    ShellExecuteW(NULL, L"open", bat_path, NULL, NULL, SW_HIDE);
+    Sleep(500); /* give the batch process time to start before this process exits */
+    PostMessage(g.hwnd, WM_CLOSE, 1, 0); /* wParam=1 = force quit; skips tray-minimize check */
+    return 0;
+}
+
+/* ================================================================== */
+/*  Updater_AutoUpdate                                                  */
+/*  Purpose: Prompts the user to confirm an automatic update, then     */
+/*           spawns a background thread to download the new executable, */
+/*           write a replace-and-restart batch script, and exit.  The  */
+/*           download runs off the UI thread so the window stays fully  */
+/*           responsive.  Falls back to Updater_PromptAndInstall if the */
+/*           thread cannot be created.                                  */
+/*  In:  latest_tag — version string without leading 'v' (e.g. "1.3.10")*/
+/*  Out: (void — download thread handles exit; no process exit here)   */
+/* ================================================================== */
+void Updater_AutoUpdate(const WCHAR *latest_tag)
+{
+    int res = MessageBox(g.hwnd,
+        L"A new version is available. Download and install automatically?\n\n"
+        L"The application will restart after the update.",
+        L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
+
+    if (res != IDYES) {
+        Updater_PromptAndInstall(latest_tag);
+        return;
+    }
+
+    /* Spawn download thread so the UI remains responsive during the download */
+    UpdateDlParam *p = (UpdateDlParam *)calloc(1, sizeof(UpdateDlParam));
+    if (!p) { Updater_PromptAndInstall(latest_tag); return; }
+    wcsncpy_s(p->tag, 32, latest_tag, _TRUNCATE);
+
+    HANDLE hT = CreateThread(NULL, 0, Updater_DownloadThread, p, 0, NULL);
+    if (hT) {
+        CloseHandle(hT);
+        PostStatus(L"Downloading update v%s…", latest_tag);
+    } else {
+        free(p);
+        Updater_PromptAndInstall(latest_tag);
+    }
 }
 
 /* ================================================================== */

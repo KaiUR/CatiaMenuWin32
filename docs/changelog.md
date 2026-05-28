@@ -9,6 +9,19 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.3 — Offline refresh fixes and offline tint
+
+### Fixed
+- **Scripts cleared on offline Refresh (cached mode)** — When internet is unavailable and *Show cached scripts offline* is enabled, pressing Refresh caused all script buttons to disappear until the app was restarted. `Handle_SyncDone` returned early on `SR_NO_INTERNET` without rebuilding the UI, so any button destruction that occurred during the sync was never recovered. The handler now performs a full UI rebuild from the in-memory cached state, restoring the previously active tab by name.
+- **Local scripts hidden after offline Refresh** — Local directory scripts vanished alongside cached repo scripts for the same reason. The rebuild also picks up any local-dir changes merged by `Sync_LocalDir` on the background thread during the sync.
+- **Enabling cached scripts while already offline showed no scripts** — If *Show cached scripts offline* was disabled when the network dropped (clearing the in-memory folder list), then enabled while still offline, the next Refresh left the UI empty because the in-memory state was already gone. The handler now calls `Sync_LoadManifest` to reload from the disk cache when the in-memory list is empty, so scripts reappear immediately without a restart.
+- **Tooltips disappearing after tab or button rebuild** — After any button rebuild (Refresh, resize, tab switch) the `(i)` tooltip would not reappear on hover until the mouse left the panel and re-entered. `Tabs_DestroyButtons` did not reset `g.tip_btn` or hide the tooltip window, so the "show tooltip" condition (`g.tip_btn != uid`) was never true for the new button. The fix resets `g.tip_btn = -1` and hides the tooltip in `Tabs_DestroyButtons`.
+
+### Added
+- **Offline script tinting** — When internet is unavailable and cached scripts are being shown, script buttons are tinted red to indicate they may be out of date. Main-repo scripts use one shade of red; extra-repo scripts use a second, distinct shade. Local scripts are never tinted red regardless of connectivity — they do not require internet. The tint applies in both the main window and the Quick Launch Bar, and respects dark/light theme.
+
+---
+
 ## v2.4.2 — Thread-safety fix for Refresh crash
 
 ### Fixed
