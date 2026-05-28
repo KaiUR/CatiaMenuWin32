@@ -381,6 +381,11 @@ typedef struct {
 #define COL_BTN_LOCAL_LIGHT  RGB(240, 220, 215)
 #define COL_BTN_EXTRA_DARK   RGB(38,  52,  42)  /* muted green for extra-repo scripts   */
 #define COL_BTN_EXTRA_LIGHT  RGB(215, 235, 218)
+/* Offline-cached tint (g.status_offline + offline_use_cache) — two different reds */
+#define COL_BTN_OFFLINE_MAIN_DARK    RGB(52,  24,  24)  /* main repo, offline, dark mode        */
+#define COL_BTN_OFFLINE_MAIN_LIGHT   RGB(255, 208, 208) /* main repo, offline, light mode       */
+#define COL_BTN_OFFLINE_EXTRA_DARK   RGB(52,  34,  18)  /* extra repo, offline, dark mode       */
+#define COL_BTN_OFFLINE_EXTRA_LIGHT  RGB(255, 222, 190) /* extra repo, offline, light mode      */
 #define COL_TOOLBAR_DARK   RGB(20,  20,  28)
 #define COL_TOOLBAR_LIGHT  RGB(210, 210, 220)
 #define COL_BTN_NORM_DARK  RGB(44,  46,  64)
@@ -523,8 +528,10 @@ static inline COLORREF COL_TEXT(void)      { return g.dark_mode ? COL_TEXT_DARK 
 static inline COLORREF COL_SUBTEXT(void)   { return g.dark_mode ? COL_SUBTEXT_DARK   : COL_SUBTEXT_LIGHT;   }
 static inline COLORREF COL_DIVIDER(void)   { return g.dark_mode ? COL_DIVIDER_DARK   : COL_DIVIDER_LIGHT;   }
 static inline COLORREF COL_TIP_BG(void)    { return g.dark_mode ? COL_TIP_BG_DARK    : COL_TIP_BG_LIGHT;    }
-static inline COLORREF COL_BTN_LOCAL(void) { return g.dark_mode ? COL_BTN_LOCAL_DARK : COL_BTN_LOCAL_LIGHT; }
-static inline COLORREF COL_BTN_EXTRA(void) { return g.dark_mode ? COL_BTN_EXTRA_DARK : COL_BTN_EXTRA_LIGHT; }
+static inline COLORREF COL_BTN_LOCAL(void)         { return g.dark_mode ? COL_BTN_LOCAL_DARK         : COL_BTN_LOCAL_LIGHT;         }
+static inline COLORREF COL_BTN_EXTRA(void)         { return g.dark_mode ? COL_BTN_EXTRA_DARK         : COL_BTN_EXTRA_LIGHT;         }
+static inline COLORREF COL_BTN_OFFLINE_MAIN(void)  { return g.dark_mode ? COL_BTN_OFFLINE_MAIN_DARK  : COL_BTN_OFFLINE_MAIN_LIGHT;  }
+static inline COLORREF COL_BTN_OFFLINE_EXTRA(void) { return g.dark_mode ? COL_BTN_OFFLINE_EXTRA_DARK : COL_BTN_OFFLINE_EXTRA_LIGHT; }
 
 /* ------------------------------------------------------------------ */
 /*  Prototypes                                                          */
