@@ -379,7 +379,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
         const char *fp = fbuf;
         while ((fp = strstr(fp, "\"type\"")) != NULL && script_count < MAX_SCRIPTS) {
             const char *fo = fp;
-            while (fo > buf && *fo != '{') fo--;
+            while (fo > fbuf && *fo != '{') fo--;
 
             char ftype[16]={0}, fname[MAX_NAME]={0},
                  fpath[MAX_APPPATH]={0}, fsha[MAX_SHA]={0};
@@ -395,7 +395,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
             if (fnp) { fnp+=6; while(*fnp==' '||*fnp==':') fnp++;
                 if(*fnp=='"'){fnp++; int i=0; while(*fnp&&*fnp!='"'&&i<MAX_NAME-1) fname[i++]=*fnp++; fname[i]=0;}}
             size_t nl = strlen(fname);
-            if (nl < 4 || strcmp(fname+nl-3,".py")!=0) { fp=fnp?fnp+1:fp+1; continue; }
+            if (nl < 4 || strcmp(fname+nl-3,".py")!=0) { fp=ftp?ftp+1:fp+1; continue; }
 
             /* path */
             const char *fpp = strstr(fo, "\"path\"");
@@ -432,7 +432,7 @@ static void Sync_ExtraRepo(const ExtraRepo *repo, char *buf)
                                        s->local, tok);
             }
 
-            fp = fsp ? fsp+1 : fp+1;
+            fp = ftp ? ftp+1 : fp+1;
         }
 
         if (script_count > 0)

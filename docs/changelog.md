@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.4.5 — Extra repo sync infinite loop fix
+
+### Fixed
+- **Extra repo sync hangs indefinitely** — `Sync_ExtraRepo` iterated folder-contents JSON using `fnp+1` (after the name value) or `fsp+1` (after the sha value) to advance the inner loop pointer. The GitHub Contents API returns file objects with `"type"` **after** `name`, `sha`, `size`, and `url`, so both advancement positions were behind the `"type"` that had just been found. `strstr` re-found the same `"type"` on every iteration, producing an infinite loop. The fix uses `ftp+1` (past the type value) on all continuation and completion paths, matching the pattern used by `GitHub_ParseFolder`.
+
+---
+
 ## v2.4.4 — Empty folder sync fix
 
 ### Fixed
