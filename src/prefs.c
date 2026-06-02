@@ -34,7 +34,8 @@ static void Prefs_GetPath(WCHAR *out, int max)
 static void PathToKey(const WCHAR *path, WCHAR *key, int max)
 {
     wcsncpy_s(key, max, path, _TRUNCATE);
-    for (WCHAR *p = key; *p; p++) {
+    for (WCHAR *p = key; *p; p++)
+    {
         if (*p == L'\\' || *p == L'/') *p = L'_';
     }
 }
@@ -172,8 +173,12 @@ void Prefs_SetNote(const WCHAR *gh_path, const WCHAR *note)
 /*  In:  (none)                                                         */
 /*  Out: (void)                                                         */
 /* ================================================================== */
-void Prefs_Load(void)  { /* INI reads are lazy - no bulk load needed */ }
-void Prefs_Save(void)  { /* INI writes are immediate - no bulk save needed */ }
+void Prefs_Load(void)
+{ /* INI reads are lazy - no bulk load needed */
+}
+void Prefs_Save(void)
+{ /* INI writes are immediate - no bulk save needed */
+}
 
 /* ================================================================== */
 /*  Prefs_ApplyToFolders                                                */
@@ -188,13 +193,15 @@ void Prefs_Save(void)  { /* INI writes are immediate - no bulk save needed */ }
 /* ================================================================== */
 void Prefs_ApplyToFolders(void)
 {
-    for (int fi = 0; fi < g.folder_count; fi++) {
+    for (int fi = 0; fi < g.folder_count; fi++)
+    {
         ScriptFolder *f = &g.folders[fi];
-        for (int si = 0; si < f->count; si++) {
+        for (int si = 0; si < f->count; si++)
+        {
             Script *s = &f->scripts[si];
             s->is_favourite = Prefs_IsFavourite(s->gh_path);
-            s->is_hidden    = Prefs_IsHidden(s->gh_path);
-            s->run_count    = Prefs_GetRunCount(s->gh_path);
+            s->is_hidden = Prefs_IsHidden(s->gh_path);
+            s->run_count = Prefs_GetRunCount(s->gh_path);
             Prefs_GetNote(s->gh_path, s->note, MAX_NOTE_LEN);
         }
     }
@@ -213,16 +220,20 @@ void Prefs_ApplyToFolders(void)
 void Tabs_BuildFavourites(void)
 {
     /* First remove any existing Favourites tab to avoid duplicates */
-    for (int fi = 0; fi < g.folder_count; fi++) {
-        if (wcscmp(g.folders[fi].name, L"Favourites") == 0) {
+    for (int fi = 0; fi < g.folder_count; fi++)
+    {
+        if (wcscmp(g.folders[fi].name, L"Favourites") == 0)
+        {
             Folder_Free(&g.folders[fi]);
             /* Shift remaining folders left to fill the gap */
             for (int i = fi; i < g.folder_count - 1; i++)
                 g.folders[i] = g.folders[i + 1];
             g.folder_count--;
             ZeroMemory(&g.folders[g.folder_count], sizeof(ScriptFolder)); /* clear now-unused last slot to avoid dangling pointer */
-            if (g.active_tab > fi)       g.active_tab--;    /* shift active index to compensate for removed slot */
-            else if (g.active_tab == fi) g.active_tab = 0;  /* active tab was the favourites tab — reset to first */
+            if (g.active_tab > fi)
+                g.active_tab--; /* shift active index to compensate for removed slot */
+            else if (g.active_tab == fi)
+                g.active_tab = 0; /* active tab was the favourites tab — reset to first */
             break;
         }
     }
@@ -235,7 +246,7 @@ void Tabs_BuildFavourites(void)
                 !g.folders[fi].scripts[si].is_hidden)
                 fav_count++;
 
-    if (fav_count == 0) return;  /* no favourited scripts — don't create an empty tab */
+    if (fav_count == 0) return; /* no favourited scripts — don't create an empty tab */
 
     if (g.folder_count >= MAX_FOLDERS) return; /* no room to insert a new tab */
     /* Shift all existing folders one position right to free slot 0 */
@@ -252,7 +263,7 @@ void Tabs_BuildFavourites(void)
        Do NOT free it — g.folders[1] still owns that memory.
        Just zero out this slot and allocate fresh for the favourites. */
     ZeroMemory(fav, sizeof(*fav));
-    wcsncpy_s(fav->name,    MAX_NAME, L"Favourites",       _TRUNCATE);
+    wcsncpy_s(fav->name, MAX_NAME, L"Favourites", _TRUNCATE);
     wcsncpy_s(fav->display, MAX_NAME, L"\u2605 Favourites", _TRUNCATE);
     fav->loaded = true;
     Folder_Alloc(fav, fav_count > 0 ? fav_count : 8);
@@ -261,7 +272,8 @@ void Tabs_BuildFavourites(void)
     for (int fi = 1; fi < g.folder_count; fi++)
         for (int si = 0; si < g.folders[fi].count; si++)
             if (g.folders[fi].scripts[si].is_favourite &&
-                !g.folders[fi].scripts[si].is_hidden) {
+                !g.folders[fi].scripts[si].is_hidden)
+            {
                 Script *dst = Folder_Push(fav);
                 if (dst) *dst = g.folders[fi].scripts[si];
             }
@@ -283,42 +295,51 @@ void Tabs_BuildFavourites(void)
 /*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK ScriptDetailsDlgProc(HWND hwnd, UINT msg,
-                                       WPARAM wp, LPARAM lp)
+                                      WPARAM wp, LPARAM lp)
 {
     static Script *s = NULL; /* static: persists across messages for this dialog instance */
     switch (msg)
     {
     case WM_INITDIALOG:
         s = (Script *)lp;
-        if (!s) { EndDialog(hwnd, 0); return FALSE; } /* safety: should never be NULL */
+        if (!s)
+        {
+            EndDialog(hwnd, 0);
+            return FALSE;
+        } /* safety: should never be NULL */
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)s); /* stash for WM_COMMAND */
 
         /* Ensure meta is loaded */
         Meta_Parse(s);
 
-        SetDlgItemText(hwnd, IDC_DETAIL_NAME,    s->name);
+        SetDlgItemText(hwnd, IDC_DETAIL_NAME, s->name);
         SetDlgItemText(hwnd, IDC_DETAIL_PURPOSE, s->meta.purpose);
-        SetDlgItemText(hwnd, IDC_DETAIL_AUTHOR,  s->meta.author);
+        SetDlgItemText(hwnd, IDC_DETAIL_AUTHOR, s->meta.author);
         SetDlgItemText(hwnd, IDC_DETAIL_VERSION, s->meta.version);
-        SetDlgItemText(hwnd, IDC_DETAIL_DATE,    s->meta.date);
-        SetDlgItemText(hwnd, IDC_DETAIL_CODE,    s->meta.code);
+        SetDlgItemText(hwnd, IDC_DETAIL_DATE, s->meta.date);
+        SetDlgItemText(hwnd, IDC_DETAIL_CODE, s->meta.code);
         SetDlgItemText(hwnd, IDC_DETAIL_RELEASE, s->meta.release);
-        SetDlgItemText(hwnd, IDC_DETAIL_DESC,    s->meta.description);
-        SetDlgItemText(hwnd, IDC_DETAIL_REQS,    s->meta.requirements);
-        SetDlgItemText(hwnd, IDC_DETAIL_NOTE,    s->note);
-        SetDlgItemText(hwnd, IDC_DETAIL_PATH,    s->local);
+        SetDlgItemText(hwnd, IDC_DETAIL_DESC, s->meta.description);
+        SetDlgItemText(hwnd, IDC_DETAIL_REQS, s->meta.requirements);
+        SetDlgItemText(hwnd, IDC_DETAIL_NOTE, s->note);
+        SetDlgItemText(hwnd, IDC_DETAIL_PATH, s->local);
 
         CheckDlgButton(hwnd, IDC_CHK_FAVOURITE,
-            s->is_favourite ? BST_CHECKED : BST_UNCHECKED);
+                       s->is_favourite ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_HIDDEN,
-            s->is_hidden ? BST_CHECKED : BST_UNCHECKED);
+                       s->is_hidden ? BST_CHECKED : BST_UNCHECKED);
         return TRUE;
 
     case WM_COMMAND:
         s = (Script *)GetWindowLongPtr(hwnd, GWLP_USERDATA); /* retrieve Script pointer stored in WM_INITDIALOG */
-        if (!s) { EndDialog(hwnd, 0); return TRUE; }          /* defensive: close if pointer was lost */
+        if (!s)
+        {
+            EndDialog(hwnd, 0);
+            return TRUE;
+        } /* defensive: close if pointer was lost */
 
-        switch (LOWORD(wp)) {
+        switch (LOWORD(wp))
+        {
         case IDOK:
         {
             /* Save note */
@@ -361,7 +382,7 @@ INT_PTR CALLBACK ScriptDetailsDlgProc(HWND hwnd, UINT msg,
 /*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
-                                     WPARAM wp, LPARAM lp)
+                                    WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -369,7 +390,8 @@ INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
     {
         Script *s = (Script *)lp;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)s); /* stash for WM_COMMAND */
-        if (s) {
+        if (s)
+        {
             WCHAR title[MAX_NAME + 20]; /* +20 = "Run: " prefix (5) + null terminator + headroom */
             _snwprintf_s(title, MAX_NAME + 19, _TRUNCATE, L"Run: %s", s->name);
             SetWindowText(hwnd, title);
@@ -377,7 +399,8 @@ INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
         return TRUE;
     }
     case WM_COMMAND:
-        switch (LOWORD(wp)) {
+        switch (LOWORD(wp))
+        {
         case IDOK:
         case IDCANCEL:
             EndDialog(hwnd, LOWORD(wp)); /* both cases close; caller reads IDC_EDIT_ARGS after IDOK */
@@ -400,7 +423,7 @@ INT_PTR CALLBACK RunWithArgsDlgProc(HWND hwnd, UINT msg,
 /*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK ScriptNoteDlgProc(HWND hwnd, UINT msg,
-                                    WPARAM wp, LPARAM lp)
+                                   WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -414,9 +437,11 @@ INT_PTR CALLBACK ScriptNoteDlgProc(HWND hwnd, UINT msg,
     case WM_COMMAND:
     {
         Script *s = (Script *)GetWindowLongPtr(hwnd, GWLP_USERDATA); /* retrieve Script pointer stashed in WM_INITDIALOG */
-        switch (LOWORD(wp)) {
+        switch (LOWORD(wp))
+        {
         case IDOK:
-            if (s) {
+            if (s)
+            {
                 GetDlgItemText(hwnd, IDC_EDIT_NOTE, s->note, MAX_NOTE_LEN - 1); /* -1 leaves room for null terminator */
                 Prefs_SetNote(s->gh_path, s->note);
             }
@@ -446,7 +471,7 @@ INT_PTR CALLBACK ScriptNoteDlgProc(HWND hwnd, UINT msg,
 /*  Out: INT_PTR — IDOK / IDCANCEL via EndDialog                       */
 /* ================================================================== */
 INT_PTR CALLBACK HiddenScriptsDlgProc(HWND hwnd, UINT msg,
-                                       WPARAM wp, LPARAM lp)
+                                      WPARAM wp, LPARAM lp)
 {
     (void)lp;
     switch (msg)
@@ -456,23 +481,27 @@ INT_PTR CALLBACK HiddenScriptsDlgProc(HWND hwnd, UINT msg,
         HWND hList = GetDlgItem(hwnd, IDC_LST_HIDDEN);
         LVCOLUMN lvc = {0};
         lvc.mask = LVCF_TEXT | LVCF_WIDTH;
-        lvc.pszText = L"Script"; lvc.cx = 220;
+        lvc.pszText = L"Script";
+        lvc.cx = 220;
         ListView_InsertColumn(hList, 0, &lvc);
-        lvc.pszText = L"Folder"; lvc.cx = 150;
+        lvc.pszText = L"Folder";
+        lvc.cx = 150;
         ListView_InsertColumn(hList, 1, &lvc);
 
         /* Populate with hidden scripts */
         int row = 0;
-        for (int fi = 0; fi < g.folder_count; fi++) {
+        for (int fi = 0; fi < g.folder_count; fi++)
+        {
             if (wcscmp(g.folders[fi].name, L"Favourites") == 0) continue; /* skip synthetic Favourites tab; its scripts live in real folders */
-            for (int si = 0; si < g.folders[fi].count; si++) {
+            for (int si = 0; si < g.folders[fi].count; si++)
+            {
                 Script *s = &g.folders[fi].scripts[si];
                 if (!s->is_hidden) continue;
                 LVITEM lvi = {0};
-                lvi.mask    = LVIF_TEXT | LVIF_PARAM;
-                lvi.iItem   = row;
+                lvi.mask = LVIF_TEXT | LVIF_PARAM;
+                lvi.iItem = row;
                 lvi.pszText = s->name;
-                lvi.lParam  = (LPARAM)s; /* store Script pointer so Unhide handler can retrieve it via GetItem */
+                lvi.lParam = (LPARAM)s; /* store Script pointer so Unhide handler can retrieve it via GetItem */
                 ListView_InsertItem(hList, &lvi);
                 ListView_SetItemText(hList, row, 1, g.folders[fi].display);
                 row++;
@@ -490,11 +519,12 @@ INT_PTR CALLBACK HiddenScriptsDlgProc(HWND hwnd, UINT msg,
             int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED); /* -1 starts from beginning; returns -1 if nothing selected */
             if (sel < 0) break; /* nothing selected — nothing to do */
             LVITEM lvi = {0};
-            lvi.mask   = LVIF_PARAM;
-            lvi.iItem  = sel;
+            lvi.mask = LVIF_PARAM;
+            lvi.iItem = sel;
             ListView_GetItem(hList, &lvi);
             Script *s = (Script *)lvi.lParam;
-            if (s) {
+            if (s)
+            {
                 s->is_hidden = false;
                 Prefs_SetHidden(s->gh_path, false);
                 ListView_DeleteItem(hList, sel);
@@ -506,13 +536,15 @@ INT_PTR CALLBACK HiddenScriptsDlgProc(HWND hwnd, UINT msg,
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_HIDDEN);
             int count = ListView_GetItemCount(hList);
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 LVITEM lvi = {0};
-                lvi.mask  = LVIF_PARAM;
+                lvi.mask = LVIF_PARAM;
                 lvi.iItem = i;
                 ListView_GetItem(hList, &lvi);
                 Script *s = (Script *)lvi.lParam;
-                if (s) {
+                if (s)
+                {
                     s->is_hidden = false;
                     Prefs_SetHidden(s->gh_path, false);
                 }

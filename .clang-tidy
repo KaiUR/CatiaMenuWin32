@@ -1,0 +1,32 @@
+---
+# clang-tidy configuration for CatiaMenuWin32 (C11 / Win32)
+# Targets real bugs and security issues only.
+# Style and modernise checks are excluded — the codebase has its own conventions.
+
+Checks: >
+  -*,
+  bugprone-implicit-widening-of-multiplication-result,
+  bugprone-integer-division,
+  bugprone-misplaced-widening-cast,
+  bugprone-not-null-terminated-result,
+  bugprone-signed-char-misuse,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memset-usage,
+  bugprone-suspicious-missing-comma,
+  bugprone-too-small-loop-variable,
+  bugprone-undefined-memory-manipulation,
+  cert-err33-c,
+  cert-err34-c,
+  misc-redundant-expression,
+  clang-analyzer-security.insecureAPI.UncheckedReturn,
+  clang-analyzer-security.insecureAPI.rand,
+  clang-analyzer-security.insecureAPI.strcpy,
+  clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+
+WarningsAsErrors: ''
+
+# Only report diagnostics from project source files — suppresses noise from
+# Windows SDK, MSVC CRT, and third-party headers.
+HeaderFilterRegex: 'src/.*\.h$'
+
+FormatStyle: none

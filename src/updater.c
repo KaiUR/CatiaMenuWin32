@@ -25,10 +25,14 @@ static void ParseVersion(const WCHAR *s, int v[4])
 {
     v[0] = v[1] = v[2] = v[3] = 0;
     int part = 0;
-    for (const WCHAR *p = s; *p && part < 4; p++) {
-        if (*p >= L'0' && *p <= L'9') {
+    for (const WCHAR *p = s; *p && part < 4; p++)
+    {
+        if (*p >= L'0' && *p <= L'9')
+        {
             v[part] = v[part] * 10 + (*p - L'0'); /* accumulate digit into current component */
-        } else if (*p == L'.') {
+        }
+        else if (*p == L'.')
+        {
             part++; /* move to next version component (major → minor → patch → build) */
         }
     }
@@ -56,8 +60,9 @@ static bool IsNewer(const WCHAR *remote_tag)
     /* Only compare major.minor.patch (first 3 parts).
        Build number (4th part) is ignored - a local build with a higher
        build number than the latest release should not prompt for update. */
-    for (int i = 0; i < 3; i++) {
-        if (rv[i] > lv[i]) return true;  /* remote is newer at this position — done */
+    for (int i = 0; i < 3; i++)
+    {
+        if (rv[i] > lv[i]) return true; /* remote is newer at this position — done */
         if (rv[i] < lv[i]) return false; /* local is newer at this position — done */
         /* equal at this position — check the next component */
     }
@@ -78,17 +83,18 @@ static bool ParseLatestTag(const char *json, WCHAR *tag_out, int max)
     const char *p = strstr(json, "\"tag_name\"");
     if (!p) return false; /* key absent — not a releases response */
     p += strlen("\"tag_name\"");
-    while (*p == ' ' || *p == ':' || *p == '\t') p++; /* skip whitespace and the colon separator */
+    while (*p == ' ' || *p == ':' || *p == '\t')
+        p++; /* skip whitespace and the colon separator */
     if (*p != '"') return false; /* value is not a JSON string */
     p++; /* step past the opening quote */
     int i = 0;
     char tmp[64] = {0};
-    while (*p && *p != '"' && i < 62) tmp[i++] = *p++; /* i < 62 leaves room for null terminator in 64-byte buffer */
+    while (*p && *p != '"' && i < 62)
+        tmp[i++] = *p++; /* i < 62 leaves room for null terminator in 64-byte buffer */
     tmp[i] = '\0';
     MultiByteToWideChar(CP_UTF8, 0, tmp, -1, tag_out, max); /* convert UTF-8 tag to wide string */
     return (tag_out[0] != L'\0'); /* false if conversion produced an empty string */
 }
-
 
 /* ================================================================== */
 /*  Updater_CheckThread                                                 */
@@ -117,27 +123,41 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 
     DWORD len = 0;
     bool ok = GitHub_HttpGet(GITHUB_API_HOST, api_path,
-                              g.cfg.github_token[0] ? g.cfg.github_token : NULL,
-                              buf, &len);
+                             g.cfg.github_token[0] ? g.cfg.github_token : NULL,
+                             buf, &len);
 
-    if (!ok || len == 0) { free(buf); return 1; } /* HTTP failure or empty response */
+    if (!ok || len == 0)
+    {
+        free(buf);
+        return 1;
+    } /* HTTP failure or empty response */
 
     WCHAR tag[32] = {0};
-    if (!ParseLatestTag(buf, tag, 32)) { free(buf); return 1; } /* response did not contain a tag_name */
+    if (!ParseLatestTag(buf, tag, 32))
+    {
+        free(buf);
+        return 1;
+    } /* response did not contain a tag_name */
 
-    if (IsNewer(tag)) {
+    if (IsNewer(tag))
+    {
         /* Store display version without the leading 'v' prefix */
         const WCHAR *display_tag = tag;
         if (display_tag[0] == L'v' || display_tag[0] == L'V')
             display_tag++;
         wcsncpy_s(g.latest_version, 32, display_tag, _TRUNCATE);
 
-        if (g.cfg.auto_update) {
+        if (g.cfg.auto_update)
+        {
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 1, 0); /* wParam=1 = auto-update mode; triggers silent download */
-        } else {
+        }
+        else
+        {
             PostMessage(g.hwnd, WM_UPDATE_AVAIL, 0, 0); /* wParam=0 = prompt mode; shows badge + message box */
         }
-    } else if (manual) {
+    }
+    else if (manual)
+    {
         /* Only report "up to date" for a manual check — auto-check is silent when current */
         PostStatus(L"App is up to date (v%s).", VERSION_STRING_W);
     }
@@ -151,7 +171,10 @@ DWORD WINAPI Updater_CheckThread(LPVOID unused)
 /*  Thread parameter passed from Updater_AutoUpdate to               */
 /*  Updater_DownloadThread.  Heap-allocated; the thread frees it.    */
 /* ================================================================== */
-typedef struct { WCHAR tag[32]; } UpdateDlParam;
+typedef struct
+{
+    WCHAR tag[32];
+} UpdateDlParam;
 
 /* ================================================================== */
 /*  Updater_DownloadThread  (static)                                  */
@@ -182,17 +205,22 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
     /* Download */
     WCHAR raw_path[512] = {0};
     _snwprintf_s(raw_path, 511, _TRUNCATE,
-        L"/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
-        latest_tag);
+                 L"/KaiUR/CatiaMenuWin32/releases/download/v%s/CatiaMenuWin32.exe",
+                 latest_tag);
 
     char *buf = (char *)malloc(8 * 1024 * 1024); /* 8 MB buffer sized for the release exe */
-    if (!buf) { Updater_PromptAndInstall(latest_tag); return 1; }
+    if (!buf)
+    {
+        Updater_PromptAndInstall(latest_tag);
+        return 1;
+    }
 
     DWORD len = 8 * 1024 * 1024;
     bool ok = GitHub_HttpGet(L"github.com", raw_path,
                              g.cfg.github_token[0] ? g.cfg.github_token : NULL,
                              buf, &len);
-    if (!ok || len == 0) {
+    if (!ok || len == 0)
+    {
         free(buf);
         MessageBox(g.hwnd, L"Download failed. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
@@ -203,7 +231,8 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
     /* Write downloaded exe to temp file */
     HANDLE hf = CreateFileW(temp_path, GENERIC_WRITE, 0, NULL,
                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hf == INVALID_HANDLE_VALUE) {
+    if (hf == INVALID_HANDLE_VALUE)
+    {
         free(buf);
         Updater_PromptAndInstall(latest_tag);
         return 1;
@@ -213,7 +242,8 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
     CloseHandle(hf);
     free(buf);
 
-    if (written != len || GetFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES) {
+    if (written != len || GetFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES)
+    {
         DeleteFile(temp_path);
         MessageBox(g.hwnd, L"Download incomplete. Opening releases page instead.",
                    L"Update", MB_ICONWARNING | MB_OK);
@@ -227,8 +257,8 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
        cmd.exe reads .bat files as ANSI; non-Latin user profiles can have
        Unicode characters in %TEMP% or the exe path that ANSI cannot represent. */
     WCHAR s_exe[MAX_APPPATH] = {0}, s_tmp[MAX_APPPATH] = {0};
-    if (!GetShortPathNameW(exe_path,  s_exe, MAX_APPPATH) || !s_exe[0])
-        wcsncpy_s(s_exe, MAX_APPPATH, exe_path,  _TRUNCATE);
+    if (!GetShortPathNameW(exe_path, s_exe, MAX_APPPATH) || !s_exe[0])
+        wcsncpy_s(s_exe, MAX_APPPATH, exe_path, _TRUNCATE);
     if (!GetShortPathNameW(temp_path, s_tmp, MAX_APPPATH) || !s_tmp[0])
         wcsncpy_s(s_tmp, MAX_APPPATH, temp_path, _TRUNCATE);
 
@@ -241,16 +271,17 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
     _snwprintf_s(bat_path, MAX_APPPATH - 1, _TRUNCATE,
                  L"%sCatiaMenuWin32_update.bat", short_tmp_dir);
 
-    char bat_a[MAX_APPPATH]   = {0};
+    char bat_a[MAX_APPPATH] = {0};
     char s_exe_a[MAX_APPPATH] = {0};
     char s_tmp_a[MAX_APPPATH] = {0};
-    WideCharToMultiByte(CP_ACP, 0, bat_path, -1, bat_a,   MAX_APPPATH, NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, s_exe,    -1, s_exe_a, MAX_APPPATH, NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, s_tmp,    -1, s_tmp_a, MAX_APPPATH, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, bat_path, -1, bat_a, MAX_APPPATH, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, s_exe, -1, s_exe_a, MAX_APPPATH, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, s_tmp, -1, s_tmp_a, MAX_APPPATH, NULL, NULL);
 
     /* Write a plain ANSI batch file — cmd.exe reads ANSI, not UTF-16 */
     FILE *f = NULL;
-    if (fopen_s(&f, bat_a, "w") != 0 || !f) {
+    if (fopen_s(&f, bat_a, "w") != 0 || !f)
+    {
         Updater_PromptAndInstall(latest_tag);
         return 1;
     }
@@ -287,25 +318,33 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
 void Updater_AutoUpdate(const WCHAR *latest_tag)
 {
     int res = MessageBox(g.hwnd,
-        L"A new version is available. Download and install automatically?\n\n"
-        L"The application will restart after the update.",
-        L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
+                         L"A new version is available. Download and install automatically?\n\n"
+                         L"The application will restart after the update.",
+                         L"Auto Update", MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
 
-    if (res != IDYES) {
+    if (res != IDYES)
+    {
         Updater_PromptAndInstall(latest_tag);
         return;
     }
 
     /* Spawn download thread so the UI remains responsive during the download */
     UpdateDlParam *p = (UpdateDlParam *)calloc(1, sizeof(UpdateDlParam));
-    if (!p) { Updater_PromptAndInstall(latest_tag); return; }
+    if (!p)
+    {
+        Updater_PromptAndInstall(latest_tag);
+        return;
+    }
     wcsncpy_s(p->tag, 32, latest_tag, _TRUNCATE);
 
     HANDLE hT = CreateThread(NULL, 0, Updater_DownloadThread, p, 0, NULL);
-    if (hT) {
+    if (hT)
+    {
         CloseHandle(hT);
         PostStatus(L"Downloading update v%s…", latest_tag);
-    } else {
+    }
+    else
+    {
         free(p);
         Updater_PromptAndInstall(latest_tag);
     }
@@ -323,19 +362,20 @@ void Updater_PromptAndInstall(const WCHAR *latest_tag)
 {
     WCHAR msg[512];
     _snwprintf_s(msg, 511, _TRUNCATE, L"A new version of CatiaMenuWin32 is available!\n\n"
-        L"  Current version:  v%s\n"
-        L"  Latest version:   v%s\n\n"
-        L"Would you like to open the releases page to download the update?",
-        VERSION_STRING_W, latest_tag);
+                                      L"  Current version:  v%s\n"
+                                      L"  Latest version:   v%s\n\n"
+                                      L"Would you like to open the releases page to download the update?",
+                 VERSION_STRING_W, latest_tag);
 
     int res = MessageBox(g.hwnd, msg, L"Update Available",
                          MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON1);
 
-    if (res == IDYES) {
+    if (res == IDYES)
+    {
         /* User confirmed — open GitHub releases in the default browser */
         WCHAR url[256];
         _snwprintf_s(url, 255, _TRUNCATE, L"https://github.com/%s/CatiaMenuWin32/releases/latest",
-                   GITHUB_OWNER);
+                     GITHUB_OWNER);
         ShellExecute(NULL, L"open", url, NULL, NULL, SW_SHOW);
     }
 }
