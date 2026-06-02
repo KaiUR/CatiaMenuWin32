@@ -79,7 +79,7 @@ static void AppendDesc(WCHAR *buf, const WCHAR *text)
     int cur = (int)wcslen(buf);
     if (cur >= DESC_MAX) return;
     /* Add a space separator if buffer not empty */
-    if (cur > 0 && cur < DESC_MAX) { buf[cur++]=L' '; buf[cur]=L'\0'; }
+    if (cur > 0) { buf[cur++]=L' '; buf[cur]=L'\0'; } /* cur < DESC_MAX guaranteed by guard above */
     wcsncat_s(buf, DESC_MAX + 1, text, _TRUNCATE);
 }
 

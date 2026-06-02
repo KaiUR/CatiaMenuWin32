@@ -988,13 +988,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (GetFileAttributes(venv_python) != INVALID_FILE_ATTRIBUTES) {
                 SetDlgItemText(hwnd, IDC_EDIT_PYTHON, venv_python);
             } else {
-                WCHAR msg[MAX_APPPATH + 128];
-                _snwprintf_s(msg, MAX_APPPATH + 127, _TRUNCATE,
+                WCHAR warn[MAX_APPPATH + 128];
+                _snwprintf_s(warn, MAX_APPPATH + 127, _TRUNCATE,
                     L"No Python executable found at:\n%s\n\n"
                     L"Make sure you selected the root folder of a valid "
                     L"virtual environment (it must contain Scripts\\python.exe).",
                     venv_python);
-                MessageBox(hwnd, msg, L"Browse Virtual Environment",
+                MessageBox(hwnd, warn, L"Browse Virtual Environment",
                            MB_ICONWARNING | MB_OK);
             }
             break;
@@ -1245,14 +1245,14 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 if (dup >= 0) {
                     /* Duplicate: only prompt when the user selected this repo's token */
                     if (tp.repo_token_selected[i] && tp.repos[i].token[0]) {
-                        WCHAR msg[720];
-                        _snwprintf_s(msg, 719, _TRUNCATE,
+                        WCHAR dup_msg[720];
+                        _snwprintf_s(dup_msg, 719, _TRUNCATE,
                             L"This repository is already in your sources:\n%s\n\n"
                             L"Which token do you want to keep?\n\n"
                             L"Yes  →  Keep existing token\n"
                             L"No   →  Use imported token",
                             tp.repos[i].url);
-                        if (MessageBox(hwnd, msg, L"Duplicate Repository",
+                        if (MessageBox(hwnd, dup_msg, L"Duplicate Repository",
                                        MB_ICONQUESTION | MB_YESNO) == IDNO)
                             wcsncpy_s(g.cfg.extra_repos[dup].token, 256,
                                       tp.repos[i].token, _TRUNCATE);

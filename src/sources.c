@@ -299,20 +299,20 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             bool has_cache = GitHub_ParseOwnerRepo(repo->url, owner, reponame);
 
             /* Build confirmation message */
-            WCHAR msg[512];
+            WCHAR confirm[512];
             if (has_cache) {
-                _snwprintf_s(msg, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
+                _snwprintf_s(confirm, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
                     L"Delete cached scripts and requirements from:\n"
                     L"%s\\%s_%s\n\n"
                     L"This cannot be undone.",
                     repo->url, g.cfg.cache_dir, owner, reponame);
             } else {
-                _snwprintf_s(msg, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
+                _snwprintf_s(confirm, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
                     L"No cached files found to delete.",
                     repo->url);
             }
 
-            int res = MessageBox(hwnd, msg, L"Remove Repository",
+            int res = MessageBox(hwnd, confirm, L"Remove Repository",
                                  MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2); /* MB_DEFBUTTON2 = default to "No" for safety */
             if (res != IDYES) break; /* user cancelled — leave the repo list unchanged */
 
