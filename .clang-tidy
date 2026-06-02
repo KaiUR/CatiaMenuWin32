@@ -20,7 +20,8 @@ Checks: >
   misc-redundant-expression,
   clang-analyzer-security.insecureAPI.UncheckedReturn,
   clang-analyzer-security.insecureAPI.rand,
-  clang-analyzer-security.insecureAPI.strcpy
+  clang-analyzer-security.insecureAPI.strcpy,
+  clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
 WarningsAsErrors: ''
 
