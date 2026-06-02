@@ -1,0 +1,41 @@
+name: Format
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    name: clang-format check
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add LLVM to PATH
+        run: echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Check formatting
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path src -Include "*.c","*.h" -Recurse |
+                   Select-Object -ExpandProperty FullName
+          $failed = $false
+          foreach ($f in $files) {
+            $result = & clang-format --dry-run --Werror $f 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "NEEDS FORMAT: $f"
+              $failed = $true
+            }
+          }
+          if ($failed) {
+            Write-Host ""
+            Write-Host "Run 'clang-format -i src/*.c src/*.h' locally to fix formatting."
+            exit 1
+          }
+          Write-Host "All files formatted correctly."

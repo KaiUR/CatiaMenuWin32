@@ -1,0 +1,41 @@
+---
+Language: C
+BasedOnStyle: LLVM
+
+# --- Indentation ---
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+IndentCaseLabels: false          # case labels flush with switch, not indented further
+
+# --- Braces ---
+BreakBeforeBraces: Allman        # opening brace always on its own line
+
+# --- Lines ---
+ColumnLimit: 0                   # no wrapping — code uses long lines for comment alignment
+
+# --- Pointers ---
+PointerAlignment: Right          # WCHAR *out, not WCHAR* out
+DerivePointerAlignment: false
+
+# --- Short constructs ---
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: WithoutElse   # if (!x) return; stays on one line
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+
+# --- Spacing ---
+SpaceBeforeParens: ControlStatements   # space before if/for/while, not before foo()
+SpacesInParentheses: false
+
+# --- Includes ---
+SortIncludes: Never              # include order is intentional
+
+# --- Alignment ---
+# Disabled — the code uses manual alignment for readability, clang-format
+# would fight it and produce worse output.
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignTrailingComments:
+  Kind: Never
+...
