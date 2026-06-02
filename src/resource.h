@@ -295,6 +295,11 @@
 #define IDC_BTN_IMPORT_SETTINGS  474  /* import settings.ini from a chosen file   */
 
 /* ------------------------------------------------------------------ */
+/*  Settings dialog — Create venv button  (484)                        */
+/* ------------------------------------------------------------------ */
+#define IDC_BTN_CREATE_VENV      484  /* create %APPDATA%\CatiaMenuWin32\venv     */
+
+/* ------------------------------------------------------------------ */
 /*  Settings Transfer dialog  (310, 475–483)                           */
 /*  Shown before export/import to let the user choose which items to   */
 /*  include.  The three ListViews are populated dynamically.           */

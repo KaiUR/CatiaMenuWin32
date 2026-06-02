@@ -17,19 +17,22 @@ BEGIN
     CONTROL "", 415, "SysTabControl32", TCS_TABS | WS_TABSTOP, 5, 5, 354, 274
 
     /* ── Tab 0: General ──────────────────────────────────────────── */
-    GROUPBOX "Python Interpreter",                              450, 10,  22, 344, 40
+    GROUPBOX "Python Interpreter",                              450, 10,  22, 344, 56
     LTEXT    "Path:",                                           451, 16,  37,  24, 10
     EDITTEXT 401,                                                   44,  35, 262, 14, ES_AUTOHSCROLL
     PUSHBUTTON "Browse...",                                     402,310,  34,  40, 16
+    LTEXT    "Virtual Environment:",                            -1,  16,  54, 100, 10
+    PUSHBUTTON "Create venv",                                   484,222,  51,  72, 14
+    LTEXT    "%APPDATA%\\CatiaMenuWin32\\venv",                 -1, 124,  54, 094, 10
 
-    GROUPBOX "Script Cache Folder",                             452, 10,  68, 344, 40
-    LTEXT    "Path:",                                           453, 16,  83,  24, 10
-    EDITTEXT 403,                                                   44,  81, 262, 14, ES_AUTOHSCROLL
-    PUSHBUTTON "Browse...",                                     404,310,  80,  40, 16
+    GROUPBOX "Script Cache Folder",                             452, 10,  84, 344, 40
+    LTEXT    "Path:",                                           453, 16,  99,  24, 10
+    EDITTEXT 403,                                                   44,  97, 262, 14, ES_AUTOHSCROLL
+    PUSHBUTTON "Browse...",                                     404,310,  96,  40, 16
 
-    GROUPBOX "GitHub Token (optional - increases API rate limit; required for private repos)", 454, 10, 114, 344, 40
-    AUTOCHECKBOX "Use token",                                   407, 16, 130,  60, 12
-    EDITTEXT 408,                                                   82, 128, 266, 14, ES_PASSWORD | ES_AUTOHSCROLL
+    GROUPBOX "GitHub Token (optional - increases API rate limit; required for private repos)", 454, 10, 130, 344, 40
+    AUTOCHECKBOX "Use token",                                   407, 16, 146,  60, 12
+    EDITTEXT 408,                                                   82, 144, 266, 14, ES_PASSWORD | ES_AUTOHSCROLL
 
     /* ── Tab 1: Sync & Updates ──────────────────────────────────── */
     GROUPBOX "Script Synchronisation",                          455, 10,  22, 344, 108

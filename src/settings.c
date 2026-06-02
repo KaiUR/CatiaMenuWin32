@@ -224,6 +224,7 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
 /* ================================================================== */
 static const int s_stab0[] = {   /* General */
     IDC_GRP_PYTHON, IDC_LBL_PYTHON_PATH, IDC_EDIT_PYTHON, IDC_BTN_BROWSE_PY,
+    IDC_BTN_CREATE_VENV,
     IDC_GRP_CACHE,  IDC_LBL_CACHE_PATH,  IDC_EDIT_CACHE,  IDC_BTN_BROWSE_DIR,
     IDC_GRP_TOKEN,  IDC_CHK_TOKEN,       IDC_EDIT_TOKEN,
     -1
@@ -823,6 +824,107 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 SHGetPathFromIDList(pidl, path);
                 SetDlgItemText(hwnd, IDC_EDIT_CACHE, path);
                 CoTaskMemFree(pidl);
+            }
+            break;
+        }
+
+        /* ================================================================== */
+        /*  IDC_BTN_CREATE_VENV                                               */
+        /*  Purpose: Creates a Python virtual environment at                  */
+        /*           %APPDATA%\CatiaMenuWin32\venv using the Python           */
+        /*           executable currently shown in the dialog's path field.   */
+        /*           On success, updates the path field to point at the new   */
+        /*           venv's python.exe.                                        */
+        /* ================================================================== */
+        case IDC_BTN_CREATE_VENV:
+        {
+            /* ── 1. Resolve Python path from the dialog field ───────────── */
+            WCHAR python_path[MAX_APPPATH] = {0};
+            GetDlgItemText(hwnd, IDC_EDIT_PYTHON, python_path, MAX_APPPATH);
+            if (!python_path[0])
+                Runner_FindPython(python_path, MAX_APPPATH);
+            if (!python_path[0]) {
+                MessageBox(hwnd,
+                    L"No Python executable found.\n\n"
+                    L"Set the Python interpreter path before creating a virtual environment.",
+                    L"Create Virtual Environment", MB_ICONWARNING | MB_OK);
+                break;
+            }
+
+            /* ── 2. Build venv and venv python.exe paths ────────────────── */
+            WCHAR venv_dir[MAX_APPPATH];
+            WCHAR venv_python[MAX_APPPATH];
+            _snwprintf_s(venv_dir,    MAX_APPPATH, _TRUNCATE,
+                         L"%s\\venv",                      g.appdata_dir);
+            _snwprintf_s(venv_python, MAX_APPPATH, _TRUNCATE,
+                         L"%s\\venv\\Scripts\\python.exe", g.appdata_dir);
+
+            /* ── 3. Confirm ─────────────────────────────────────────────── */
+            bool already = GetFileAttributes(venv_python) != INVALID_FILE_ATTRIBUTES;
+            WCHAR confirm[MAX_APPPATH * 2 + 64];
+            _snwprintf_s(confirm, MAX_APPPATH * 2 + 63, _TRUNCATE,
+                already
+                ? L"A virtual environment already exists at:\n%s\n\n"
+                  L"Recreate it? The existing environment will be replaced.\n\n"
+                  L"Using Python:\n%s"
+                : L"Create a virtual environment at:\n%s\n\n"
+                  L"Using Python:\n%s",
+                venv_dir, python_path);
+            if (MessageBox(hwnd, confirm, L"Create Virtual Environment",
+                           MB_ICONQUESTION | MB_YESNO) != IDYES)
+                break;
+
+            /* ── 4. Run python.exe -m venv <dir> in a visible console ───── */
+            EnableWindow(GetDlgItem(hwnd, IDC_BTN_CREATE_VENV), FALSE);
+            SetDlgItemText(hwnd, IDC_BTN_CREATE_VENV, L"Creating...");
+
+            WCHAR params[MAX_APPPATH * 2 + 32];
+            _snwprintf_s(params, MAX_APPPATH * 2 + 31, _TRUNCATE,
+                         L"/c \"%s\" -m venv \"%s\"", python_path, venv_dir);
+
+            SHELLEXECUTEINFO sei;
+            ZeroMemory(&sei, sizeof(sei));
+            sei.cbSize      = sizeof(sei);
+            sei.fMask       = SEE_MASK_NOCLOSEPROCESS;
+            sei.hwnd        = hwnd;
+            sei.lpFile      = L"cmd.exe";
+            sei.lpParameters = params;
+            sei.nShow       = SW_SHOW;
+
+            bool launched = ShellExecuteEx(&sei) && sei.hProcess;
+            if (launched) {
+                /* Pump messages while waiting so the dialog stays responsive */
+                HANDLE h = sei.hProcess;
+                while (MsgWaitForMultipleObjects(1, &h, FALSE, INFINITE, QS_ALLINPUT)
+                       == (WAIT_OBJECT_0 + 1)) {
+                    MSG m;
+                    while (PeekMessage(&m, NULL, 0, 0, PM_REMOVE)) {
+                        TranslateMessage(&m);
+                        DispatchMessage(&m);
+                    }
+                }
+                CloseHandle(sei.hProcess);
+            }
+
+            EnableWindow(GetDlgItem(hwnd, IDC_BTN_CREATE_VENV), TRUE);
+            SetDlgItemText(hwnd, IDC_BTN_CREATE_VENV, L"Create venv");
+
+            /* ── 5. Verify outcome and update the path field ────────────── */
+            if (launched && GetFileAttributes(venv_python) != INVALID_FILE_ATTRIBUTES) {
+                SetDlgItemText(hwnd, IDC_EDIT_PYTHON, venv_python);
+                MessageBox(hwnd,
+                    L"Virtual environment created successfully.\n\n"
+                    L"The Python path has been updated to point to the new environment.\n\n"
+                    L"Click OK to save settings, then use ↓ Deps to install packages.",
+                    L"Create Virtual Environment", MB_ICONINFORMATION | MB_OK);
+            } else {
+                WCHAR err_msg[MAX_APPPATH + 128];
+                _snwprintf_s(err_msg, MAX_APPPATH + 127, _TRUNCATE,
+                    L"Virtual environment creation failed or was cancelled.\n\n"
+                    L"Expected Python executable not found at:\n%s",
+                    venv_python);
+                MessageBox(hwnd, err_msg, L"Create Virtual Environment",
+                           MB_ICONWARNING | MB_OK);
             }
             break;
         }
