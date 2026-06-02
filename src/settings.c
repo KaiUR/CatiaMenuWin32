@@ -224,7 +224,7 @@ void Settings_ApplyAutorun(bool enable, bool minimized)
 /* ================================================================== */
 static const int s_stab0[] = {   /* General */
     IDC_GRP_PYTHON, IDC_LBL_PYTHON_PATH, IDC_EDIT_PYTHON, IDC_BTN_BROWSE_PY,
-    IDC_BTN_CREATE_VENV,
+    IDC_BTN_CREATE_VENV, IDC_BTN_BROWSE_VENV, IDC_BTN_USE_GLOBAL_PY, IDC_BTN_DELETE_VENV,
     IDC_GRP_CACHE,  IDC_LBL_CACHE_PATH,  IDC_EDIT_CACHE,  IDC_BTN_BROWSE_DIR,
     IDC_GRP_TOKEN,  IDC_CHK_TOKEN,       IDC_EDIT_TOKEN,
     -1
@@ -925,6 +925,140 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     venv_python);
                 MessageBox(hwnd, err_msg, L"Create Virtual Environment",
                            MB_ICONWARNING | MB_OK);
+            }
+            break;
+        }
+
+        /* ================================================================== */
+        /*  IDC_BTN_USE_GLOBAL_PY                                            */
+        /*  Purpose: Probes PATH and well-known directories for a global     */
+        /*           Python installation (bypassing any venv in g.cfg) and  */
+        /*           fills the path field with the result immediately.       */
+        /* ================================================================== */
+        case IDC_BTN_USE_GLOBAL_PY:
+        {
+            /* Temporarily clear g.cfg.python_exe so Runner_FindPython skips
+               the "user-configured path" step and searches the system instead */
+            WCHAR saved[MAX_APPPATH];
+            wcsncpy_s(saved, MAX_APPPATH, g.cfg.python_exe, _TRUNCATE);
+            g.cfg.python_exe[0] = L'\0';
+
+            WCHAR found[MAX_APPPATH] = {0};
+            bool ok = Runner_FindPython(found, MAX_APPPATH);
+
+            /* Restore g.cfg — the dialog has not saved yet */
+            wcsncpy_s(g.cfg.python_exe, MAX_APPPATH, saved, _TRUNCATE);
+
+            if (ok) {
+                SetDlgItemText(hwnd, IDC_EDIT_PYTHON, found);
+            } else {
+                SetDlgItemText(hwnd, IDC_EDIT_PYTHON, L"");
+                MessageBox(hwnd,
+                    L"No Python installation found automatically.\n\n"
+                    L"Use Browse... to locate python.exe manually.",
+                    L"Auto-detect Python", MB_ICONWARNING | MB_OK);
+            }
+            break;
+        }
+
+        /* ================================================================== */
+        /*  IDC_BTN_BROWSE_VENV                                               */
+        /*  Purpose: Opens a folder browser so the user can select an        */
+        /*           existing virtual environment directory.  Validates that  */
+        /*           Scripts\python.exe exists inside it, then updates the   */
+        /*           Python Interpreter path field.                           */
+        /* ================================================================== */
+        case IDC_BTN_BROWSE_VENV:
+        {
+            WCHAR dir[MAX_APPPATH] = {0};
+            BROWSEINFO bi;
+            ZeroMemory(&bi, sizeof(bi));
+            bi.hwndOwner = hwnd;
+            bi.lpszTitle = L"Select the root folder of a Python virtual environment";
+            bi.ulFlags   = BIF_USENEWUI | BIF_RETURNONLYFSDIRS;
+            PIDLIST_ABSOLUTE pidl = SHBrowseForFolder(&bi);
+            if (!pidl) break;
+            SHGetPathFromIDList(pidl, dir);
+            CoTaskMemFree(pidl);
+
+            WCHAR venv_python[MAX_APPPATH];
+            _snwprintf_s(venv_python, MAX_APPPATH, _TRUNCATE,
+                         L"%s\\Scripts\\python.exe", dir);
+
+            if (GetFileAttributes(venv_python) != INVALID_FILE_ATTRIBUTES) {
+                SetDlgItemText(hwnd, IDC_EDIT_PYTHON, venv_python);
+            } else {
+                WCHAR msg[MAX_APPPATH + 128];
+                _snwprintf_s(msg, MAX_APPPATH + 127, _TRUNCATE,
+                    L"No Python executable found at:\n%s\n\n"
+                    L"Make sure you selected the root folder of a valid "
+                    L"virtual environment (it must contain Scripts\\python.exe).",
+                    venv_python);
+                MessageBox(hwnd, msg, L"Browse Virtual Environment",
+                           MB_ICONWARNING | MB_OK);
+            }
+            break;
+        }
+
+        /* ================================================================== */
+        /*  IDC_BTN_DELETE_VENV                                               */
+        /*  Purpose: Deletes the virtual environment directory at             */
+        /*           %APPDATA%\CatiaMenuWin32\venv after user confirmation.  */
+        /*           If the Python path field points into the deleted venv,  */
+        /*           the field is cleared so auto-detect runs on next save.  */
+        /* ================================================================== */
+        case IDC_BTN_DELETE_VENV:
+        {
+            WCHAR venv_dir[MAX_APPPATH];
+            _snwprintf_s(venv_dir, MAX_APPPATH, _TRUNCATE,
+                         L"%s\\venv", g.appdata_dir);
+
+            if (GetFileAttributes(venv_dir) == INVALID_FILE_ATTRIBUTES) {
+                MessageBox(hwnd,
+                    L"No virtual environment found at the default location.",
+                    L"Delete Virtual Environment", MB_ICONINFORMATION | MB_OK);
+                break;
+            }
+
+            WCHAR confirm[MAX_APPPATH + 128];
+            _snwprintf_s(confirm, MAX_APPPATH + 127, _TRUNCATE,
+                L"Delete the virtual environment at:\n%s\n\n"
+                L"All installed packages will be removed. This cannot be undone.",
+                venv_dir);
+            if (MessageBox(hwnd, confirm, L"Delete Virtual Environment",
+                           MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2) != IDYES)
+                break;
+
+            /* SHFileOperation requires a double-null-terminated path */
+            WCHAR del_path[MAX_APPPATH + 2];
+            ZeroMemory(del_path, sizeof(del_path));
+            wcsncpy_s(del_path, MAX_APPPATH + 1, venv_dir, _TRUNCATE);
+
+            SHFILEOPSTRUCTW fop;
+            ZeroMemory(&fop, sizeof(fop));
+            fop.hwnd   = hwnd;
+            fop.wFunc  = FO_DELETE;
+            fop.pFrom  = del_path;
+            fop.fFlags = FOF_NOCONFIRMATION | FOF_SILENT;
+
+            int res = SHFileOperationW(&fop);
+
+            if (res == 0 && !fop.fAnyOperationsAborted) {
+                /* If the path field was pointing into the deleted venv, clear it */
+                WCHAR cur[MAX_APPPATH] = {0};
+                GetDlgItemText(hwnd, IDC_EDIT_PYTHON, cur, MAX_APPPATH);
+                if (_wcsnicmp(cur, venv_dir, wcslen(venv_dir)) == 0)
+                    SetDlgItemText(hwnd, IDC_EDIT_PYTHON, L"");
+
+                MessageBox(hwnd,
+                    L"Virtual environment deleted successfully.",
+                    L"Delete Virtual Environment", MB_ICONINFORMATION | MB_OK);
+            } else {
+                MessageBox(hwnd,
+                    L"Failed to delete the virtual environment.\n\n"
+                    L"Some files may be in use — close any terminals or "
+                    L"scripts using this environment and try again.",
+                    L"Delete Virtual Environment", MB_ICONERROR | MB_OK);
             }
             break;
         }

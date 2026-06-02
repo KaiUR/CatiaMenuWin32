@@ -298,6 +298,9 @@
 /*  Settings dialog — Create venv button  (484)                        */
 /* ------------------------------------------------------------------ */
 #define IDC_BTN_CREATE_VENV      484  /* create %APPDATA%\CatiaMenuWin32\venv     */
+#define IDC_BTN_USE_GLOBAL_PY    485  /* auto-detect global Python; fill path     */
+#define IDC_BTN_BROWSE_VENV      486  /* browse for an existing venv folder       */
+#define IDC_BTN_DELETE_VENV      487  /* delete %APPDATA%\CatiaMenuWin32\venv     */
 
 /* ------------------------------------------------------------------ */
 /*  Settings Transfer dialog  (310, 475–483)                           */

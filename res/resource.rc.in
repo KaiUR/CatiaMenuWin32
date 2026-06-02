@@ -21,9 +21,10 @@ BEGIN
     LTEXT    "Path:",                                           451, 16,  37,  24, 10
     EDITTEXT 401,                                                   44,  35, 262, 14, ES_AUTOHSCROLL
     PUSHBUTTON "Browse...",                                     402,310,  34,  40, 16
-    LTEXT    "Virtual Environment:",                            -1,  16,  54, 100, 10
-    PUSHBUTTON "Create venv",                                   484,222,  51,  72, 14
-    LTEXT    "%APPDATA%\\CatiaMenuWin32\\venv",                 -1, 124,  54, 094, 10
+    PUSHBUTTON "Create venv",                                   484, 16,  51,  74, 14
+    PUSHBUTTON "Browse venv...",                                486, 94,  51,  78, 14
+    PUSHBUTTON "Use global Python",                             485,176,  51, 100, 14
+    PUSHBUTTON "Delete venv",                                   487,280,  51,  66, 14
 
     GROUPBOX "Script Cache Folder",                             452, 10,  84, 344, 40
     LTEXT    "Path:",                                           453, 16,  99,  24, 10
