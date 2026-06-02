@@ -23,11 +23,16 @@ jobs:
       - name: Check formatting
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path src -Include "*.c","*.h" -Recurse |
-                   Select-Object -ExpandProperty FullName
+          # Get-ChildItem -Include quirk: use -Filter per extension to reliably
+          # capture files in the directory root as well as subdirectories.
+          $files = @(
+            Get-ChildItem -Path src -Filter "*.c" -Recurse
+            Get-ChildItem -Path src -Filter "*.h" -Recurse
+          ) | Select-Object -ExpandProperty FullName
+
           $failed = $false
           foreach ($f in $files) {
-            $result = & clang-format --dry-run --Werror $f 2>&1
+            clang-format --dry-run --Werror $f 2>&1 | Out-Null
             if ($LASTEXITCODE -ne 0) {
               Write-Host "NEEDS FORMAT: $f"
               $failed = $true
@@ -35,7 +40,9 @@ jobs:
           }
           if ($failed) {
             Write-Host ""
-            Write-Host "Run 'clang-format -i src/*.c src/*.h' locally to fix formatting."
+            Write-Host "Run clang-format locally to fix formatting:"
+            Write-Host "  clang-format -i (Get-ChildItem src -Filter *.c -Recurse).FullName"
+            Write-Host "  clang-format -i (Get-ChildItem src -Filter *.h -Recurse).FullName"
             exit 1
           }
-          Write-Host "All files formatted correctly."
+          Write-Host "All $($files.Count) files formatted correctly."
