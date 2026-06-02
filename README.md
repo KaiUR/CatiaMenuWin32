@@ -95,6 +95,8 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
 | **Update checker** | Checks GitHub Releases on startup and notifies if a newer version is available |
 | **Update Dependencies** | Runs `setup/update.bat` or falls back to `pip install -r requirements.txt` |
+| **Virtual environment management** | One-click venv creation, browsing, auto-detection of global Python, and deletion — all from Settings → General |
+| **Script Output Log** | Captures stdout/stderr from background runs; right-click to Copy/Select All/Clear; Save log... button; themed buttons match dark/light mode |
 | **Dark / Light / System theme** | Follows Windows theme by default; toggle via Menu → View → Theme |
 | **Auto-versioning** | CMake increments `build_number.txt` on every configure; CI appends it to the release tag |
 

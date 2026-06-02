@@ -43,6 +43,21 @@ static size_t  s_buf_len = 0;     /* chars used (not including null terminator) 
 static size_t  s_buf_cap = 0;     /* chars allocated (including null terminator) */
 
 /* ------------------------------------------------------------------ */
+/*  Child control IDs and layout                                       */
+/* ------------------------------------------------------------------ */
+#define LOG_ID_RICHEDIT  1   /* RichEdit control                       */
+#define LOG_ID_BTN_SAVE  2   /* "Save log..." button                   */
+#define LOG_ID_BTN_CLEAR 3   /* "Clear" button                         */
+#define LOG_BTN_H       28   /* height of the button bar at the bottom */
+
+/* ------------------------------------------------------------------ */
+/*  Right-click context menu item IDs (local to RichEdit subclass)    */
+/* ------------------------------------------------------------------ */
+#define CTX_COPY    1
+#define CTX_SEL_ALL 2
+#define CTX_CLEAR   3
+
+/* ------------------------------------------------------------------ */
 /*  Highlight colours (theme-aware)                                    */
 /* ------------------------------------------------------------------ */
 static inline COLORREF LOG_COL_ERROR(void)
@@ -86,7 +101,7 @@ static void Buf_Append(const WCHAR *text)
 static HWND Log_GetRichEdit(void)
 {
     if (!g.hwnd_log || !IsWindow(g.hwnd_log)) return NULL;
-    return GetDlgItem(g.hwnd_log, 1);
+    return GetDlgItem(g.hwnd_log, LOG_ID_RICHEDIT);
 }
 
 /* ================================================================== */
@@ -285,6 +300,113 @@ void Log_OnThemeChange(void)
 }
 
 /* ================================================================== */
+/*  Log_SaveToFile  (static)                                           */
+/*  Purpose: Opens a Save-As dialog and writes the current session     */
+/*           buffer to disk as a UTF-8 text file (with BOM).           */
+/*  In:  hwnd — owner window for the dialog                            */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Log_SaveToFile(HWND hwnd)
+{
+    if (!s_buf || s_buf_len == 0) {
+        MessageBox(hwnd, L"The log is empty — nothing to save.",
+                   L"Save Log", MB_ICONINFORMATION | MB_OK);
+        return;
+    }
+
+    WCHAR path[MAX_APPPATH] = {0};
+    wcsncpy_s(path, MAX_APPPATH, L"script_log.txt", _TRUNCATE);
+
+    OPENFILENAMEW ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner   = hwnd;
+    ofn.lpstrFilter = L"Text Files\0*.txt\0Log Files\0*.log\0All Files\0*.*\0";
+    ofn.lpstrFile   = path;
+    ofn.nMaxFile    = MAX_APPPATH;
+    ofn.lpstrDefExt = L"txt";
+    ofn.lpstrTitle  = L"Save Log";
+    ofn.Flags       = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+    if (!GetSaveFileNameW(&ofn)) return;
+
+    /* Convert buffer to UTF-8 */
+    int utf8_len = WideCharToMultiByte(CP_UTF8, 0, s_buf, (int)s_buf_len,
+                                        NULL, 0, NULL, NULL);
+    char *utf8 = (char *)malloc((size_t)utf8_len + 3); /* +3 for UTF-8 BOM */
+    if (!utf8) {
+        MessageBox(hwnd, L"Out of memory.", L"Save Log", MB_ICONERROR | MB_OK);
+        return;
+    }
+
+    /* UTF-8 BOM (EF BB BF) so the file opens correctly in Notepad etc. */
+    utf8[0] = (char)0xEF; utf8[1] = (char)0xBB; utf8[2] = (char)0xBF;
+    WideCharToMultiByte(CP_UTF8, 0, s_buf, (int)s_buf_len,
+                        utf8 + 3, utf8_len, NULL, NULL);
+
+    FILE *f = NULL;
+    if (_wfopen_s(&f, path, L"wb") == 0 && f) {
+        fwrite(utf8, 1, (size_t)utf8_len + 3, f);
+        fclose(f);
+        MessageBox(hwnd, L"Log saved successfully.", L"Save Log",
+                   MB_ICONINFORMATION | MB_OK);
+    } else {
+        MessageBox(hwnd, L"Could not write to the selected file.", L"Save Log",
+                   MB_ICONERROR | MB_OK);
+    }
+    free(utf8);
+}
+
+/* ================================================================== */
+/*  RichEditSubclassProc  (static)                                     */
+/*  Purpose: Subclass procedure for the RichEdit child.  Intercepts   */
+/*           WM_CONTEXTMENU to show a custom right-click menu with     */
+/*           Copy, Select All, and Clear entries.  All other messages  */
+/*           are passed to the original RichEdit procedure.            */
+/*  In:  hwnd — RichEdit handle                                        */
+/*       msg  — Windows message                                        */
+/*       wp, lp — message parameters                                   */
+/*       uid  — subclass ID (unused)                                   */
+/*       data — reference data (unused)                                */
+/*  Out: LRESULT                                                        */
+/* ================================================================== */
+static LRESULT CALLBACK RichEditSubclassProc(
+    HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR uid, DWORD_PTR data)
+{
+    (void)uid; (void)data;
+
+    if (msg == WM_CONTEXTMENU) {
+        /* Resolve screen coordinates (keyboard menu sends -1,-1) */
+        POINT pt = { (int)(short)LOWORD(lp), (int)(short)HIWORD(lp) };
+        if (pt.x == -1 && pt.y == -1) GetCursorPos(&pt);
+
+        /* Enable Copy only when there is an active selection */
+        CHARRANGE cr = {0};
+        SendMessage(hwnd, EM_EXGETSEL, 0, (LPARAM)&cr);
+        bool has_sel = (cr.cpMin != cr.cpMax);
+
+        HMENU hm = CreatePopupMenu();
+        AppendMenuW(hm, MF_STRING | (has_sel ? 0 : MF_GRAYED),
+                    CTX_COPY,    L"Copy\tCtrl+C");
+        AppendMenuW(hm, MF_STRING, CTX_SEL_ALL, L"Select All\tCtrl+A");
+        AppendMenuW(hm, MF_SEPARATOR, 0, NULL);
+        AppendMenuW(hm, MF_STRING, CTX_CLEAR, L"Clear log");
+
+        int cmd = TrackPopupMenu(hm,
+                     TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                     pt.x, pt.y, 0, GetParent(hwnd), NULL);
+        DestroyMenu(hm);
+
+        switch (cmd) {
+        case CTX_COPY:    SendMessage(hwnd, WM_COPY, 0, 0);     break;
+        case CTX_SEL_ALL: SendMessage(hwnd, EM_SETSEL, 0, -1); break;
+        case CTX_CLEAR:   Log_Clear();                           break;
+        }
+        return 0;
+    }
+    return DefSubclassProc(hwnd, msg, wp, lp);
+}
+
+/* ================================================================== */
 /*  LogWndProc  (static)                                               */
 /*  Purpose: Window procedure for the modeless log window.  Creates   */
 /*           the RichEdit child on WM_CREATE with theme colours, and   */
@@ -301,18 +423,39 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_CREATE:
     {
         RECT rc; GetClientRect(hwnd, &rc);
+        int w = rc.right, h = rc.bottom;
+        HINSTANCE hinst = GetModuleHandle(NULL);
+
+        /* RichEdit — leaves LOG_BTN_H pixels for the button bar */
         HWND hRE = CreateWindowExW(
             0, RICHEDIT_CLASS, NULL,
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL |
                 ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY,
-            0, 0, rc.right, rc.bottom,
-            hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
+            0, 0, w, h - LOG_BTN_H,
+            hwnd, (HMENU)LOG_ID_RICHEDIT, hinst, NULL);
 
         if (hRE) {
             if (s_font) SendMessage(hRE, WM_SETFONT, (WPARAM)s_font, FALSE);
             SendMessage(hRE, EM_AUTOURLDETECT, FALSE, 0);
-            Log_ApplyColors(hRE); /* set theme bg + text colour on creation */
+            Log_ApplyColors(hRE);
+            SetWindowSubclass(hRE, RichEditSubclassProc, 0, 0); /* context menu */
         }
+
+        /* Button bar — use default GUI font so buttons match system style */
+        HFONT hUiFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        int btn_y = h - LOG_BTN_H + 4;
+
+        HWND hSave = CreateWindowExW(0, L"BUTTON", L"Save log...",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            6, btn_y, 90, 20, hwnd, (HMENU)LOG_ID_BTN_SAVE, hinst, NULL);
+        HWND hClr  = CreateWindowExW(0, L"BUTTON", L"Clear",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            100, btn_y, 56, 20, hwnd, (HMENU)LOG_ID_BTN_CLEAR, hinst, NULL);
+
+        if (hSave) SendMessage(hSave, WM_SETFONT, (WPARAM)hUiFont, FALSE);
+        if (hClr)  SendMessage(hClr,  WM_SETFONT, (WPARAM)hUiFont, FALSE);
+        (void)hUiFont; /* font set above; owner-draw uses g.font_ui via Paint_ToolbarButton */
+
         return 0;
     }
 
@@ -328,13 +471,33 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
     case WM_SIZE:
     {
-        HWND hRE = GetDlgItem(hwnd, 1);
-        if (hRE) {
-            SetWindowPos(hRE, NULL, 0, 0, LOWORD(lp), HIWORD(lp),
+        int w = (int)LOWORD(lp), h = (int)HIWORD(lp);
+        HWND hRE   = GetDlgItem(hwnd, LOG_ID_RICHEDIT);
+        HWND hSave = GetDlgItem(hwnd, LOG_ID_BTN_SAVE);
+        HWND hClr  = GetDlgItem(hwnd, LOG_ID_BTN_CLEAR);
+        if (hRE)
+            SetWindowPos(hRE, NULL, 0, 0, w, h - LOG_BTN_H,
                          SWP_NOZORDER | SWP_NOACTIVATE);
-        }
+        int btn_y = h - LOG_BTN_H + 4;
+        if (hSave) SetWindowPos(hSave, NULL,   6, btn_y, 90, 20, SWP_NOZORDER | SWP_NOACTIVATE);
+        if (hClr)  SetWindowPos(hClr,  NULL, 100, btn_y, 56, 20, SWP_NOZORDER | SWP_NOACTIVATE);
         return 0;
     }
+
+    case WM_DRAWITEM:
+    {
+        DRAWITEMSTRUCT *dis = (DRAWITEMSTRUCT *)lp;
+        if (dis->CtlType == ODT_BUTTON)
+            Paint_ToolbarButton(dis);
+        return TRUE;
+    }
+
+    case WM_COMMAND:
+        switch (LOWORD(wp)) {
+        case LOG_ID_BTN_SAVE:  Log_SaveToFile(hwnd); break;
+        case LOG_ID_BTN_CLEAR: Log_Clear();           break;
+        }
+        return 0;
 
     case WM_DESTROY:
         g.hwnd_log = NULL;

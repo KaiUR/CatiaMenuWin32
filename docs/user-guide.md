@@ -292,7 +292,7 @@ The Settings dialog is organised into five tabs:
 
 | Option | Description |
 |--------|-------------|
-| **Python Interpreter** | Full path to `python.exe`. Click **Browse...** to locate it. Leave blank to auto-detect from PATH. |
+| **Python Interpreter** | Full path to `python.exe`. Click **Browse...** to locate it. Leave blank to auto-detect from PATH. To use a virtual environment, browse to `python.exe` inside the venv's `Scripts` folder (e.g. `C:\My_Venv\Scripts\python.exe`) — the venv does not need to be activated. After changing this, click **↓ Deps** to install packages into the new environment. Click **Create venv** to automatically create a virtual environment at `%APPDATA%\CatiaMenuWin32\venv` — the path field is updated automatically on success. |
 | **Script Cache Folder** | Where downloaded scripts are stored locally. Defaults to `%APPDATA%\CatiaMenuWin32\scripts`. |
 | **GitHub Token** | Optional Personal Access Token. Increases the API rate limit from 60 to 5,000 req/hr and is required for private repositories. Tick **Use token** and paste the token. See [GitHub Token](#github-token). |
 
@@ -722,6 +722,11 @@ The help window has a topic list on the left and formatted content on the right.
 ### Script fails with "Python Not Found"
 - Open **☰ Menu → File → Settings...**
 - Click **Browse...** next to Python Interpreter and locate `python.exe`
+
+### Scripts fail after setting up a virtual environment
+- Make sure the Python Interpreter in Settings points to `python.exe` inside the venv's `Scripts` folder, not the global Python executable
+- Click **↓ Deps** after pointing to the venv so all required packages are installed into it
+- The venv does not need to be activated in a terminal — the app calls the Python executable directly by full path
 
 ### SHA mismatch warning
 - The local cached script differs from what GitHub expects

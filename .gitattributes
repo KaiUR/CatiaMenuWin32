@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Enforce CRLF line endings for all text files on checkout
+* text=auto eol=crlf

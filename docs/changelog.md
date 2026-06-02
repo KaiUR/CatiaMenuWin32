@@ -9,6 +9,25 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.5.0 — Virtual environment management, log window controls
+
+### Added
+- **Virtual environment management** — The Python Interpreter section in Settings → General now includes four buttons:
+  - **Create venv** — Creates an isolated Python environment at `%APPDATA%\CatiaMenuWin32\venv` using the currently configured Python and updates the path field automatically. Click **↓ Deps** afterwards to install script packages into it.
+  - **Browse venv...** — Browse for an existing virtual environment folder; the app locates `Scripts\python.exe` inside it and sets the path.
+  - **Use global Python** — Probes PATH and well-known install locations for a global Python and fills the path field immediately.
+  - **Delete venv** — Removes the default venv directory from disk after confirmation. Clears the path field if it was pointing into the deleted environment.
+- **Log window: right-click context menu** — Right-clicking anywhere in the Script Output Log opens a context menu with Copy (grayed when nothing is selected), Select All, and Clear log.
+- **Log window: Save log... button** — Saves the full session log buffer to a UTF-8 text file (with BOM) via a Save As dialog.
+- **Log window: Clear button** — Clears the log from both the window and the internal session buffer.
+- **Log window: dark mode button styling** — Log window buttons now use the same owner-draw style as toolbar buttons, matching dark and light theme correctly.
+
+### Fixed
+- Two `LTEXT` controls in the Settings dialog used ID `-1` and were never hidden when switching tabs; replaced with properly-IDed buttons.
+- `resource.rc.in`: octal literal `094` replaced with `94` (caused `llvm-rc` parse failure).
+
+---
+
 ## v2.4.5 — Extra repo sync infinite loop fix
 
 ### Fixed
