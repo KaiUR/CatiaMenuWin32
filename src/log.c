@@ -33,39 +33,45 @@
 /* ------------------------------------------------------------------ */
 /*  Module-level state                                                  */
 /* ------------------------------------------------------------------ */
-#define LOG_WNDCLASS  L"CMW32LogWnd"
-static HMODULE s_rich    = NULL;  /* RICHED20.DLL handle */
-static HFONT   s_font    = NULL;  /* Consolas font for the RichEdit */
+#define LOG_WNDCLASS L"CMW32LogWnd"
+static HMODULE s_rich = NULL; /* RICHED20.DLL handle */
+static HFONT s_font = NULL; /* Consolas font for the RichEdit */
 
 /* Session text buffer — always appended even when the window is closed */
-static WCHAR  *s_buf     = NULL;  /* heap-allocated accumulated log text */
-static size_t  s_buf_len = 0;     /* chars used (not including null terminator) */
-static size_t  s_buf_cap = 0;     /* chars allocated (including null terminator) */
+static WCHAR *s_buf = NULL; /* heap-allocated accumulated log text */
+static size_t s_buf_len = 0; /* chars used (not including null terminator) */
+static size_t s_buf_cap = 0; /* chars allocated (including null terminator) */
 
 /* ------------------------------------------------------------------ */
 /*  Child control IDs and layout                                       */
 /* ------------------------------------------------------------------ */
-#define LOG_ID_RICHEDIT  1   /* RichEdit control                       */
-#define LOG_ID_BTN_SAVE  2   /* "Save log..." button                   */
-#define LOG_ID_BTN_CLEAR 3   /* "Clear" button                         */
-#define LOG_BTN_H       28   /* height of the button bar at the bottom */
+#define LOG_ID_RICHEDIT 1 /* RichEdit control                       */
+#define LOG_ID_BTN_SAVE 2 /* "Save log..." button                   */
+#define LOG_ID_BTN_CLEAR 3 /* "Clear" button                         */
+#define LOG_BTN_H 28 /* height of the button bar at the bottom */
 
 /* ------------------------------------------------------------------ */
 /*  Right-click context menu item IDs (local to RichEdit subclass)    */
 /* ------------------------------------------------------------------ */
-#define CTX_COPY    1
+#define CTX_COPY 1
 #define CTX_SEL_ALL 2
-#define CTX_CLEAR   3
+#define CTX_CLEAR 3
 
 /* ------------------------------------------------------------------ */
 /*  Highlight colours (theme-aware)                                    */
 /* ------------------------------------------------------------------ */
 static inline COLORREF LOG_COL_ERROR(void)
-    { return g.dark_mode ? RGB(255, 100, 100) : RGB(180,  0,  0); }
+{
+    return g.dark_mode ? RGB(255, 100, 100) : RGB(180, 0, 0);
+}
 static inline COLORREF LOG_COL_WARN(void)
-    { return g.dark_mode ? RGB(255, 200,  60) : RGB(150, 90,  0); }
+{
+    return g.dark_mode ? RGB(255, 200, 60) : RGB(150, 90, 0);
+}
 static inline COLORREF LOG_COL_SUCCESS(void)
-    { return g.dark_mode ? RGB(100, 220, 100) : RGB(  0,128,  0); }
+{
+    return g.dark_mode ? RGB(100, 220, 100) : RGB(0, 128, 0);
+}
 
 /* ================================================================== */
 /*  Buf_Append  (static)                                               */
@@ -81,12 +87,13 @@ static void Buf_Append(const WCHAR *text)
     if (add == 0) return;
 
     size_t need = s_buf_len + add + 1;
-    if (need > s_buf_cap) {
+    if (need > s_buf_cap)
+    {
         size_t new_cap = need * 2;
         if (new_cap < 4096) new_cap = 4096;
         WCHAR *nb = (WCHAR *)realloc(s_buf, new_cap * sizeof(WCHAR));
         if (!nb) return;
-        s_buf     = nb;
+        s_buf = nb;
         s_buf_cap = new_cap;
     }
     memcpy(s_buf + s_buf_len, text, (add + 1) * sizeof(WCHAR));
@@ -115,7 +122,8 @@ static HWND Log_GetRichEdit(void)
 static bool LineContainsI(const WCHAR *line, const WCHAR *kw)
 {
     size_t klen = wcslen(kw);
-    for (; *line; line++) {
+    for (; *line; line++)
+    {
         if (_wcsnicmp(line, kw, klen) == 0) return true;
     }
     return false;
@@ -134,18 +142,19 @@ static COLORREF Log_LineColor(const WCHAR *line)
     if (_wcsnicmp(line, L"===", 3) == 0) return COL_ACCENT;
 
     /* Completion footer lines produced by main.c WM_SCRIPT_STOPPED */
-    if (_wcsnicmp(line, L"---", 3) == 0) {
+    if (_wcsnicmp(line, L"---", 3) == 0)
+    {
         if (LineContainsI(line, L"successfully")) return LOG_COL_SUCCESS();
-        if (LineContainsI(line, L"stopped"))      return LOG_COL_WARN();
+        if (LineContainsI(line, L"stopped")) return LOG_COL_WARN();
         return LOG_COL_ERROR(); /* "Exited with code N" and any other --- lines */
     }
 
     /* Python runtime output patterns */
     if (LineContainsI(line, L"traceback")) return LOG_COL_ERROR();
     if (LineContainsI(line, L"exception")) return LOG_COL_ERROR();
-    if (LineContainsI(line, L"fatal"))     return LOG_COL_ERROR();
-    if (LineContainsI(line, L"error"))     return LOG_COL_ERROR();
-    if (LineContainsI(line, L"warning"))   return LOG_COL_WARN();
+    if (LineContainsI(line, L"fatal")) return LOG_COL_ERROR();
+    if (LineContainsI(line, L"error")) return LOG_COL_ERROR();
+    if (LineContainsI(line, L"warning")) return LOG_COL_WARN();
 
     return 0; /* 0 = no override; caller skips EM_SETCHARFORMAT */
 }
@@ -163,7 +172,8 @@ static void Log_ColorizeNewLines(HWND hRE, int first_line)
 {
     int total = (int)SendMessage(hRE, EM_GETLINECOUNT, 0, 0);
 
-    for (int ln = first_line; ln < total; ln++) {
+    for (int ln = first_line; ln < total; ln++)
+    {
         int idx = (int)SendMessage(hRE, EM_LINEINDEX, (WPARAM)ln, 0);
         if (idx < 0) continue;
         int len = (int)SendMessage(hRE, EM_LINELENGTH, (WPARAM)idx, 0);
@@ -181,10 +191,10 @@ static void Log_ColorizeNewLines(HWND hRE, int first_line)
 
         SendMessage(hRE, EM_SETSEL, (WPARAM)idx, (LPARAM)(idx + len));
         CHARFORMAT2W cf = {0};
-        cf.cbSize      = sizeof(cf);
-        cf.dwMask      = CFM_COLOR;
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
         cf.crTextColor = color;
-        cf.dwEffects   = 0; /* clear CFE_AUTOCOLOR so crTextColor is used */
+        cf.dwEffects = 0; /* clear CFE_AUTOCOLOR so crTextColor is used */
         SendMessage(hRE, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
     }
 
@@ -209,10 +219,10 @@ static void Log_ApplyColors(HWND hRE)
 
     /* Reset all text to the current theme colour first */
     CHARFORMAT2W cf = {0};
-    cf.cbSize      = sizeof(cf);
-    cf.dwMask      = CFM_COLOR;
+    cf.cbSize = sizeof(cf);
+    cf.dwMask = CFM_COLOR;
     cf.crTextColor = COL_TEXT();
-    cf.dwEffects   = 0; /* clear CFE_AUTOCOLOR */
+    cf.dwEffects = 0; /* clear CFE_AUTOCOLOR */
     SendMessage(hRE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
 
     /* Re-apply per-line highlights over the reset baseline */
@@ -237,7 +247,7 @@ void Log_Append(const WCHAR *text)
     if (!hRE) return;
 
     /* Record insertion point so colorizer knows which lines are new */
-    int old_len  = (int)SendMessage(hRE, WM_GETTEXTLENGTH, 0, 0);
+    int old_len = (int)SendMessage(hRE, WM_GETTEXTLENGTH, 0, 0);
     int first_ln = (int)SendMessage(hRE, EM_LINEFROMCHAR, (WPARAM)old_len, 0);
 
     SendMessage(hRE, EM_SETSEL, (WPARAM)old_len, (LPARAM)old_len);
@@ -261,9 +271,9 @@ void Log_AddHeader(const WCHAR *script_name)
 
     WCHAR header[256];
     _snwprintf_s(header, 255, _TRUNCATE,
-        L"=== %s  (%02d:%02d:%02d) ===\r\n",
-        script_name ? script_name : L"Script",
-        st.wHour, st.wMinute, st.wSecond);
+                 L"=== %s  (%02d:%02d:%02d) ===\r\n",
+                 script_name ? script_name : L"Script",
+                 st.wHour, st.wMinute, st.wSecond);
 
     Log_Append(header);
 }
@@ -308,7 +318,8 @@ void Log_OnThemeChange(void)
 /* ================================================================== */
 static void Log_SaveToFile(HWND hwnd)
 {
-    if (!s_buf || s_buf_len == 0) {
+    if (!s_buf || s_buf_len == 0)
+    {
         MessageBox(hwnd, L"The log is empty — nothing to save.",
                    L"Save Log", MB_ICONINFORMATION | MB_OK);
         return;
@@ -320,36 +331,42 @@ static void Log_SaveToFile(HWND hwnd)
     OPENFILENAMEW ofn;
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner   = hwnd;
+    ofn.hwndOwner = hwnd;
     ofn.lpstrFilter = L"Text Files\0*.txt\0Log Files\0*.log\0All Files\0*.*\0";
-    ofn.lpstrFile   = path;
-    ofn.nMaxFile    = MAX_APPPATH;
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_APPPATH;
     ofn.lpstrDefExt = L"txt";
-    ofn.lpstrTitle  = L"Save Log";
-    ofn.Flags       = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+    ofn.lpstrTitle = L"Save Log";
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
     if (!GetSaveFileNameW(&ofn)) return;
 
     /* Convert buffer to UTF-8 */
     int utf8_len = WideCharToMultiByte(CP_UTF8, 0, s_buf, (int)s_buf_len,
-                                        NULL, 0, NULL, NULL);
+                                       NULL, 0, NULL, NULL);
     char *utf8 = (char *)malloc((size_t)utf8_len + 3); /* +3 for UTF-8 BOM */
-    if (!utf8) {
+    if (!utf8)
+    {
         MessageBox(hwnd, L"Out of memory.", L"Save Log", MB_ICONERROR | MB_OK);
         return;
     }
 
     /* UTF-8 BOM (EF BB BF) so the file opens correctly in Notepad etc. */
-    utf8[0] = (char)0xEF; utf8[1] = (char)0xBB; utf8[2] = (char)0xBF;
+    utf8[0] = (char)0xEF;
+    utf8[1] = (char)0xBB;
+    utf8[2] = (char)0xBF;
     WideCharToMultiByte(CP_UTF8, 0, s_buf, (int)s_buf_len,
                         utf8 + 3, utf8_len, NULL, NULL);
 
     FILE *f = NULL;
-    if (_wfopen_s(&f, path, L"wb") == 0 && f) {
+    if (_wfopen_s(&f, path, L"wb") == 0 && f)
+    {
         fwrite(utf8, 1, (size_t)utf8_len + 3, f);
         fclose(f);
         MessageBox(hwnd, L"Log saved successfully.", L"Save Log",
                    MB_ICONINFORMATION | MB_OK);
-    } else {
+    }
+    else
+    {
         MessageBox(hwnd, L"Could not write to the selected file.", L"Save Log",
                    MB_ICONERROR | MB_OK);
     }
@@ -372,11 +389,13 @@ static void Log_SaveToFile(HWND hwnd)
 static LRESULT CALLBACK RichEditSubclassProc(
     HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR uid, DWORD_PTR data)
 {
-    (void)uid; (void)data;
+    (void)uid;
+    (void)data;
 
-    if (msg == WM_CONTEXTMENU) {
+    if (msg == WM_CONTEXTMENU)
+    {
         /* Resolve screen coordinates (keyboard menu sends -1,-1) */
-        POINT pt = { (int)(short)LOWORD(lp), (int)(short)HIWORD(lp) };
+        POINT pt = {(int)(short)LOWORD(lp), (int)(short)HIWORD(lp)};
         if (pt.x == -1 && pt.y == -1) GetCursorPos(&pt);
 
         /* Enable Copy only when there is an active selection */
@@ -386,20 +405,27 @@ static LRESULT CALLBACK RichEditSubclassProc(
 
         HMENU hm = CreatePopupMenu();
         AppendMenuW(hm, MF_STRING | (has_sel ? 0 : MF_GRAYED),
-                    CTX_COPY,    L"Copy\tCtrl+C");
+                    CTX_COPY, L"Copy\tCtrl+C");
         AppendMenuW(hm, MF_STRING, CTX_SEL_ALL, L"Select All\tCtrl+A");
         AppendMenuW(hm, MF_SEPARATOR, 0, NULL);
         AppendMenuW(hm, MF_STRING, CTX_CLEAR, L"Clear log");
 
         int cmd = TrackPopupMenu(hm,
-                     TPM_RETURNCMD | TPM_RIGHTBUTTON,
-                     pt.x, pt.y, 0, GetParent(hwnd), NULL);
+                                 TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                                 pt.x, pt.y, 0, GetParent(hwnd), NULL);
         DestroyMenu(hm);
 
-        switch (cmd) {
-        case CTX_COPY:    SendMessage(hwnd, WM_COPY, 0, 0);     break;
-        case CTX_SEL_ALL: SendMessage(hwnd, EM_SETSEL, 0, -1); break;
-        case CTX_CLEAR:   Log_Clear();                           break;
+        switch (cmd)
+        {
+        case CTX_COPY:
+            SendMessage(hwnd, WM_COPY, 0, 0);
+            break;
+        case CTX_SEL_ALL:
+            SendMessage(hwnd, EM_SETSEL, 0, -1);
+            break;
+        case CTX_CLEAR:
+            Log_Clear();
+            break;
         }
         return 0;
     }
@@ -422,7 +448,8 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     {
     case WM_CREATE:
     {
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         int w = rc.right, h = rc.bottom;
         HINSTANCE hinst = GetModuleHandle(NULL);
 
@@ -434,7 +461,8 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             0, 0, w, h - LOG_BTN_H,
             hwnd, (HMENU)LOG_ID_RICHEDIT, hinst, NULL);
 
-        if (hRE) {
+        if (hRE)
+        {
             if (s_font) SendMessage(hRE, WM_SETFONT, (WPARAM)s_font, FALSE);
             SendMessage(hRE, EM_AUTOURLDETECT, FALSE, 0);
             Log_ApplyColors(hRE);
@@ -446,14 +474,14 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         int btn_y = h - LOG_BTN_H + 4;
 
         HWND hSave = CreateWindowExW(0, L"BUTTON", L"Save log...",
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            6, btn_y, 90, 20, hwnd, (HMENU)LOG_ID_BTN_SAVE, hinst, NULL);
-        HWND hClr  = CreateWindowExW(0, L"BUTTON", L"Clear",
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            100, btn_y, 56, 20, hwnd, (HMENU)LOG_ID_BTN_CLEAR, hinst, NULL);
+                                     WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                     6, btn_y, 90, 20, hwnd, (HMENU)LOG_ID_BTN_SAVE, hinst, NULL);
+        HWND hClr = CreateWindowExW(0, L"BUTTON", L"Clear",
+                                    WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                                    100, btn_y, 56, 20, hwnd, (HMENU)LOG_ID_BTN_CLEAR, hinst, NULL);
 
         if (hSave) SendMessage(hSave, WM_SETFONT, (WPARAM)hUiFont, FALSE);
-        if (hClr)  SendMessage(hClr,  WM_SETFONT, (WPARAM)hUiFont, FALSE);
+        if (hClr) SendMessage(hClr, WM_SETFONT, (WPARAM)hUiFont, FALSE);
         (void)hUiFont; /* font set above; owner-draw uses g.font_ui via Paint_ToolbarButton */
 
         return 0;
@@ -462,7 +490,8 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_ERASEBKGND:
     {
         /* Fill any area not yet covered by the RichEdit (visible briefly during resize) */
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         HBRUSH br = CreateSolidBrush(COL_BG());
         FillRect((HDC)wp, &rc, br);
         DeleteObject(br);
@@ -472,15 +501,15 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_SIZE:
     {
         int w = (int)LOWORD(lp), h = (int)HIWORD(lp);
-        HWND hRE   = GetDlgItem(hwnd, LOG_ID_RICHEDIT);
+        HWND hRE = GetDlgItem(hwnd, LOG_ID_RICHEDIT);
         HWND hSave = GetDlgItem(hwnd, LOG_ID_BTN_SAVE);
-        HWND hClr  = GetDlgItem(hwnd, LOG_ID_BTN_CLEAR);
+        HWND hClr = GetDlgItem(hwnd, LOG_ID_BTN_CLEAR);
         if (hRE)
             SetWindowPos(hRE, NULL, 0, 0, w, h - LOG_BTN_H,
                          SWP_NOZORDER | SWP_NOACTIVATE);
         int btn_y = h - LOG_BTN_H + 4;
-        if (hSave) SetWindowPos(hSave, NULL,   6, btn_y, 90, 20, SWP_NOZORDER | SWP_NOACTIVATE);
-        if (hClr)  SetWindowPos(hClr,  NULL, 100, btn_y, 56, 20, SWP_NOZORDER | SWP_NOACTIVATE);
+        if (hSave) SetWindowPos(hSave, NULL, 6, btn_y, 90, 20, SWP_NOZORDER | SWP_NOACTIVATE);
+        if (hClr) SetWindowPos(hClr, NULL, 100, btn_y, 56, 20, SWP_NOZORDER | SWP_NOACTIVATE);
         return 0;
     }
 
@@ -493,9 +522,14 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
 
     case WM_COMMAND:
-        switch (LOWORD(wp)) {
-        case LOG_ID_BTN_SAVE:  Log_SaveToFile(hwnd); break;
-        case LOG_ID_BTN_CLEAR: Log_Clear();           break;
+        switch (LOWORD(wp))
+        {
+        case LOG_ID_BTN_SAVE:
+            Log_SaveToFile(hwnd);
+            break;
+        case LOG_ID_BTN_CLEAR:
+            Log_Clear();
+            break;
         }
         return 0;
 
@@ -523,18 +557,21 @@ static LRESULT CALLBACK LogWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 /* ================================================================== */
 void Log_Show(void)
 {
-    if (g.hwnd_log && IsWindow(g.hwnd_log)) {
+    if (g.hwnd_log && IsWindow(g.hwnd_log))
+    {
         ShowWindow(g.hwnd_log, SW_RESTORE);
         SetForegroundWindow(g.hwnd_log);
         return;
     }
 
-    if (!s_rich) {
+    if (!s_rich)
+    {
         s_rich = LoadLibraryW(L"RICHED20.DLL");
         if (!s_rich) return;
     }
 
-    if (!s_font) {
+    if (!s_font)
+    {
         s_font = CreateFont(
             -12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -542,11 +579,11 @@ void Log_Show(void)
     }
 
     WNDCLASSEX wc = {0};
-    wc.cbSize        = sizeof(wc);
-    wc.style         = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc   = LogWndProc;
-    wc.hInstance     = GetModuleHandle(NULL);
-    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+    wc.cbSize = sizeof(wc);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = LogWndProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH); /* WM_ERASEBKGND fills theme colour */
     wc.lpszClassName = LOG_WNDCLASS;
     RegisterClassEx(&wc); /* subsequent calls fail silently — safe to call every time */
@@ -562,15 +599,18 @@ void Log_Show(void)
     Window_ApplyDarkMode(g.hwnd_log); /* match title bar chrome to app theme */
 
     HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APP_ICON));
-    if (hIcon) {
+    if (hIcon)
+    {
         SendMessage(g.hwnd_log, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
-        SendMessage(g.hwnd_log, WM_SETICON, ICON_BIG,   (LPARAM)hIcon);
+        SendMessage(g.hwnd_log, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
     }
 
     /* Pre-populate from buffer and apply syntax highlighting */
-    if (s_buf && s_buf_len > 0) {
+    if (s_buf && s_buf_len > 0)
+    {
         HWND hRE = GetDlgItem(g.hwnd_log, 1);
-        if (hRE) {
+        if (hRE)
+        {
             SendMessage(hRE, WM_SETTEXT, 0, (LPARAM)s_buf);
             Log_ColorizeNewLines(hRE, 0); /* colorize the pre-loaded history */
             SendMessage(hRE, WM_VSCROLL, SB_BOTTOM, 0);
@@ -594,7 +634,21 @@ void Log_Destroy(void)
         DestroyWindow(g.hwnd_log);
     g.hwnd_log = NULL;
 
-    if (s_buf)  { free(s_buf);          s_buf  = NULL; s_buf_len = 0; s_buf_cap = 0; }
-    if (s_font) { DeleteObject(s_font); s_font = NULL; }
-    if (s_rich) { FreeLibrary(s_rich);  s_rich = NULL; }
+    if (s_buf)
+    {
+        free(s_buf);
+        s_buf = NULL;
+        s_buf_len = 0;
+        s_buf_cap = 0;
+    }
+    if (s_font)
+    {
+        DeleteObject(s_font);
+        s_font = NULL;
+    }
+    if (s_rich)
+    {
+        FreeLibrary(s_rich);
+        s_rich = NULL;
+    }
 }

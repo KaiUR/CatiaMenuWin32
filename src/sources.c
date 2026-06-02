@@ -25,7 +25,8 @@ static void DeleteFolderRecursive(const WCHAR *path)
     HANDLE h = FindFirstFileW(pattern, &fd);
     if (h == INVALID_HANDLE_VALUE) return;
 
-    do {
+    do
+    {
         /* "." and ".." are the current and parent directory entries — never recurse into them */
         if (wcscmp(fd.cFileName, L".") == 0 ||
             wcscmp(fd.cFileName, L"..") == 0) continue;
@@ -36,7 +37,7 @@ static void DeleteFolderRecursive(const WCHAR *path)
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             DeleteFolderRecursive(full); /* recurse into subdirectory */
         else
-            DeleteFileW(full);           /* delete regular file */
+            DeleteFileW(full); /* delete regular file */
     } while (FindNextFileW(h, &fd));
     FindClose(h);
 
@@ -53,17 +54,17 @@ static void DeleteFolderRecursive(const WCHAR *path)
 static void Repos_Populate(HWND hList)
 {
     ListView_DeleteAllItems(hList);
-    for (int i = 0; i < g.cfg.extra_repo_count; i++) {
+    for (int i = 0; i < g.cfg.extra_repo_count; i++)
+    {
         ExtraRepo *r = &g.cfg.extra_repos[i];
         LVITEM lvi = {0};
-        lvi.mask    = LVIF_TEXT;
-        lvi.iItem   = i;
+        lvi.mask = LVIF_TEXT;
+        lvi.iItem = i;
         lvi.iSubItem = 0;
         lvi.pszText = r->url;
         ListView_InsertItem(hList, &lvi);
         ListView_SetItemText(hList, i, 1, r->branch[0] ? r->branch : L"main"); /* display "main" if branch was left blank */
         ListView_SetItemText(hList, i, 2, r->enabled ? L"Yes" : L"No");
-
     }
 }
 
@@ -77,12 +78,13 @@ static void Repos_Populate(HWND hList)
 static void Locals_Populate(HWND hList)
 {
     ListView_DeleteAllItems(hList);
-    for (int i = 0; i < g.cfg.local_dir_count; i++) {
+    for (int i = 0; i < g.cfg.local_dir_count; i++)
+    {
         LocalDir *d = &g.cfg.local_dirs[i];
         LVITEM lvi = {0};
-        lvi.mask     = LVIF_TEXT;
-        lvi.iItem    = i;
-        lvi.pszText  = d->path;
+        lvi.mask = LVIF_TEXT;
+        lvi.iItem = i;
+        lvi.pszText = d->path;
         ListView_InsertItem(hList, &lvi);
         ListView_SetItemText(hList, i, 1, d->enabled ? L"Yes" : L"No");
     }
@@ -96,7 +98,11 @@ static void Locals_Populate(HWND hList)
 /*  In:  (set by SourcesDlgProc before DialogBoxParam call)            */
 /*  Out: (repo is modified in-place when IDOK is returned)             */
 /* ================================================================== */
-typedef struct { ExtraRepo *repo; bool is_new; } RepoEditArg;
+typedef struct
+{
+    ExtraRepo *repo;
+    bool is_new;
+} RepoEditArg;
 
 /* ================================================================== */
 /*  RepoEditDlgProc  (static)                                          */
@@ -110,52 +116,62 @@ typedef struct { ExtraRepo *repo; bool is_new; } RepoEditArg;
 /*  Out: INT_PTR — TRUE for handled; FALSE otherwise                   */
 /* ================================================================== */
 static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
-                                         WPARAM wp, LPARAM lp)
+                                        WPARAM wp, LPARAM lp)
 {
     /* Retrieve the arg pointer stored during WM_INITDIALOG; NULL before first message */
     RepoEditArg *arg = (RepoEditArg *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
     case WM_INITDIALOG:
-        arg = (RepoEditArg *)lp;                              /* lp carries the RepoEditArg passed to DialogBoxParam */
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)arg);/* stash it so WM_COMMAND can retrieve it */
-        if (!arg || !arg->repo) { EndDialog(hwnd, IDCANCEL); return FALSE; } /* safety: malformed caller */
-        SetDlgItemText(hwnd, IDC_EDIT_REPO_URL,    arg->repo->url);
-        SetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH, arg->repo->branch[0]
-                                                    ? arg->repo->branch : L"main"); /* show "main" as default */
+        arg = (RepoEditArg *)lp; /* lp carries the RepoEditArg passed to DialogBoxParam */
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)arg); /* stash it so WM_COMMAND can retrieve it */
+        if (!arg || !arg->repo)
+        {
+            EndDialog(hwnd, IDCANCEL);
+            return FALSE;
+        } /* safety: malformed caller */
+        SetDlgItemText(hwnd, IDC_EDIT_REPO_URL, arg->repo->url);
+        SetDlgItemText(hwnd, IDC_EDIT_REPO_BRANCH, arg->repo->branch[0] ? arg->repo->branch : L"main"); /* show "main" as default */
         CheckDlgButton(hwnd, IDC_CHK_REPO_TOKEN,
-            arg->repo->token[0] ? BST_CHECKED : BST_UNCHECKED);
+                       arg->repo->token[0] ? BST_CHECKED : BST_UNCHECKED);
         SetDlgItemText(hwnd, IDC_EDIT_REPO_TOKEN, arg->repo->token);
         EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REPO_TOKEN),
                      arg->repo->token[0] != 0); /* grey out token field if no token is set */
         CheckDlgButton(hwnd, IDC_CHK_REPO_ENABLED,
-            arg->repo->enabled ? BST_CHECKED : BST_UNCHECKED);
+                       arg->repo->enabled ? BST_CHECKED : BST_UNCHECKED);
         return TRUE;
 
     case WM_COMMAND:
-        if (!arg) { EndDialog(hwnd, IDCANCEL); return TRUE; } /* arg not yet set — ignore */
-        switch (LOWORD(wp)) {
+        if (!arg)
+        {
+            EndDialog(hwnd, IDCANCEL);
+            return TRUE;
+        } /* arg not yet set — ignore */
+        switch (LOWORD(wp))
+        {
         case IDC_CHK_REPO_TOKEN:
             /* Enable or disable the token text field to match the checkbox state */
             EnableWindow(GetDlgItem(hwnd, IDC_EDIT_REPO_TOKEN),
-                IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED);
+                         IsDlgButtonChecked(hwnd, IDC_CHK_REPO_TOKEN) == BST_CHECKED);
             break;
         case IDOK:
         {
             WCHAR url[512] = {0};
             GetDlgItemText(hwnd, IDC_EDIT_REPO_URL, url, 511);
-            if (!url[0]) {
+            if (!url[0])
+            {
                 /* Reject empty URL — repo cannot be identified */
                 MessageBox(hwnd, L"Please enter a GitHub URL.",
                            L"Sources", MB_ICONWARNING | MB_OK);
                 return TRUE; /* stay in dialog */
             }
             /* Basic domain check — full URL validation is left to the sync engine */
-            if (!wcsstr(url, L"github.com")) {
+            if (!wcsstr(url, L"github.com"))
+            {
                 MessageBox(hwnd,
-                    L"URL must be a GitHub repository URL.\n"
-                    L"Example: https://github.com/owner/repo",
-                    L"Sources", MB_ICONWARNING | MB_OK);
+                           L"URL must be a GitHub repository URL.\n"
+                           L"Example: https://github.com/owner/repo",
+                           L"Sources", MB_ICONWARNING | MB_OK);
                 return TRUE; /* stay in dialog */
             }
             wcsncpy_s(arg->repo->url, 512, url, _TRUNCATE);
@@ -197,7 +213,7 @@ static INT_PTR CALLBACK RepoEditDlgProc(HWND hwnd, UINT msg,
 /*                 via EndDialog                                        */
 /* ================================================================== */
 INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
-                                  WPARAM wp, LPARAM lp)
+                                WPARAM wp, LPARAM lp)
 {
     (void)lp;
     switch (msg)
@@ -205,27 +221,31 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
     case WM_INITDIALOG:
     {
         /* Set up repo list columns */
-        HWND hRepos  = GetDlgItem(hwnd, IDC_LST_REPOS);
+        HWND hRepos = GetDlgItem(hwnd, IDC_LST_REPOS);
         HWND hLocals = GetDlgItem(hwnd, IDC_LST_LOCAL);
 
         LVCOLUMN lvc = {0};
         lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 
-        lvc.pszText = L"Repository URL"; lvc.cx = 180;
+        lvc.pszText = L"Repository URL";
+        lvc.cx = 180;
         ListView_InsertColumn(hRepos, 0, &lvc);
-        lvc.pszText = L"Branch";         lvc.cx = 60;
+        lvc.pszText = L"Branch";
+        lvc.cx = 60;
         ListView_InsertColumn(hRepos, 1, &lvc);
-        lvc.pszText = L"Enabled";        lvc.cx = 46;
+        lvc.pszText = L"Enabled";
+        lvc.cx = 46;
         ListView_InsertColumn(hRepos, 2, &lvc);
 
-        lvc.pszText = L"Local Folder Path"; lvc.cx = 220;
+        lvc.pszText = L"Local Folder Path";
+        lvc.cx = 220;
         ListView_InsertColumn(hLocals, 0, &lvc);
-        lvc.pszText = L"Enabled";           lvc.cx = 46;
+        lvc.pszText = L"Enabled";
+        lvc.cx = 46;
         ListView_InsertColumn(hLocals, 1, &lvc);
 
         CheckDlgButton(hwnd, IDC_CHK_MAIN_REPO,
-            g.cfg.main_repo_enabled ? BST_CHECKED : BST_UNCHECKED);
-
+                       g.cfg.main_repo_enabled ? BST_CHECKED : BST_UNCHECKED);
 
         Repos_Populate(hRepos);
         Locals_Populate(hLocals);
@@ -243,7 +263,8 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
 
         /* ── Extra repos ── */
         case IDC_BTN_REPO_ADD:
-            if (g.cfg.extra_repo_count >= MAX_EXTRA_REPOS) {
+            if (g.cfg.extra_repo_count >= MAX_EXTRA_REPOS)
+            {
                 /* Array is fixed-size — cannot grow further */
                 MessageBox(hwnd, L"Maximum number of repositories reached.",
                            L"Sources", MB_ICONWARNING | MB_OK);
@@ -253,10 +274,11 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
                 ExtraRepo tmp = {0};
                 tmp.enabled = true;
                 wcsncpy_s(tmp.branch, 64, L"main", _TRUNCATE);
-                RepoEditArg arg = { &tmp, true };
+                RepoEditArg arg = {&tmp, true};
                 if (DialogBoxParam(GetModuleHandle(NULL),
-                        MAKEINTRESOURCE(IDD_REPO_EDIT),
-                        hwnd, RepoEditDlgProc, (LPARAM)&arg) == IDOK) {
+                                   MAKEINTRESOURCE(IDD_REPO_EDIT),
+                                   hwnd, RepoEditDlgProc, (LPARAM)&arg) == IDOK)
+                {
                     g.cfg.extra_repos[g.cfg.extra_repo_count++] = tmp;
                     Repos_Populate(GetDlgItem(hwnd, IDC_LST_REPOS));
                 }
@@ -266,12 +288,12 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_REPO_EDIT:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_REPOS);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED); /* -1 = start from beginning; returns -1 if nothing selected */
+            int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED); /* -1 = start from beginning; returns -1 if nothing selected */
             if (sel < 0) break; /* no selection — ignore button click */
-            RepoEditArg arg = { &g.cfg.extra_repos[sel], false };
+            RepoEditArg arg = {&g.cfg.extra_repos[sel], false};
             if (DialogBoxParam(GetModuleHandle(NULL),
-                    MAKEINTRESOURCE(IDD_REPO_EDIT),
-                    hwnd, RepoEditDlgProc, (LPARAM)&arg) == IDOK)
+                               MAKEINTRESOURCE(IDD_REPO_EDIT),
+                               hwnd, RepoEditDlgProc, (LPARAM)&arg) == IDOK)
                 Repos_Populate(hList);
             break;
         }
@@ -279,7 +301,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_REPO_TOGGLE:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_REPOS);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+            int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
             if (sel < 0) break; /* nothing selected */
             g.cfg.extra_repos[sel].enabled = !g.cfg.extra_repos[sel].enabled;
             Repos_Populate(hList);
@@ -289,7 +311,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_REPO_REMOVE:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_REPOS);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+            int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
             if (sel < 0) break;
 
             ExtraRepo *repo = &g.cfg.extra_repos[sel];
@@ -300,16 +322,19 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
 
             /* Build confirmation message */
             WCHAR confirm[512];
-            if (has_cache) {
+            if (has_cache)
+            {
                 _snwprintf_s(confirm, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
-                    L"Delete cached scripts and requirements from:\n"
-                    L"%s\\%s_%s\n\n"
-                    L"This cannot be undone.",
-                    repo->url, g.cfg.cache_dir, owner, reponame);
-            } else {
+                                                      L"Delete cached scripts and requirements from:\n"
+                                                      L"%s\\%s_%s\n\n"
+                                                      L"This cannot be undone.",
+                             repo->url, g.cfg.cache_dir, owner, reponame);
+            }
+            else
+            {
                 _snwprintf_s(confirm, 511, _TRUNCATE, L"Remove repository:\n%s\n\n"
-                    L"No cached files found to delete.",
-                    repo->url);
+                                                      L"No cached files found to delete.",
+                             repo->url);
             }
 
             int res = MessageBox(hwnd, confirm, L"Remove Repository",
@@ -317,20 +342,21 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
             if (res != IDYES) break; /* user cancelled — leave the repo list unchanged */
 
             /* Delete cached scripts folder: cache_dir\owner_reponame\ */
-            if (has_cache) {
+            if (has_cache)
+            {
                 WCHAR scripts_dir[MAX_APPPATH];
                 _snwprintf_s(scripts_dir, MAX_APPPATH, _TRUNCATE, L"%s\\%s_%s",
-                           g.cfg.cache_dir, owner, reponame);
+                             g.cfg.cache_dir, owner, reponame);
                 DeleteFolderRecursive(scripts_dir);
 
                 /* Delete cached requirements.txt */
                 WCHAR req[MAX_APPPATH];
                 _snwprintf_s(req, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s\\requirements.txt",
-                           g.cfg.cache_dir, owner, reponame);
+                             g.cfg.cache_dir, owner, reponame);
                 DeleteFileW(req);
                 WCHAR req_dir[MAX_APPPATH];
                 _snwprintf_s(req_dir, MAX_APPPATH, _TRUNCATE, L"%s\\setup\\%s_%s",
-                           g.cfg.cache_dir, owner, reponame);
+                             g.cfg.cache_dir, owner, reponame);
                 RemoveDirectoryW(req_dir);
             }
 
@@ -344,7 +370,8 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
 
         /* ── Local dirs ── */
         case IDC_BTN_LOCAL_ADD:
-            if (g.cfg.local_dir_count >= MAX_LOCAL_DIRS) {
+            if (g.cfg.local_dir_count >= MAX_LOCAL_DIRS)
+            {
                 /* Fixed-size array — cannot add more entries */
                 MessageBox(hwnd, L"Maximum number of local folders reached.",
                            L"Sources", MB_ICONWARNING | MB_OK);
@@ -355,13 +382,14 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
                 BROWSEINFO bi = {
                     .hwndOwner = hwnd,
                     .lpszTitle = L"Select Script Folder",
-                    .ulFlags   = BIF_USENEWUI | BIF_RETURNONLYFSDIRS
-                };
+                    .ulFlags = BIF_USENEWUI | BIF_RETURNONLYFSDIRS};
                 PIDLIST_ABSOLUTE pidl = SHBrowseForFolder(&bi);
-                if (pidl) {
+                if (pidl)
+                {
                     SHGetPathFromIDList(pidl, path);
                     CoTaskMemFree(pidl);
-                    if (path[0]) {
+                    if (path[0])
+                    {
                         LocalDir d = {0};
                         wcsncpy_s(d.path, MAX_APPPATH, path, _TRUNCATE);
                         d.enabled = true;
@@ -375,7 +403,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_LOCAL_TOGGLE:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_LOCAL);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+            int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
             if (sel < 0) break; /* nothing selected */
             g.cfg.local_dirs[sel].enabled = !g.cfg.local_dirs[sel].enabled;
             Locals_Populate(hList);
@@ -385,7 +413,7 @@ INT_PTR CALLBACK SourcesDlgProc(HWND hwnd, UINT msg,
         case IDC_BTN_LOCAL_REMOVE:
         {
             HWND hList = GetDlgItem(hwnd, IDC_LST_LOCAL);
-            int  sel   = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
+            int sel = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
             if (sel < 0) break; /* nothing selected */
             /* Remove by shifting entries after sel one position left */
             for (int i = sel; i < g.cfg.local_dir_count - 1; i++)

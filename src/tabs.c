@@ -10,7 +10,7 @@
 
 /* live button handles for the current tab */
 static HWND s_btns[MAX_SCRIPTS] = {0};
-static int  s_btn_count = 0;
+static int s_btn_count = 0;
 
 /* ================================================================== */
 /*  Tabs_ApplyFilter                                                    */
@@ -39,17 +39,20 @@ bool Tabs_ScriptMatchesFilter(const Script *s)
 {
     if (g.filter_text[0] == L'\0') return true; /* empty filter — show everything */
 
-    WCHAR name_lower[MAX_NAME]   = {0};
-    WCHAR purp_lower[128]        = {0};
-    WCHAR filt_lower[MAX_NAME]   = {0};
+    WCHAR name_lower[MAX_NAME] = {0};
+    WCHAR purp_lower[128] = {0};
+    WCHAR filt_lower[MAX_NAME] = {0};
 
-    wcsncpy_s(name_lower, MAX_NAME, s->name,         _TRUNCATE);
-    wcsncpy_s(purp_lower, 128,     s->meta.purpose, _TRUNCATE);
-    wcsncpy_s(filt_lower, MAX_NAME, g.filter_text,  _TRUNCATE);
+    wcsncpy_s(name_lower, MAX_NAME, s->name, _TRUNCATE);
+    wcsncpy_s(purp_lower, 128, s->meta.purpose, _TRUNCATE);
+    wcsncpy_s(filt_lower, MAX_NAME, g.filter_text, _TRUNCATE);
 
-    for (WCHAR *p = name_lower; *p; p++) *p = towlower(*p);
-    for (WCHAR *p = purp_lower; *p; p++) *p = towlower(*p);
-    for (WCHAR *p = filt_lower; *p; p++) *p = towlower(*p);
+    for (WCHAR *p = name_lower; *p; p++)
+        *p = towlower(*p);
+    for (WCHAR *p = purp_lower; *p; p++)
+        *p = towlower(*p);
+    for (WCHAR *p = filt_lower; *p; p++)
+        *p = towlower(*p);
 
     return wcsstr(name_lower, filt_lower) != NULL ||
            wcsstr(purp_lower, filt_lower) != NULL;
@@ -61,15 +64,19 @@ bool Tabs_ScriptMatchesFilter(const Script *s)
 /*  In:  a, b — pointers to Script elements being compared             */
 /*  Out: negative / zero / positive per qsort convention               */
 /* ================================================================== */
-static int cmp_alpha(const void *a, const void *b) {
-    return _wcsicmp(((Script*)a)->name, ((Script*)b)->name);
+static int cmp_alpha(const void *a, const void *b)
+{
+    return _wcsicmp(((Script *)a)->name, ((Script *)b)->name);
 }
-static int cmp_date(const void *a, const void *b) {
-    return wcscmp(((Script*)b)->meta.date, ((Script*)a)->meta.date); /* b before a = newest first */
+static int cmp_date(const void *a, const void *b)
+{
+    return wcscmp(((Script *)b)->meta.date, ((Script *)a)->meta.date); /* b before a = newest first */
 }
-static int cmp_runs(const void *a, const void *b) {
-    int br = ((Script*)b)->run_count, ar = ((Script*)a)->run_count;
-    return (br > ar) ? 1 : (br < ar) ? -1 : 0;  /* descending: highest count first */
+static int cmp_runs(const void *a, const void *b)
+{
+    int br = ((Script *)b)->run_count, ar = ((Script *)a)->run_count;
+    return (br > ar) ? 1 : (br < ar) ? -1
+                                     : 0; /* descending: highest count first */
 }
 
 /* ================================================================== */
@@ -101,11 +108,19 @@ void Tabs_ApplySort(int fi)
 {
     if (fi < 0 || fi >= g.folder_count) return;
     ScriptFolder *f = &g.folders[fi];
-    switch (g.cfg.sort_mode) {
-    case SORT_ALPHA:     qsort(f->scripts, f->count, sizeof(Script), cmp_alpha); break;
-    case SORT_DATE:      qsort(f->scripts, f->count, sizeof(Script), cmp_date);  break;
-    case SORT_MOST_USED: qsort(f->scripts, f->count, sizeof(Script), cmp_runs);  break;
-    default: break; /* SORT_ORDER = preserve the order received from GitHub/disk */
+    switch (g.cfg.sort_mode)
+    {
+    case SORT_ALPHA:
+        qsort(f->scripts, f->count, sizeof(Script), cmp_alpha);
+        break;
+    case SORT_DATE:
+        qsort(f->scripts, f->count, sizeof(Script), cmp_date);
+        break;
+    case SORT_MOST_USED:
+        qsort(f->scripts, f->count, sizeof(Script), cmp_runs);
+        break;
+    default:
+        break; /* SORT_ORDER = preserve the order received from GitHub/disk */
     }
 }
 
@@ -132,15 +147,17 @@ void Tabs_Build(void)
 /* ================================================================== */
 void Tabs_DestroyButtons(void)
 {
-    for (int i = 0; i < s_btn_count; i++) {
+    for (int i = 0; i < s_btn_count; i++)
+    {
         if (IsWindow(s_btns[i])) DestroyWindow(s_btns[i]);
         s_btns[i] = NULL;
     }
-    s_btn_count    = 0;
-    g.scroll_y     = 0;
-    g.scroll_max   = 0;
+    s_btn_count = 0;
+    g.scroll_y = 0;
+    g.scroll_max = 0;
     /* Hide the tooltip and reset its state so it re-appears correctly after rebuild */
-    if (g.tip_btn != -1) {
+    if (g.tip_btn != -1)
+    {
         g.tip_btn = -1;
         ShowWindow(g.hwnd_tip, SW_HIDE);
     }
@@ -186,7 +203,7 @@ void Tabs_RebuildButtons(void)
     RECT rc;
     GetClientRect(g.hwnd_scroll, &rc);
     int panel_w = rc.right;
-    int btn_w   = panel_w - BTN_MX * 2;
+    int btn_w = panel_w - BTN_MX * 2;
     if (btn_w < 80) btn_w = 80; /* 80 px = minimum usable button width */
 
     HINSTANCE hInst =
@@ -194,14 +211,16 @@ void Tabs_RebuildButtons(void)
 
     int y = BTN_MY;
 
-    if (g.syncing && f->count == 0) {
+    if (g.syncing && f->count == 0)
+    {
         /* Placeholder while syncing */
         s_btn_count = 0;
         goto update_scroll;
     }
 
-    for (int i = 0; i < f->count; i++) {
-        if (f->scripts[i].is_hidden) continue;  /* skip hidden */
+    for (int i = 0; i < f->count; i++)
+    {
+        if (f->scripts[i].is_hidden) continue; /* skip hidden */
         if (!Tabs_ScriptMatchesFilter(&f->scripts[i])) continue; /* skip filtered */
         int id = IDC_SCRIPT_BTN_BASE + i;
 
@@ -222,17 +241,16 @@ void Tabs_RebuildButtons(void)
 update_scroll:;
     int total_h = y + BTN_MY; /* include bottom margin in total content height */
     GetClientRect(g.hwnd_scroll, &rc);
-    int visible    = rc.bottom - rc.top;
-    g.scroll_max   = (total_h > visible) ? (total_h - visible) : 0; /* 0 when all buttons fit without scrolling */
+    int visible = rc.bottom - rc.top;
+    g.scroll_max = (total_h > visible) ? (total_h - visible) : 0; /* 0 when all buttons fit without scrolling */
 
     SCROLLINFO si = {
         .cbSize = sizeof(si),
-        .fMask  = SIF_RANGE | SIF_PAGE | SIF_POS,
-        .nMin   = 0,
-        .nMax   = total_h,
-        .nPage  = (UINT)visible,
-        .nPos   = 0
-    };
+        .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,
+        .nMin = 0,
+        .nMax = total_h,
+        .nPage = (UINT)visible,
+        .nPos = 0};
     SetScrollInfo(g.hwnd_scroll, SB_VERT, &si, TRUE);
 
 done:
@@ -242,9 +260,12 @@ done:
 
     /* Auto-switch: if the current tab is empty and no filter is active,
        move to the first tab that has visible scripts so the UI is never blank. */
-    if (!g.filter_text[0] && !Tabs_FolderHasVisible(g.active_tab)) {
-        for (int _fi = 0; _fi < g.folder_count; _fi++) {
-            if (Tabs_FolderHasVisible(_fi)) {
+    if (!g.filter_text[0] && !Tabs_FolderHasVisible(g.active_tab))
+    {
+        for (int _fi = 0; _fi < g.folder_count; _fi++)
+        {
+            if (Tabs_FolderHasVisible(_fi))
+            {
                 g.active_tab = _fi;
                 wcsncpy_s(g.active_folder_name, MAX_NAME, g.folders[_fi].name, _TRUNCATE);
                 InvalidateRect(g.hwnd_tab, NULL, FALSE);
@@ -269,7 +290,7 @@ done:
 /*  Out: LRESULT — TRUE for WM_DRAWITEM; 0 for handled; DefWindowProc  */
 /* ================================================================== */
 LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
-                                  WPARAM wp, LPARAM lp)
+                                 WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -282,17 +303,17 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
         /* Track when mouse leaves the scroll panel so all highlights clear */
         {
             TRACKMOUSEEVENT tme = {
-                .cbSize    = sizeof(tme),
-                .dwFlags   = TME_LEAVE,
-                .hwndTrack = hwnd
-            };
+                .cbSize = sizeof(tme),
+                .dwFlags = TME_LEAVE,
+                .hwndTrack = hwnd};
             TrackMouseEvent(&tme);
         }
         break;
 
     case WM_MOUSELEAVE:
         /* Mouse left the scroll panel entirely - clear any stuck highlight */
-        if (g.hot_btn >= IDC_SCRIPT_BTN_BASE) {
+        if (g.hot_btn >= IDC_SCRIPT_BTN_BASE)
+        {
             HWND hPrev = GetDlgItem(hwnd, g.hot_btn);
             g.hot_btn = -1;
             if (hPrev) InvalidateRect(hPrev, NULL, FALSE);
@@ -306,11 +327,15 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        RECT rc; GetClientRect(hwnd, &rc);
-        HBRUSH _bg = CreateSolidBrush(COL_BG()); FillRect(hdc, &rc, _bg); DeleteObject(_bg);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        HBRUSH _bg = CreateSolidBrush(COL_BG());
+        FillRect(hdc, &rc, _bg);
+        DeleteObject(_bg);
 
         /* "Syncing…" placeholder text — only when no buttons are present */
-        if (g.syncing && !GetWindow(hwnd, GW_CHILD)) {
+        if (g.syncing && !GetWindow(hwnd, GW_CHILD))
+        {
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, COL_SUBTEXT());
             HFONT of = SelectObject(hdc, g.font_ui);
@@ -328,26 +353,27 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
         DRAWITEMSTRUCT *dis = (DRAWITEMSTRUCT *)lp;
         if (dis->CtlType != ODT_BUTTON) break; /* only handle button owner-draw messages */
 
-        int fi  = g.active_tab;
+        int fi = g.active_tab;
         int idx = (int)GetWindowLongPtr(dis->hwndItem, GWLP_USERDATA); /* script index stored in WM_CREATE */
 
         /* Copy the script under cs_folders to prevent a concurrent Folder_Push
            realloc (in the sync thread) from freeing the pointer while we read it. */
-        Script       s_copy = {0};
-        const Script *s     = NULL;
+        Script s_copy = {0};
+        const Script *s = NULL;
         EnterCriticalSection(&g.cs_folders);
         if (fi >= 0 && fi < g.folder_count &&
-            idx >= 0 && idx < g.folders[fi].count) {
+            idx >= 0 && idx < g.folders[fi].count)
+        {
             s_copy = g.folders[fi].scripts[idx];
             s = &s_copy;
         }
         LeaveCriticalSection(&g.cs_folders);
 
-        bool hot      = (g.hot_btn == (int)(UINT_PTR)dis->CtlID); /* mouse is hovering over this button */
-        bool pressed  = (dis->itemState & ODS_SELECTED) != 0;      /* ODS_SELECTED = button is being clicked */
-        bool info_hot = (g.tip_btn  == (int)(UINT_PTR)dis->CtlID); /* info (ℹ) badge is hovered */
-        bool repeat   = g.repeat_mode && g.repeat_fi == fi && g.repeat_si == idx; /* this button is in amber repeat mode */
-        bool running  = g.script_running && !g.repeat_mode && g.run_fi == fi && g.run_si == idx; /* green "running" state; repeat takes priority */
+        bool hot = (g.hot_btn == (int)(UINT_PTR)dis->CtlID); /* mouse is hovering over this button */
+        bool pressed = (dis->itemState & ODS_SELECTED) != 0; /* ODS_SELECTED = button is being clicked */
+        bool info_hot = (g.tip_btn == (int)(UINT_PTR)dis->CtlID); /* info (ℹ) badge is hovered */
+        bool repeat = g.repeat_mode && g.repeat_fi == fi && g.repeat_si == idx; /* this button is in amber repeat mode */
+        bool running = g.script_running && !g.repeat_mode && g.run_fi == fi && g.run_si == idx; /* green "running" state; repeat takes priority */
         Paint_ScriptButton(dis->hwndItem, dis->hDC, hot, pressed, info_hot, repeat, running, s);
         return TRUE;
     }
@@ -355,28 +381,44 @@ LRESULT CALLBACK ScrollPanelProc(HWND hwnd, UINT msg,
     /* Scroll bar */
     case WM_VSCROLL:
     {
-        SCROLLINFO si = { .cbSize = sizeof(si), .fMask = SIF_ALL };
+        SCROLLINFO si = {.cbSize = sizeof(si), .fMask = SIF_ALL};
         GetScrollInfo(hwnd, SB_VERT, &si);
         int pos = si.nPos;
 
-        switch (LOWORD(wp)) {
-        case SB_LINEUP:        pos -= SCROLL_STEP;                   break; /* arrow up: one SCROLL_STEP */
-        case SB_LINEDOWN:      pos += SCROLL_STEP;                   break; /* arrow down */
-        case SB_PAGEUP:        pos -= (int)si.nPage;                 break; /* click track above thumb */
-        case SB_PAGEDOWN:      pos += (int)si.nPage;                 break; /* click track below thumb */
+        switch (LOWORD(wp))
+        {
+        case SB_LINEUP:
+            pos -= SCROLL_STEP;
+            break; /* arrow up: one SCROLL_STEP */
+        case SB_LINEDOWN:
+            pos += SCROLL_STEP;
+            break; /* arrow down */
+        case SB_PAGEUP:
+            pos -= (int)si.nPage;
+            break; /* click track above thumb */
+        case SB_PAGEDOWN:
+            pos += (int)si.nPage;
+            break; /* click track below thumb */
         case SB_THUMBTRACK:
-        case SB_THUMBPOSITION: pos = HIWORD(wp);                     break; /* dragging or releasing thumb */
-        case SB_TOP:           pos = si.nMin;                        break; /* Home key */
-        case SB_BOTTOM:        pos = si.nMax;                        break; /* End key */
+        case SB_THUMBPOSITION:
+            pos = HIWORD(wp);
+            break; /* dragging or releasing thumb */
+        case SB_TOP:
+            pos = si.nMin;
+            break; /* Home key */
+        case SB_BOTTOM:
+            pos = si.nMax;
+            break; /* End key */
         }
 
         int max_pos = si.nMax - (int)si.nPage + 1; /* last position at which the thumb rests at the bottom */
         if (pos < si.nMin) pos = si.nMin;
         if (pos > max_pos) pos = max_pos;
 
-        if (pos != si.nPos) {
+        if (pos != si.nPos)
+        {
             int delta = si.nPos - pos;
-            si.nPos   = pos;
+            si.nPos = pos;
             SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
             ScrollWindowEx(hwnd, 0, delta, NULL, NULL, NULL, NULL,
                            SW_SCROLLCHILDREN | SW_INVALIDATE);

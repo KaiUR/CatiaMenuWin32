@@ -30,15 +30,16 @@
 /*  Out: (void)                                                         */
 /* ================================================================== */
 static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,
-                           COLORREF fill, COLORREF border)
+                          COLORREF fill, COLORREF border)
 {
-    HBRUSH br  = CreateSolidBrush(fill);
-    HPEN   pen = (border == fill) ? (HPEN)GetStockObject(NULL_PEN) /* no border wanted — use stock pen to avoid double-drawing */
-                                  : CreatePen(PS_SOLID, 1, border);
+    HBRUSH br = CreateSolidBrush(fill);
+    HPEN pen = (border == fill) ? (HPEN)GetStockObject(NULL_PEN) /* no border wanted — use stock pen to avoid double-drawing */
+                                : CreatePen(PS_SOLID, 1, border);
     HBRUSH obr = SelectObject(hdc, br);
-    HPEN   ope = SelectObject(hdc, pen);
+    HPEN ope = SelectObject(hdc, pen);
     RoundRect(hdc, x, y, x + w, y + h, r, r);
-    SelectObject(hdc, obr); SelectObject(hdc, ope);
+    SelectObject(hdc, obr);
+    SelectObject(hdc, ope);
     DeleteObject(br);
     if (border != fill) DeleteObject(pen); /* don't delete the stock NULL_PEN — it is not owned by us */
 }
@@ -55,10 +56,11 @@ static void DrawRoundRect(HDC hdc, int x, int y, int w, int h, int r,
 /* ================================================================== */
 void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 {
-    RECT rc; GetClientRect(hwnd, &rc);
+    RECT rc;
+    GetClientRect(hwnd, &rc);
     int w = rc.right, h = rc.bottom;
 
-    HDC     mem = CreateCompatibleDC(hdc_paint);
+    HDC mem = CreateCompatibleDC(hdc_paint);
     HBITMAP bmp = CreateCompatibleBitmap(hdc_paint, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
@@ -66,7 +68,7 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
     FillRect(mem, &rc, bg);
     DeleteObject(bg);
 
-    RECT tb = { 0, 0, w, TOOLBAR_H };
+    RECT tb = {0, 0, w, TOOLBAR_H};
     HBRUSH tb_br = CreateSolidBrush(COL_TOOLBAR());
     FillRect(mem, &tb, tb_br);
     DeleteObject(tb_br);
@@ -75,7 +77,8 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
     HPEN op = SelectObject(mem, dp);
     MoveToEx(mem, 0, TOOLBAR_H - 1, NULL); /* TOOLBAR_H - 1 = one px below toolbar band = divider line */
     LineTo(mem, w, TOOLBAR_H - 1);
-    SelectObject(mem, op); DeleteObject(dp);
+    SelectObject(mem, op);
+    DeleteObject(dp);
 
     SetBkMode(mem, TRANSPARENT);
     HFONT of = SelectObject(mem, g.font_bold);
@@ -84,36 +87,43 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
     WCHAR title[128];
     _snwprintf_s(title, 127, _TRUNCATE, L"%s   v%s", APP_TITLE, VERSION_STRING_W);
 
-    if (g.latest_version[0]) { /* update badge pending — split toolbar into two text rows */
+    if (g.latest_version[0])
+    { /* update badge pending — split toolbar into two text rows */
         SetTextColor(mem, COL_ACCENT);
         SelectObject(mem, g.font_bold);
-        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 }; /* 440 = starts right of toolbar buttons; top half of bar */
+        RECT tr = {440, 0, w - 8, TOOLBAR_H / 2}; /* 440 = starts right of toolbar buttons; top half of bar */
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 
         WCHAR upd[64];
         _snwprintf_s(upd, 63, _TRUNCATE, L"\u2B06 Update %s available", g.latest_version);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
-        RECT ur = { 444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
+        RECT ur = {444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2};
         DrawText(mem, upd, -1, &ur, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
-    } else if (g.syncing) { /* no update pending, but sync is in progress */
+    }
+    else if (g.syncing)
+    { /* no update pending, but sync is in progress */
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 440, 0, w - 8, TOOLBAR_H / 2 };
+        RECT tr = {440, 0, w - 8, TOOLBAR_H / 2};
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
         SelectObject(mem, g.font_small);
         SetTextColor(mem, COL_WARN);
-        RECT sr = { 444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2 };
+        RECT sr = {444, TOOLBAR_H / 2, w - 8, TOOLBAR_H - 2};
         DrawText(mem, L"\u25CF Syncing\u2026", -1, &sr,
                  DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
-    } else {
+    }
+    else
+    {
         SetTextColor(mem, COL_ACCENT);
-        RECT tr = { 440, 0, w - 8, TOOLBAR_H };
+        RECT tr = {440, 0, w - 8, TOOLBAR_H};
         DrawText(mem, title, -1, &tr, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     }
 
     SelectObject(mem, of);
     BitBlt(hdc_paint, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-    SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
+    SelectObject(mem, old);
+    DeleteObject(bmp);
+    DeleteDC(mem);
 }
 
 /* ================================================================== */
@@ -128,34 +138,34 @@ void Paint_MainWindow(HWND hwnd, HDC hdc_paint)
 /* ================================================================== */
 void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 {
-    HDC  hdc = dis->hDC;
-    RECT rc  = dis->rcItem;
-    int  w   = rc.right  - rc.left;
-    int  h   = rc.bottom - rc.top;
+    HDC hdc = dis->hDC;
+    RECT rc = dis->rcItem;
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
 
-    HDC     mem = CreateCompatibleDC(hdc);
+    HDC mem = CreateCompatibleDC(hdc);
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
-    bool pressed  = (dis->itemState & ODS_SELECTED) != 0; /* ODS_SELECTED = button is being clicked */
-    bool hot      = (dis->itemState & ODS_HOTLIGHT)  != 0;
-    bool focused  = (dis->itemState & ODS_FOCUS)      != 0;
-    bool disabled = (dis->itemState & ODS_DISABLED)   != 0;
-    bool is_stop  = ((int)dis->CtlID == IDC_BTN_STOP); /* Stop button gets red colour treatment */
+    bool pressed = (dis->itemState & ODS_SELECTED) != 0; /* ODS_SELECTED = button is being clicked */
+    bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
+    bool focused = (dis->itemState & ODS_FOCUS) != 0;
+    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+    bool is_stop = ((int)dis->CtlID == IDC_BTN_STOP); /* Stop button gets red colour treatment */
 
-#define COL_STOP_ACTIVE  RGB(200, 60, 60)
-#define COL_STOP_HOT     RGB(230, 90, 90)
+#define COL_STOP_ACTIVE RGB(200, 60, 60)
+#define COL_STOP_HOT RGB(230, 90, 90)
 
-    COLORREF bg  = (pressed && !disabled) ? COL_BTN_PRESS()
-                 : (hot && !disabled)      ? COL_BTN_HOT()
-                 :                           COL_BTN_NORM();
-    COLORREF bdr = disabled          ? COL_DIVIDER()
-                 : (hot || focused)  ? (is_stop ? COL_STOP_ACTIVE : COL_ACCENT)
-                 :                      COL_DIVIDER();
-    COLORREF txt = disabled          ? COL_SUBTEXT()
-                 : (hot || pressed)  ? (is_stop ? COL_STOP_HOT : COL_ACCENT)
-                 : is_stop           ? COL_STOP_ACTIVE
-                 :                     COL_TEXT();
+    COLORREF bg = (pressed && !disabled) ? COL_BTN_PRESS()
+                  : (hot && !disabled)   ? COL_BTN_HOT()
+                                         : COL_BTN_NORM();
+    COLORREF bdr = disabled           ? COL_DIVIDER()
+                   : (hot || focused) ? (is_stop ? COL_STOP_ACTIVE : COL_ACCENT)
+                                      : COL_DIVIDER();
+    COLORREF txt = disabled           ? COL_SUBTEXT()
+                   : (hot || pressed) ? (is_stop ? COL_STOP_HOT : COL_ACCENT)
+                   : is_stop          ? COL_STOP_ACTIVE
+                                      : COL_TEXT();
 
 #undef COL_STOP_ACTIVE
 #undef COL_STOP_HOT
@@ -169,13 +179,15 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
     SetBkMode(mem, TRANSPARENT);
     SetTextColor(mem, txt);
     HFONT of = SelectObject(mem, g.font_ui);
-    RECT tr = { 0, 0, w, h };
+    RECT tr = {0, 0, w, h};
     DrawText(mem, text, -1, &tr,
              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     SelectObject(mem, of);
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-    SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
+    SelectObject(mem, old);
+    DeleteObject(bmp);
+    DeleteDC(mem);
 }
 
 /* ================================================================== */
@@ -195,62 +207,82 @@ void Paint_ToolbarButton(DRAWITEMSTRUCT *dis)
 /*  Out: (void)                                                         */
 /* ================================================================== */
 void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
-                         bool hot, bool pressed, bool info_hot, bool repeat,
-                         bool running, const Script *s)
+                        bool hot, bool pressed, bool info_hot, bool repeat,
+                        bool running, const Script *s)
 {
-    RECT rc; GetClientRect(hwnd_btn, &rc);
+    RECT rc;
+    GetClientRect(hwnd_btn, &rc);
     int w = rc.right, h = rc.bottom;
     int main_w = w - INFO_BTN_W; /* rightmost INFO_BTN_W px is the "i" info zone; rest is the run area */
 
-    HDC     mem = CreateCompatibleDC(hdc);
+    HDC mem = CreateCompatibleDC(hdc);
     HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
     HBITMAP old = SelectObject(mem, bmp);
 
     /* Idle background: offline tint takes priority over source tint; local scripts are never tinted red */
     COLORREF idle_bg = COL_BTN_NORM();
-    if (!pressed && !hot && s) {
-        if (g.status_offline && g.cfg.offline_use_cache) {
-            if      (s->source == SCRIPT_SRC_MAIN)  idle_bg = COL_BTN_OFFLINE_MAIN();
-            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_OFFLINE_EXTRA();
-            else if (g.cfg.tint_script_sources)     idle_bg = COL_BTN_LOCAL(); /* SCRIPT_SRC_LOCAL unchanged */
-        } else if (g.cfg.tint_script_sources) {
-            if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
-            else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+    if (!pressed && !hot && s)
+    {
+        if (g.status_offline && g.cfg.offline_use_cache)
+        {
+            if (s->source == SCRIPT_SRC_MAIN)
+                idle_bg = COL_BTN_OFFLINE_MAIN();
+            else if (s->source == SCRIPT_SRC_EXTRA)
+                idle_bg = COL_BTN_OFFLINE_EXTRA();
+            else if (g.cfg.tint_script_sources)
+                idle_bg = COL_BTN_LOCAL(); /* SCRIPT_SRC_LOCAL unchanged */
+        }
+        else if (g.cfg.tint_script_sources)
+        {
+            if (s->source == SCRIPT_SRC_LOCAL)
+                idle_bg = COL_BTN_LOCAL();
+            else if (s->source == SCRIPT_SRC_EXTRA)
+                idle_bg = COL_BTN_EXTRA();
         }
     }
-    COLORREF bg  = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT() : idle_bg;
-    COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_DIVIDER(); /* border priority: repeat > running > hot > idle */
-    DrawRoundRect(mem, 0,      0, main_w,     h, 7, bg, bdr);
+    COLORREF bg = pressed ? COL_BTN_PRESS() : hot ? COL_BTN_HOT()
+                                                  : idle_bg;
+    COLORREF bdr = repeat ? COL_WARN : running ? COL_SUCCESS
+                                   : hot       ? COL_ACCENT
+                                               : COL_DIVIDER(); /* border priority: repeat > running > hot > idle */
+    DrawRoundRect(mem, 0, 0, main_w, h, 7, bg, bdr);
     DrawRoundRect(mem, main_w, 0, INFO_BTN_W, h, 7,
                   info_hot ? COL_ACCENT_DIM : COL_INFO_ZONE(), bdr);
 
     SetBkMode(mem, TRANSPARENT);
     SetTextColor(mem, info_hot ? COL_TEXT() : COL_SUBTEXT());
     HFONT of = SelectObject(mem, g.font_bold);
-    RECT ir = { main_w, 0, w, h };
+    RECT ir = {main_w, 0, w, h};
     DrawText(mem, L"i", -1, &ir, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     /* Left accent bar — 4 px wide, 5 px inset top and bottom */
-    if (repeat) {
+    if (repeat)
+    {
         HBRUSH ab = CreateSolidBrush(COL_WARN);
-        RECT   ar = { 0, 5, 4, h - 5 };
+        RECT ar = {0, 5, 4, h - 5};
         FillRect(mem, &ar, ab);
         DeleteObject(ab);
-    } else if (running) {
+    }
+    else if (running)
+    {
         HBRUSH ab = CreateSolidBrush(COL_SUCCESS);
-        RECT   ar = { 0, 5, 4, h - 5 };
+        RECT ar = {0, 5, 4, h - 5};
         FillRect(mem, &ar, ab);
         DeleteObject(ab);
-    } else if (hot || pressed) {
+    }
+    else if (hot || pressed)
+    {
         HBRUSH ab = CreateSolidBrush(pressed ? COL_ACCENT_DIM : COL_ACCENT);
-        RECT   ar = { 0, 5, 4, h - 5 };
+        RECT ar = {0, 5, 4, h - 5};
         FillRect(mem, &ar, ab);
         DeleteObject(ab);
     }
 
-    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_SUBTEXT());
+    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS
+                                      : hot       ? COL_ACCENT
+                                                  : COL_SUBTEXT());
     SelectObject(mem, g.font_ui);
-    RECT arr = { 8, 0, 28, h }; /* columns 8–28 = small arrow/loop icon area */
+    RECT arr = {8, 0, 28, h}; /* columns 8–28 = small arrow/loop icon area */
     /* Show repeat loop symbol (\u21BB) when in repeat mode, arrow otherwise */
     DrawText(mem, repeat ? L"\u21BB" : L"\u25BA", -1, &arr,
              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -259,30 +291,38 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
     if (!s || !s->name[0])
         GetWindowText(hwnd_btn, fallback, MAX_NAME - 1);
 
-    const WCHAR *label   = (s && s->name[0]) ? s->name : fallback;
+    const WCHAR *label = (s && s->name[0]) ? s->name : fallback;
     const WCHAR *purpose = (s && s->meta_loaded && s->meta.purpose[0])
-                           ? s->meta.purpose : NULL;
+                               ? s->meta.purpose
+                               : NULL;
 
-    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS : hot ? COL_ACCENT : COL_TEXT());
+    SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS
+                                      : hot       ? COL_ACCENT
+                                                  : COL_TEXT());
     SelectObject(mem, g.font_bold);
-    if (purpose) {
-        RECT lr = { 30, 3, main_w - 6, h / 2 + 2 }; /* name in top half; 30 = past the arrow icon */
+    if (purpose)
+    {
+        RECT lr = {30, 3, main_w - 6, h / 2 + 2}; /* name in top half; 30 = past the arrow icon */
         DrawText(mem, label, -1, &lr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         SetTextColor(mem, COL_SUBTEXT());
         SelectObject(mem, g.font_small);
-        RECT pr = { 30, h / 2, main_w - 6, h - 4 }; /* purpose in bottom half */
+        RECT pr = {30, h / 2, main_w - 6, h - 4}; /* purpose in bottom half */
         DrawText(mem, purpose, -1, &pr,
                  DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
-    } else {
-        RECT lr = { 30, 0, main_w - 6, h };
+    }
+    else
+    {
+        RECT lr = {30, 0, main_w - 6, h};
         DrawText(mem, label, -1, &lr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
 
     SelectObject(mem, of);
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-    SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
+    SelectObject(mem, old);
+    DeleteObject(bmp);
+    DeleteDC(mem);
 }
 
 /* ================================================================== */
@@ -298,14 +338,15 @@ static int Tip_ComputeHeight(const Script *s)
     /* Fixed rows: Script + Purpose + Author + Version + Date; 8 = top padding */
     int h = 8 + TIP_HEADER_ROWS * TIP_ROW_H;
 
-    if (s && s->meta.description[0]) {
+    if (s && s->meta.description[0])
+    {
         h += 6; /* separator + gap */
         /* Use a memory DC with the exact font to get accurate word-wrap height */
         HDC screen = GetDC(NULL);
-        HDC mem    = CreateCompatibleDC(screen);
-        HFONT of   = SelectObject(mem, g.font_small);
+        HDC mem = CreateCompatibleDC(screen);
+        HFONT of = SelectObject(mem, g.font_small);
         /* Width must match what Paint_Tooltip draws into; height 0 because DT_CALCRECT fills it in */
-        RECT dr = { 0, 0, TIP_W - 14, 0 }; /* TIP_W - 14 = TIP_W minus 8+6 side margins */
+        RECT dr = {0, 0, TIP_W - 14, 0}; /* TIP_W - 14 = TIP_W minus 8+6 side margins */
         int text_h = DrawText(mem, s->meta.description, -1, &dr,
                               DT_LEFT | DT_TOP | DT_WORDBREAK | DT_CALCRECT);
         SelectObject(mem, of);
@@ -328,7 +369,8 @@ static int Tip_ComputeHeight(const Script *s)
 /* ================================================================== */
 void Paint_Tooltip(HWND hwnd)
 {
-    RECT rc; GetClientRect(hwnd, &rc);
+    RECT rc;
+    GetClientRect(hwnd, &rc);
     int w = rc.right, h = rc.bottom;
 
     PAINTSTRUCT ps;
@@ -345,14 +387,15 @@ void Paint_Tooltip(HWND hwnd)
     HPEN op = SelectObject(mem, bp);
     HBRUSH nb = SelectObject(mem, GetStockObject(NULL_BRUSH));
     Rectangle(mem, 0, 0, w, h);
-    SelectObject(mem, op); SelectObject(mem, nb);
+    SelectObject(mem, op);
+    SelectObject(mem, nb);
     DeleteObject(bp);
 
     int fi = g.active_tab;
     int si = g.tip_btn - IDC_SCRIPT_BTN_BASE; /* recover script index from stored button ID */
 
     /* Copy the script under cs_folders — the sync thread may realloc f->scripts. */
-    Script  s_copy    = {0};
+    Script s_copy = {0};
     EnterCriticalSection(&g.cs_folders);
     bool tip_valid = (fi >= 0 && fi < g.folder_count &&
                       si >= 0 && si < g.folders[fi].count);
@@ -364,20 +407,24 @@ void Paint_Tooltip(HWND hwnd)
     {
         Script *s = &s_copy;
 
-        struct { const WCHAR *lbl; const WCHAR *val; } rows[] = {
-            { L"Script:",  s->name },
-            { L"Purpose:", s->meta.purpose[0]  ? s->meta.purpose  : L"--" },
-            { L"Author:",  s->meta.author[0]   ? s->meta.author   : L"--" },
-            { L"Version:", s->meta.version[0]  ? s->meta.version  : L"--" },
-            { L"Date:",    s->meta.date[0]     ? s->meta.date     : L"--" },
-            { NULL, NULL }
-        };
+        struct
+        {
+            const WCHAR *lbl;
+            const WCHAR *val;
+        } rows[] = {
+            {L"Script:", s->name},
+            {L"Purpose:", s->meta.purpose[0] ? s->meta.purpose : L"--"},
+            {L"Author:", s->meta.author[0] ? s->meta.author : L"--"},
+            {L"Version:", s->meta.version[0] ? s->meta.version : L"--"},
+            {L"Date:", s->meta.date[0] ? s->meta.date : L"--"},
+            {NULL, NULL}};
 
         SetBkMode(mem, TRANSPARENT);
         int y = 8;
-        for (int i = 0; rows[i].lbl; i++) {
-            RECT lr = { 8, y, 76, y + 16 }; /* 76 px = label column right edge */
-            RECT vr = { 80, y, w - 6, y + 16 }; /* 80 = value column start; w-6 = right margin */
+        for (int i = 0; rows[i].lbl; i++)
+        {
+            RECT lr = {8, y, 76, y + 16}; /* 76 px = label column right edge */
+            RECT vr = {80, y, w - 6, y + 16}; /* 80 = value column start; w-6 = right margin */
             SelectObject(mem, g.font_bold);
             SetTextColor(mem, COL_ACCENT);
             DrawText(mem, rows[i].lbl, -1, &lr, DT_LEFT | DT_TOP | DT_SINGLELINE);
@@ -388,14 +435,17 @@ void Paint_Tooltip(HWND hwnd)
             y += TIP_ROW_H;
         }
 
-        if (s->meta.description[0]) {
+        if (s->meta.description[0])
+        {
             HPEN sep = CreatePen(PS_SOLID, 1, COL_DIVIDER());
-            HPEN os  = SelectObject(mem, sep);
-            MoveToEx(mem, 8, y, NULL); LineTo(mem, w - 8, y);
-            SelectObject(mem, os); DeleteObject(sep);
+            HPEN os = SelectObject(mem, sep);
+            MoveToEx(mem, 8, y, NULL);
+            LineTo(mem, w - 8, y);
+            SelectObject(mem, os);
+            DeleteObject(sep);
             y += 5;
             /* Full word-wrapped description - no ellipsis, no clipping */
-            RECT dr = { 8, y, w - 6, h - 6 };
+            RECT dr = {8, y, w - 6, h - 6};
             SelectObject(mem, g.font_small);
             SetTextColor(mem, COL_SUBTEXT());
             DrawText(mem, s->meta.description, -1, &dr,
@@ -405,7 +455,9 @@ void Paint_Tooltip(HWND hwnd)
 
 done:
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-    SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
+    SelectObject(mem, old);
+    DeleteObject(bmp);
+    DeleteDC(mem);
     EndPaint(hwnd, &ps);
 }
 
@@ -425,29 +477,31 @@ done:
 /*  Out: LRESULT — 0 for suppressed messages; DefSubclassProc otherwise*/
 /* ================================================================== */
 LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
-                                   LPARAM lp, UINT_PTR uid, DWORD_PTR data)
+                                 LPARAM lp, UINT_PTR uid, DWORD_PTR data)
 {
     (void)data;
     switch (msg)
     {
     case WM_MOUSEMOVE:
     {
-        if (g.hot_btn != (int)uid && g.hot_btn >= IDC_SCRIPT_BTN_BASE) {
+        if (g.hot_btn != (int)uid && g.hot_btn >= IDC_SCRIPT_BTN_BASE)
+        {
             /* repaint the button that is losing hot state */
             HWND hp = GetDlgItem(GetParent(hwnd), g.hot_btn);
             if (hp) InvalidateRect(hp, NULL, FALSE);
         }
         g.hot_btn = (int)uid;
-        TRACKMOUSEEVENT tme = { .cbSize=sizeof(tme), .dwFlags=TME_LEAVE,
-                                .hwndTrack=hwnd };
+        TRACKMOUSEEVENT tme = {.cbSize = sizeof(tme), .dwFlags = TME_LEAVE, .hwndTrack = hwnd};
         TrackMouseEvent(&tme); /* subscribe so WM_MOUSELEAVE clears the hot state */
         InvalidateRect(hwnd, NULL, FALSE);
 
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         int mx = GET_X_LPARAM(lp);
         bool over_info = (mx >= rc.right - INFO_BTN_W); /* true when cursor is in the "i" zone */
 
-        if (over_info && g.tip_btn != (int)uid) {
+        if (over_info && g.tip_btn != (int)uid)
+        {
             g.tip_btn = (int)uid;
             int fi = g.active_tab;
             int si = (int)uid - IDC_SCRIPT_BTN_BASE;
@@ -468,30 +522,32 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
 
             /* Get work area of the monitor the window is on
                (accounts for taskbar, multi-monitor, maximized state) */
-            MONITORINFO mi; mi.cbSize = sizeof(mi);
+            MONITORINFO mi;
+            mi.cbSize = sizeof(mi);
             HMONITOR hmon = MonitorFromWindow(g.hwnd, MONITOR_DEFAULTTONEAREST);
             GetMonitorInfo(hmon, &mi);
             RECT wa = mi.rcWork;
 
             /* Position tooltip to right of button; flip to left side if it would go off screen */
-            POINT pt = { rc.right, 0 };
+            POINT pt = {rc.right, 0};
             ClientToScreen(hwnd, &pt);
             int tx = (pt.x + TIP_W > wa.right)
-                     ? pt.x - rc.right - TIP_W /* flip: place left of the button */
-                     : pt.x;
+                         ? pt.x - rc.right - TIP_W /* flip: place left of the button */
+                         : pt.x;
             int ty = pt.y;
 
             /* Clamp within work area on all four sides; 4 px gap from edge */
             if (ty + th > wa.bottom) ty = wa.bottom - th - 4;
-            if (ty < wa.top)         ty = wa.top + 4;
-            if (tx < wa.left)        tx = wa.left + 4;
+            if (ty < wa.top) ty = wa.top + 4;
+            if (tx < wa.left) tx = wa.left + 4;
             if (tx + TIP_W > wa.right) tx = wa.right - TIP_W - 4;
 
             SetWindowPos(g.hwnd_tip, HWND_TOPMOST, tx, ty, TIP_W, th,
                          SWP_NOACTIVATE | SWP_SHOWWINDOW);
             InvalidateRect(g.hwnd_tip, NULL, TRUE);
-
-        } else if (!over_info && g.tip_btn == (int)uid) {
+        }
+        else if (!over_info && g.tip_btn == (int)uid)
+        {
             g.tip_btn = -1;
             ShowWindow(g.hwnd_tip, SW_HIDE);
         }
@@ -499,18 +555,28 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
     }
 
     case WM_MOUSELEAVE:
-        if (g.hot_btn == (int)uid) { g.hot_btn = -1; InvalidateRect(hwnd, NULL, FALSE); }
-        if (g.tip_btn == (int)uid) { g.tip_btn = -1; ShowWindow(g.hwnd_tip, SW_HIDE); }
+        if (g.hot_btn == (int)uid)
+        {
+            g.hot_btn = -1;
+            InvalidateRect(hwnd, NULL, FALSE);
+        }
+        if (g.tip_btn == (int)uid)
+        {
+            g.tip_btn = -1;
+            ShowWindow(g.hwnd_tip, SW_HIDE);
+        }
         break;
 
     case WM_LBUTTONDBLCLK:
     {
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         /* Ignore double-clicks on the info zone */
         if (GET_X_LPARAM(lp) >= rc.right - INFO_BTN_W) return 0;
         if (!g.cfg.repeat_on_dblclick) return 0;
         /* Console mode doesn't notify us when the script finishes */
-        if (g.cfg.show_console) {
+        if (g.cfg.show_console)
+        {
             PostStatus(L"Repeat mode not available in console mode.");
             return 0;
         }
@@ -518,7 +584,8 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         int si = (int)uid - IDC_SCRIPT_BTN_BASE;
         if (fi < 0 || fi >= g.folder_count ||
             si < 0 || si >= g.folders[fi].count) return 0;
-        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) { /* double-click same script while repeating — toggle off */
+        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si)
+        { /* double-click same script while repeating — toggle off */
             Repeat_Stop();
             g.suppress_lbuttonup = false;
             PostStatus(L"Repeat cancelled.");
@@ -537,10 +604,12 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
 
     case WM_LBUTTONUP:
     {
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         if (GET_X_LPARAM(lp) >= rc.right - INFO_BTN_W) return 0;
         /* Suppress the trailing LBUTTONUP generated after a double-click */
-        if (g.suppress_lbuttonup) {
+        if (g.suppress_lbuttonup)
+        {
             g.suppress_lbuttonup = false;
             return 0;
         }
@@ -585,16 +654,19 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         AppendMenu(hm, MF_SEPARATOR, 0, NULL);
         AppendMenu(hm, MF_STRING, IDM_SCRIPT_HIDE, L"Hide Script");
 
-        POINT pt; GetCursorPos(&pt);
+        POINT pt;
+        GetCursorPos(&pt);
         int cmd = TrackPopupMenu(hm, TPM_RETURNCMD | TPM_RIGHTBUTTON,
-                                  pt.x, pt.y, 0, g.hwnd, NULL);
+                                 pt.x, pt.y, 0, g.hwnd, NULL);
         DestroyMenu(hm);
 
-        switch (cmd) {
+        switch (cmd)
+        {
         case IDM_SCRIPT_DETAILS:
             if (DialogBoxParam(GetModuleHandle(NULL),
-                    MAKEINTRESOURCE(IDD_SCRIPT_DETAILS),
-                    g.hwnd, ScriptDetailsDlgProc, (LPARAM)s) == IDOK) {
+                               MAKEINTRESOURCE(IDD_SCRIPT_DETAILS),
+                               g.hwnd, ScriptDetailsDlgProc, (LPARAM)s) == IDOK)
+            {
                 Tabs_BuildFavourites();
                 Tabs_Build();
                 Tabs_RebuildButtons();
@@ -603,8 +675,9 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
         case IDM_SCRIPT_RUN_ARGS:
         {
             if (DialogBoxParam(GetModuleHandle(NULL),
-                    MAKEINTRESOURCE(IDD_RUN_ARGS),
-                    g.hwnd, RunWithArgsDlgProc, (LPARAM)s) == IDOK) {
+                               MAKEINTRESOURCE(IDD_RUN_ARGS),
+                               g.hwnd, RunWithArgsDlgProc, (LPARAM)s) == IDOK)
+            {
                 /* Get args from a static buffer set by the dialog */
                 Runner_Run(fi, si);
             }
@@ -616,10 +689,13 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             bool was_on_favourites = (wcscmp(g.folders[fi].name, L"Favourites") == 0); /* remember so we can return to Favourites after rebuild */
             Prefs_SetFavourite(s->gh_path, new_fav);
             /* Update the script in its real folder (not the Favourites copy) */
-            for (int f2 = 0; f2 < g.folder_count; f2++) {
+            for (int f2 = 0; f2 < g.folder_count; f2++)
+            {
                 if (wcscmp(g.folders[f2].name, L"Favourites") == 0) continue;
-                for (int s2 = 0; s2 < g.folders[f2].count; s2++) {
-                    if (wcscmp(g.folders[f2].scripts[s2].gh_path, s->gh_path) == 0) {
+                for (int s2 = 0; s2 < g.folders[f2].count; s2++)
+                {
+                    if (wcscmp(g.folders[f2].scripts[s2].gh_path, s->gh_path) == 0)
+                    {
                         g.folders[f2].scripts[s2].is_favourite = new_fav;
                     }
                 }
@@ -659,30 +735,31 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             SHELLEXECUTEINFOW sei;
             ZeroMemory(&sei, sizeof(sei));
             sei.cbSize = sizeof(sei);
-            sei.fMask  = SEE_MASK_FLAG_NO_UI;
-            sei.nShow  = SW_SHOWNORMAL;
+            sei.fMask = SEE_MASK_FLAG_NO_UI;
+            sei.nShow = SW_SHOWNORMAL;
             sei.lpVerb = L"edit";
             sei.lpFile = s->local;
-            if (!ShellExecuteExW(&sei)) {
+            if (!ShellExecuteExW(&sei))
+            {
                 wchar_t editor[MAX_PATH] = {0};
                 DWORD len = MAX_PATH;
                 if (AssocQueryStringW(0, ASSOCSTR_EXECUTABLE, L".txt", L"open",
-                                      editor, &len) == S_OK && editor[0])
+                                      editor, &len) == S_OK &&
+                    editor[0])
                     ShellExecuteW(NULL, L"open", editor, s->local, NULL, SW_SHOWNORMAL);
             }
             break;
         }
         case IDM_SCRIPT_NOTE:
             DialogBoxParam(GetModuleHandle(NULL),
-                MAKEINTRESOURCE(IDD_SCRIPT_NOTE),
-                g.hwnd, ScriptNoteDlgProc, (LPARAM)s);
+                           MAKEINTRESOURCE(IDD_SCRIPT_NOTE),
+                           g.hwnd, ScriptNoteDlgProc, (LPARAM)s);
             break;
         case IDM_SCRIPT_HIDE:
             s->is_hidden = true;
             Prefs_SetHidden(s->gh_path, true);
             Tabs_RebuildButtons();
             break;
-
         }
         return 0;
     }
@@ -703,8 +780,8 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
 /* ================================================================== */
 void Paint_Tab(DRAWITEMSTRUCT *dis)
 {
-    HDC  hdc = dis->hDC;
-    RECT rc  = dis->rcItem;
+    HDC hdc = dis->hDC;
+    RECT rc = dis->rcItem;
     bool sel = (dis->itemState & ODS_SELECTED) != 0;
 
     if (sel) rc.bottom += 2; /* expand 2 px downward so selected tab overlaps and hides the tab-bar border line */
@@ -718,22 +795,27 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
     /* Border: draw on left, top, right - NOT bottom for selected tab */
     COLORREF bdr = sel ? COL_ACCENT : COL_DIVIDER();
     HPEN pen = CreatePen(PS_SOLID, 1, bdr);
-    HPEN op  = SelectObject(hdc, pen);
+    HPEN op = SelectObject(hdc, pen);
 
-    if (sel) {
+    if (sel)
+    {
         /* Top accent line (2px) */
         HPEN ap = CreatePen(PS_SOLID, 2, COL_ACCENT);
         SelectObject(hdc, ap);
-        MoveToEx(hdc, rc.left,      rc.top, NULL);
-        LineTo  (hdc, rc.right,     rc.top);
+        MoveToEx(hdc, rc.left, rc.top, NULL);
+        LineTo(hdc, rc.right, rc.top);
         SelectObject(hdc, op);
         DeleteObject(ap);
 
         /* Left and right edges */
         SelectObject(hdc, pen);
-        MoveToEx(hdc, rc.left,  rc.top,    NULL); LineTo(hdc, rc.left,  rc.bottom);
-        MoveToEx(hdc, rc.right - 1, rc.top, NULL); LineTo(hdc, rc.right - 1, rc.bottom);
-    } else {
+        MoveToEx(hdc, rc.left, rc.top, NULL);
+        LineTo(hdc, rc.left, rc.bottom);
+        MoveToEx(hdc, rc.right - 1, rc.top, NULL);
+        LineTo(hdc, rc.right - 1, rc.bottom);
+    }
+    else
+    {
         /* Unselected: full border + bottom line */
         RECT border = rc;
         HBRUSH tb = CreateSolidBrush(bdr);
@@ -746,8 +828,7 @@ void Paint_Tab(DRAWITEMSTRUCT *dis)
 
     /* Text */
     WCHAR text[MAX_NAME] = {0};
-    TCITEM ti = { .mask = TCIF_TEXT, .pszText = text,
-                  .cchTextMax = MAX_NAME - 1 };
+    TCITEM ti = {.mask = TCIF_TEXT, .pszText = text, .cchTextMax = MAX_NAME - 1};
     TabCtrl_GetItem(g.hwnd_tab, dis->itemID, &ti);
 
     SetBkMode(hdc, TRANSPARENT);

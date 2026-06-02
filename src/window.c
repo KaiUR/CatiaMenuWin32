@@ -50,7 +50,7 @@ void Window_OpenExeFolder(void)
 void Window_ApplyThemeToChildren(HWND hwnd)
 {
     SetWindowTheme(g.hwnd_status, L"", L"");
-    InvalidateRect(g.hwnd_tab,    NULL, TRUE);
+    InvalidateRect(g.hwnd_tab, NULL, TRUE);
     InvalidateRect(g.hwnd_status, NULL, TRUE);
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN);
     Log_OnThemeChange(); /* update log window title bar and RichEdit colours */
@@ -64,7 +64,10 @@ void Window_ApplyThemeToChildren(HWND hwnd)
 /*  In:  hwnd — (unused)                                               */
 /*  Out: (void)                                                         */
 /* ================================================================== */
-void Window_ApplyDarkMenu(HWND hwnd) { (void)hwnd; }
+void Window_ApplyDarkMenu(HWND hwnd)
+{
+    (void)hwnd;
+}
 
 /* ================================================================== */
 /*  Window_ApplyAlwaysOnTop                                             */
@@ -91,114 +94,115 @@ void Window_ApplyAlwaysOnTop(void)
 /* ================================================================== */
 void Window_ShowMenu(void)
 {
-    HMENU hm     = CreatePopupMenu();
-    HMENU hFile  = CreatePopupMenu();
-    HMENU hRun   = CreatePopupMenu();
-    HMENU hView  = CreatePopupMenu();
+    HMENU hm = CreatePopupMenu();
+    HMENU hFile = CreatePopupMenu();
+    HMENU hRun = CreatePopupMenu();
+    HMENU hView = CreatePopupMenu();
     HMENU hTheme = CreatePopupMenu();
-    HMENU hWin   = CreatePopupMenu();
-    HMENU hHelp  = CreatePopupMenu();
+    HMENU hWin = CreatePopupMenu();
+    HMENU hHelp = CreatePopupMenu();
 
-    AppendMenu(hFile, MF_STRING,    IDM_REFRESH,  L"Refresh + Sync\tF5");
+    AppendMenu(hFile, MF_STRING, IDM_REFRESH, L"Refresh + Sync\tF5");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hFile, MF_STRING,    IDM_SETTINGS, L"Settings...");
-    AppendMenu(hFile, MF_STRING,    IDM_SOURCES,          L"Sources...");
-    AppendMenu(hFile, MF_STRING,    IDM_HIDDEN_SCRIPTS,   L"Manage Hidden Scripts...");
+    AppendMenu(hFile, MF_STRING, IDM_SETTINGS, L"Settings...");
+    AppendMenu(hFile, MF_STRING, IDM_SOURCES, L"Sources...");
+    AppendMenu(hFile, MF_STRING, IDM_HIDDEN_SCRIPTS, L"Manage Hidden Scripts...");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hFile, MF_STRING,    IDM_OPEN_EXE_FOLDER,  L"Open Executable Folder");
+    AppendMenu(hFile, MF_STRING, IDM_OPEN_EXE_FOLDER, L"Open Executable Folder");
     AppendMenu(hFile, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hFile, MF_STRING,    IDM_EXIT,     L"Exit");
+    AppendMenu(hFile, MF_STRING, IDM_EXIT, L"Exit");
 
-    AppendMenu(hRun, MF_STRING,    IDM_RUN_LAST,    L"Run Last Script\tF9");
+    AppendMenu(hRun, MF_STRING, IDM_RUN_LAST, L"Run Last Script\tF9");
     AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hRun, MF_STRING,    IDM_OPEN_CACHE,  L"Open Cache Folder...");
-    AppendMenu(hRun, MF_STRING,    IDM_UPDATE_DEPS, L"Update Dependencies");
+    AppendMenu(hRun, MF_STRING, IDM_OPEN_CACHE, L"Open Cache Folder...");
+    AppendMenu(hRun, MF_STRING, IDM_UPDATE_DEPS, L"Update Dependencies");
     AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hRun, MF_STRING,    IDM_REPEAT_MAINAPP, L"Repeat Script on Double-Click");
+    AppendMenu(hRun, MF_STRING, IDM_REPEAT_MAINAPP, L"Repeat Script on Double-Click");
 
-    AppendMenu(hTheme, MF_STRING, IDM_THEME_DARK,   L"Dark");
-    AppendMenu(hTheme, MF_STRING, IDM_THEME_LIGHT,  L"Light");
+    AppendMenu(hTheme, MF_STRING, IDM_THEME_DARK, L"Dark");
+    AppendMenu(hTheme, MF_STRING, IDM_THEME_LIGHT, L"Light");
     AppendMenu(hTheme, MF_STRING, IDM_THEME_SYSTEM, L"System (default)");
 
-    AppendMenu(hView, MF_STRING,    IDM_ALWAYS_ON_TOP, L"Always on Top");
+    AppendMenu(hView, MF_STRING, IDM_ALWAYS_ON_TOP, L"Always on Top");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hTheme, L"Theme");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     HMENU hSort = CreatePopupMenu();
-    AppendMenu(hSort, MF_STRING, IDM_SORT_DEFAULT,   L"Default Order");
-    AppendMenu(hSort, MF_STRING, IDM_SORT_ALPHA,     L"Alphabetical");
-    AppendMenu(hSort, MF_STRING, IDM_SORT_DATE,      L"By Date");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_DEFAULT, L"Default Order");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_ALPHA, L"Alphabetical");
+    AppendMenu(hSort, MF_STRING, IDM_SORT_DATE, L"By Date");
     AppendMenu(hSort, MF_STRING, IDM_SORT_MOST_USED, L"Most Used");
-    AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort,     L"Sort Scripts");
+    AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort, L"Sort Scripts");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     bool qbar_has_target = g.cfg.qbar_target_app[0] != L'\0';
     HMENU hQBar = CreatePopupMenu();
-    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_TOGGLE,     L"Enable Quick Bar");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_TOGGLE, L"Enable Quick Bar");
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_HORIZONTAL, L"Horizontal");
-    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_VERTICAL,   L"Vertical");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_HORIZONTAL, L"Horizontal");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_VERTICAL, L"Vertical");
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
     AppendMenu(hQBar, qbar_has_target ? MF_STRING : (MF_STRING | MF_GRAYED),
                IDM_QBAR_TOPMOST, L"On Top with Target App");
-    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_SET_TARGET, L"Set Target App...");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_SET_TARGET, L"Set Target App...");
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hQBar, MF_STRING,    IDM_QBAR_RESET_POS,  L"Reset Position");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_RESET_POS, L"Reset Position");
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hQBar, MF_STRING,    IDM_REPEAT_QBAR,     L"Repeat on Double-Click");
-    AppendMenu(hView, MF_POPUP, (UINT_PTR)hQBar,         L"Quick Bar");
+    AppendMenu(hQBar, MF_STRING, IDM_REPEAT_QBAR, L"Repeat on Double-Click");
+    AppendMenu(hView, MF_POPUP, (UINT_PTR)hQBar, L"Quick Bar");
 
-    AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY,   L"Minimize to Tray");
+    AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY, L"Minimize to Tray");
     AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
-    AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED,    L"Start Minimized");
+    AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED, L"Start Minimized");
 
-    AppendMenu(hHelp, MF_STRING, IDM_HELP_CONTENTS,  L"Help Contents\tF1");
-    AppendMenu(hHelp, MF_STRING, IDM_CHECK_UPDATES,  L"Check for Updates...");
+    AppendMenu(hHelp, MF_STRING, IDM_HELP_CONTENTS, L"Help Contents\tF1");
+    AppendMenu(hHelp, MF_STRING, IDM_CHECK_UPDATES, L"Check for Updates...");
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hHelp, MF_STRING, IDM_REPORT_BUG,     L"Report a Bug...");
+    AppendMenu(hHelp, MF_STRING, IDM_REPORT_BUG, L"Report a Bug...");
     AppendMenu(hHelp, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hHelp, MF_STRING, IDM_ABOUT,          L"About");
-    AppendMenu(hHelp, MF_STRING, IDM_GITHUB,         L"View App on GitHub");
-    AppendMenu(hHelp, MF_STRING, IDM_GITHUB_PAGES,   L"GitHub Pages");
-    AppendMenu(hHelp, MF_STRING, IDM_WIKI,           L"App Wiki");
+    AppendMenu(hHelp, MF_STRING, IDM_ABOUT, L"About");
+    AppendMenu(hHelp, MF_STRING, IDM_GITHUB, L"View App on GitHub");
+    AppendMenu(hHelp, MF_STRING, IDM_GITHUB_PAGES, L"GitHub Pages");
+    AppendMenu(hHelp, MF_STRING, IDM_WIKI, L"App Wiki");
     AppendMenu(hHelp, MF_STRING, IDM_GITHUB_SCRIPTS, L"View Scripts on GitHub");
-    AppendMenu(hHelp, MF_STRING, IDM_WIKI_SCRIPTS,   L"Scripts Wiki");
+    AppendMenu(hHelp, MF_STRING, IDM_WIKI_SCRIPTS, L"Scripts Wiki");
 
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hFile, L"File");
-    AppendMenu(hm, MF_POPUP, (UINT_PTR)hRun,  L"Run");
+    AppendMenu(hm, MF_POPUP, (UINT_PTR)hRun, L"Run");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hView, L"View");
-    AppendMenu(hm, MF_POPUP, (UINT_PTR)hWin,  L"Window");
+    AppendMenu(hm, MF_POPUP, (UINT_PTR)hWin, L"Window");
     AppendMenu(hm, MF_POPUP, (UINT_PTR)hHelp, L"Help");
 
     CheckMenuItem(hView, IDM_ALWAYS_ON_TOP,
-        g.cfg.always_on_top ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.always_on_top ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_MINIMIZE_TO_TRAY,
-        g.cfg.minimize_to_tray ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.minimize_to_tray ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_START_WITH_WINDOWS,
-        g.cfg.start_with_windows ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.start_with_windows ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_START_MINIMIZED,
-        g.cfg.start_minimized ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.start_minimized ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hTheme, IDM_THEME_DARK,
-        g.cfg.theme == THEME_DARK   ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.theme == THEME_DARK ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hTheme, IDM_THEME_LIGHT,
-        g.cfg.theme == THEME_LIGHT  ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.theme == THEME_LIGHT ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hTheme, IDM_THEME_SYSTEM,
-        g.cfg.theme == THEME_SYSTEM ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.theme == THEME_SYSTEM ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hQBar, IDM_QBAR_TOGGLE,
-        g.cfg.qbar_enabled              ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_enabled ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hQBar, IDM_QBAR_HORIZONTAL,
-        g.cfg.qbar_horizontal           ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_horizontal ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hQBar, IDM_QBAR_VERTICAL,
-        !g.cfg.qbar_horizontal          ? MF_CHECKED : MF_UNCHECKED);
+                  !g.cfg.qbar_horizontal ? MF_CHECKED : MF_UNCHECKED);
     if (qbar_has_target)
         CheckMenuItem(hQBar, IDM_QBAR_TOPMOST,
-            g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
+                      g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hQBar, IDM_REPEAT_QBAR,
-        g.cfg.qbar_repeat_on_dblclick  ? MF_CHECKED : MF_UNCHECKED);
-    CheckMenuItem(hRun,  IDM_REPEAT_MAINAPP,
-        g.cfg.repeat_on_dblclick       ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_repeat_on_dblclick ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hRun, IDM_REPEAT_MAINAPP,
+                  g.cfg.repeat_on_dblclick ? MF_CHECKED : MF_UNCHECKED);
 
     HWND hBtn = GetDlgItem(g.hwnd, IDC_BTN_MENU);
-    RECT rc; GetWindowRect(hBtn, &rc);
+    RECT rc;
+    GetWindowRect(hBtn, &rc);
 
     TrackPopupMenu(hm, TPM_LEFTALIGN | TPM_TOPALIGN,
                    rc.left, rc.bottom, 0, g.hwnd, NULL);
@@ -217,13 +221,13 @@ void Window_AddTrayIcon(void)
 {
     if (g.tray_icon_added) return;
     NOTIFYICONDATA nid = {0};
-    nid.cbSize           = sizeof(nid);
-    nid.hWnd             = g.hwnd;
-    nid.uID              = TRAY_ID;
-    nid.uFlags           = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = g.hwnd;
+    nid.uID = TRAY_ID;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon            = LoadIcon(GetModuleHandle(NULL),
-                                    MAKEINTRESOURCE(IDI_APP_ICON));
+    nid.hIcon = LoadIcon(GetModuleHandle(NULL),
+                         MAKEINTRESOURCE(IDI_APP_ICON));
     wcsncpy_s(nid.szTip, _countof(nid.szTip), APP_TITLE, _TRUNCATE);
     Shell_NotifyIcon(NIM_ADD, &nid);
     g.tray_icon_added = true;
@@ -240,7 +244,9 @@ void Window_RemoveTrayIcon(void)
 {
     if (!g.tray_icon_added) return;
     NOTIFYICONDATA nid = {0};
-    nid.cbSize = sizeof(nid); nid.hWnd = g.hwnd; nid.uID = TRAY_ID;
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = g.hwnd;
+    nid.uID = TRAY_ID;
     Shell_NotifyIcon(NIM_DELETE, &nid);
     g.tray_icon_added = false;
 }
@@ -255,11 +261,12 @@ void Window_RemoveTrayIcon(void)
 void Window_ShowTrayMenu(void)
 {
     HMENU hm = CreatePopupMenu();
-    AppendMenu(hm, MF_STRING,    IDM_REFRESH, L"Refresh Scripts");
+    AppendMenu(hm, MF_STRING, IDM_REFRESH, L"Refresh Scripts");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING,    IDM_EXIT,    L"Exit");
+    AppendMenu(hm, MF_STRING, IDM_EXIT, L"Exit");
 
-    POINT pt; GetCursorPos(&pt);
+    POINT pt;
+    GetCursorPos(&pt);
     SetForegroundWindow(g.hwnd);
     TrackPopupMenu(hm, TPM_RIGHTBUTTON, pt.x, pt.y, 0, g.hwnd, NULL);
     DestroyMenu(hm);
@@ -297,12 +304,13 @@ static int TabBar_NaturalWidth(const WCHAR *label)
 /* ================================================================== */
 /* offset is an index into vtabs[], not into g.folders[]. */
 static int TabBar_CountFit(int bar_w, const int *vtabs, int vn,
-                            int offset, bool with_arrows)
+                           int offset, bool with_arrows)
 {
     int avail = with_arrows ? bar_w - 2 * TAB_ARROW_W : bar_w;
-    int used  = 0;
+    int used = 0;
     int count = 0;
-    for (int v = offset; v < vn; v++) {
+    for (int v = offset; v < vn; v++)
+    {
         int tw = TabBar_NaturalWidth(g.folders[vtabs[v]].display);
         if (used + tw > avail) break;
         used += tw;
@@ -340,7 +348,7 @@ static bool TabBar_NeedsArrows(int bar_w, const int *vtabs, int vn)
 /*  Out: LRESULT — 0 for handled messages; DefWindowProc result        */
 /* ================================================================== */
 static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
-                                    WPARAM wp, LPARAM lp)
+                                   WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -351,7 +359,8 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         int w = rc.right, h = rc.bottom;
 
         HBRUSH bg = CreateSolidBrush(COL_TOOLBAR());
@@ -366,13 +375,18 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
         LeaveCriticalSection(&g.cs_folders);
 
-        if (vn == 0) { EndPaint(hwnd, &ps); return 0; }
+        if (vn == 0)
+        {
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
 
         bool need_arrows = TabBar_NeedsArrows(w, vtabs, vn);
         int left_x = 0, right_x = w;
 
-        if (need_arrows) {
-            left_x  = TAB_ARROW_W;
+        if (need_arrows)
+        {
+            left_x = TAB_ARROW_W;
             right_x = w - TAB_ARROW_W;
 
             /* Find the last offset from which at least one page of tabs is reachable */
@@ -381,12 +395,13 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                    max_off + TabBar_CountFit(w, vtabs, vn, max_off, true) < vn)
                 max_off++;
             if (g.tab_offset > max_off) g.tab_offset = max_off; /* clamp to valid range */
-            if (g.tab_offset < 0)       g.tab_offset = 0;
+            if (g.tab_offset < 0) g.tab_offset = 0;
 
             bool la_hot = (g.tab_offset > 0); /* left arrow active only when not at the start */
             HBRUSH ab = CreateSolidBrush(la_hot ? COL_BTN_HOT() : COL_TOOLBAR());
-            RECT ar = { 0, 0, TAB_ARROW_W, h };
-            FillRect(hdc, &ar, ab); DeleteObject(ab);
+            RECT ar = {0, 0, TAB_ARROW_W, h};
+            FillRect(hdc, &ar, ab);
+            DeleteObject(ab);
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, la_hot ? COL_ACCENT : COL_SUBTEXT());
             HFONT of2 = SelectObject(hdc, g.font_ui);
@@ -396,31 +411,36 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             int visible_count = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
             bool ra_hot = (g.tab_offset + visible_count < vn); /* right arrow active when more tabs are hidden to the right */
             ab = CreateSolidBrush(ra_hot ? COL_BTN_HOT() : COL_TOOLBAR());
-            ar = (RECT){ right_x, 0, w, h };
-            FillRect(hdc, &ar, ab); DeleteObject(ab);
+            ar = (RECT){right_x, 0, w, h};
+            FillRect(hdc, &ar, ab);
+            DeleteObject(ab);
             SetTextColor(hdc, ra_hot ? COL_ACCENT : COL_SUBTEXT());
             HFONT of3 = SelectObject(hdc, g.font_ui);
             DrawText(hdc, L"►", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of3);
-        } else {
+        }
+        else
+        {
             g.tab_offset = 0; /* all tabs fit — no offset needed */
         }
 
         SetBkMode(hdc, TRANSPARENT);
 
         int x = left_x;
-        for (int v = g.tab_offset; v < vn; v++) {
+        for (int v = g.tab_offset; v < vn; v++)
+        {
             int fi = vtabs[v];
             int tw = TabBar_NaturalWidth(g.folders[fi].display);
             if (x + tw > right_x) break;
             bool sel = (fi == g.active_tab);
 
             HBRUSH tbr = CreateSolidBrush(sel ? COL_BTN_NORM() : COL_TOOLBAR());
-            RECT tr = { x, 0, x + tw, h };
+            RECT tr = {x, 0, x + tw, h};
             FillRect(hdc, &tr, tbr);
             DeleteObject(tbr);
 
-            if (sel) {
+            if (sel)
+            {
                 /* 2-px accent line at the top of the selected tab */
                 HPEN ap = CreatePen(PS_SOLID, 2, COL_ACCENT);
                 HPEN op = SelectObject(hdc, ap);
@@ -430,7 +450,8 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
                 DeleteObject(ap);
             }
 
-            if (v + 1 < vn) { /* draw vertical divider between tabs, but not after the last visible one */
+            if (v + 1 < vn)
+            { /* draw vertical divider between tabs, but not after the last visible one */
                 HPEN dp = CreatePen(PS_SOLID, 1, COL_DIVIDER());
                 HPEN op = SelectObject(hdc, dp);
                 MoveToEx(hdc, x + tw - 1, 3, NULL);
@@ -441,7 +462,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
             SetTextColor(hdc, sel ? COL_ACCENT : COL_TEXT());
             HFONT of = SelectObject(hdc, sel ? g.font_bold : g.font_ui);
-            RECT lr = { x + 14, 0, x + tw - 14, h }; /* 14 px text margin matches the 28-total-padding from NaturalWidth */
+            RECT lr = {x + 14, 0, x + tw - 14, h}; /* 14 px text margin matches the 28-total-padding from NaturalWidth */
             DrawText(hdc, g.folders[fi].display, -1, &lr,
                      DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of);
@@ -461,7 +482,8 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 
     case WM_LBUTTONDOWN:
     {
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
         int w = rc.right;
         if (g.folder_count == 0) break;
 
@@ -474,14 +496,25 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         int mx = GET_X_LPARAM(lp);
         bool need_arrows = TabBar_NeedsArrows(w, vtabs, vn);
 
-        if (need_arrows) {
-            if (mx < TAB_ARROW_W) { /* click on left arrow — scroll left */
-                if (g.tab_offset > 0) { g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE); }
+        if (need_arrows)
+        {
+            if (mx < TAB_ARROW_W)
+            { /* click on left arrow — scroll left */
+                if (g.tab_offset > 0)
+                {
+                    g.tab_offset--;
+                    InvalidateRect(hwnd, NULL, FALSE);
+                }
                 return 0;
             }
-            if (mx >= w - TAB_ARROW_W) { /* click on right arrow — scroll right */
+            if (mx >= w - TAB_ARROW_W)
+            { /* click on right arrow — scroll right */
                 int vis = TabBar_CountFit(w, vtabs, vn, g.tab_offset, true);
-                if (g.tab_offset + vis < vn) { g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE); }
+                if (g.tab_offset + vis < vn)
+                {
+                    g.tab_offset++;
+                    InvalidateRect(hwnd, NULL, FALSE);
+                }
                 return 0;
             }
         }
@@ -489,11 +522,13 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
         int left_x = need_arrows ? TAB_ARROW_W : 0;
         int right_x = need_arrows ? w - TAB_ARROW_W : w;
         int x = left_x;
-        for (int v = g.tab_offset; v < vn; v++) {
+        for (int v = g.tab_offset; v < vn; v++)
+        {
             int fi = vtabs[v];
             int tw = TabBar_NaturalWidth(g.folders[fi].display);
             if (x + tw > right_x) tw = right_x - x; /* clip last visible tab at the arrow zone boundary */
-            if (mx >= x && mx < x + tw) {
+            if (mx >= x && mx < x + tw)
+            {
                 if (fi != g.active_tab) Tabs_Switch(fi); /* only switch if a different tab was clicked */
                 return 0;
             }
@@ -506,7 +541,8 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
     case WM_MOUSEWHEEL:
     {
         if (g.folder_count == 0) break;
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
 
         int vtabs[MAX_FOLDERS];
         int vn = 0;
@@ -514,12 +550,17 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             if (Tabs_FolderHasVisible(i)) vtabs[vn++] = i;
         if (!TabBar_NeedsArrows(rc.right, vtabs, vn)) break;
 
-        int vis   = TabBar_CountFit(rc.right, vtabs, vn, g.tab_offset, true);
+        int vis = TabBar_CountFit(rc.right, vtabs, vn, g.tab_offset, true);
         int delta = GET_WHEEL_DELTA_WPARAM(wp); /* positive = wheel up = scroll left */
-        if (delta < 0 && g.tab_offset + vis < vn) { /* wheel down = scroll right */
-            g.tab_offset++; InvalidateRect(hwnd, NULL, FALSE);
-        } else if (delta > 0 && g.tab_offset > 0) { /* wheel up = scroll left */
-            g.tab_offset--; InvalidateRect(hwnd, NULL, FALSE);
+        if (delta < 0 && g.tab_offset + vis < vn)
+        { /* wheel down = scroll right */
+            g.tab_offset++;
+            InvalidateRect(hwnd, NULL, FALSE);
+        }
+        else if (delta > 0 && g.tab_offset > 0)
+        { /* wheel up = scroll left */
+            g.tab_offset--;
+            InvalidateRect(hwnd, NULL, FALSE);
         }
         return 0;
     }
@@ -545,7 +586,7 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
 /*                 0 for paint; DefWindowProc for unhandled messages   */
 /* ================================================================== */
 static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
-                                       WPARAM wp, LPARAM lp)
+                                      WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -556,24 +597,26 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
 
         HBRUSH bg = CreateSolidBrush(COL_TOOLBAR());
         FillRect(hdc, &rc, bg);
         DeleteObject(bg);
 
         HPEN pen = CreatePen(PS_SOLID, 1, COL_DIVIDER());
-        HPEN op  = SelectObject(hdc, pen);
+        HPEN op = SelectObject(hdc, pen);
         MoveToEx(hdc, 0, 0, NULL);
         LineTo(hdc, rc.right, 0);
-        SelectObject(hdc, op); DeleteObject(pen);
+        SelectObject(hdc, op);
+        DeleteObject(pen);
 
         WCHAR text[256] = {0};
         GetWindowText(hwnd, text, 255);
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, g.status_offline ? COL_WARN : COL_SUBTEXT()); /* amber text when offline */
         HFONT of = SelectObject(hdc, g.font_small);
-        RECT tr = { 6, 0, rc.right - 6, rc.bottom };
+        RECT tr = {6, 0, rc.right - 6, rc.bottom};
         DrawText(hdc, text, -1, &tr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         SelectObject(hdc, of);
@@ -610,11 +653,15 @@ static LRESULT CALLBACK StatusBarProc(HWND hwnd, UINT msg,
 /*                 for all other messages                              */
 /* ================================================================== */
 static LRESULT CALLBACK TipWndProcInternal(HWND hwnd, UINT msg,
-                                            WPARAM wp, LPARAM lp)
+                                           WPARAM wp, LPARAM lp)
 {
-    switch (msg) {
-    case WM_PAINT:      Paint_Tooltip(hwnd); return 0;
-    case WM_ERASEBKGND: return 1; /* suppress erase to prevent flicker */
+    switch (msg)
+    {
+    case WM_PAINT:
+        Paint_Tooltip(hwnd);
+        return 0;
+    case WM_ERASEBKGND:
+        return 1; /* suppress erase to prevent flicker */
     }
     return DefWindowProc(hwnd, msg, wp, lp);
 }
@@ -633,42 +680,19 @@ void Window_Create(HINSTANCE hInst)
 {
     App_InitGDI();
 
-    WNDCLASSEX wcsb = { .cbSize=sizeof(wcsb), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=StatusBarProc, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName=L"CMW32StatusBar" };
+    WNDCLASSEX wcsb = {.cbSize = sizeof(wcsb), .style = CS_HREDRAW | CS_VREDRAW, .lpfnWndProc = StatusBarProc, .hInstance = hInst, .hCursor = LoadCursor(NULL, IDC_ARROW), .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH), .lpszClassName = L"CMW32StatusBar"};
     RegisterClassEx(&wcsb);
 
-    WNDCLASSEX wcs = { .cbSize=sizeof(wcs), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=ScrollPanelProc, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName=L"CMW32ScrollPanel" };
+    WNDCLASSEX wcs = {.cbSize = sizeof(wcs), .style = CS_HREDRAW | CS_VREDRAW, .lpfnWndProc = ScrollPanelProc, .hInstance = hInst, .hCursor = LoadCursor(NULL, IDC_ARROW), .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH), .lpszClassName = L"CMW32ScrollPanel"};
     RegisterClassEx(&wcs);
 
-    WNDCLASSEX wct = { .cbSize=sizeof(wct), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=TipWndProcInternal, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName=L"CMW32Tip" };
+    WNDCLASSEX wct = {.cbSize = sizeof(wct), .style = CS_HREDRAW | CS_VREDRAW, .lpfnWndProc = TipWndProcInternal, .hInstance = hInst, .hCursor = LoadCursor(NULL, IDC_ARROW), .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH), .lpszClassName = L"CMW32Tip"};
     RegisterClassEx(&wct);
 
-    WNDCLASSEX wctb = { .cbSize=sizeof(wctb), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=TabBarProc, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName=L"CMW32TabBar" };
+    WNDCLASSEX wctb = {.cbSize = sizeof(wctb), .style = CS_HREDRAW | CS_VREDRAW, .lpfnWndProc = TabBarProc, .hInstance = hInst, .hCursor = LoadCursor(NULL, IDC_ARROW), .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH), .lpszClassName = L"CMW32TabBar"};
     RegisterClassEx(&wctb);
 
-    WNDCLASSEX wc = { .cbSize=sizeof(wc), .style=CS_HREDRAW|CS_VREDRAW,
-        .lpfnWndProc=MainWndProc, .hInstance=hInst,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),
-        .hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszMenuName=NULL,
-        .lpszClassName=APP_CLASS,
-        .hIcon=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)),
-        .hIconSm=LoadIcon(hInst,MAKEINTRESOURCE(IDI_APP_ICON)) };
+    WNDCLASSEX wc = {.cbSize = sizeof(wc), .style = CS_HREDRAW | CS_VREDRAW, .lpfnWndProc = MainWndProc, .hInstance = hInst, .hCursor = LoadCursor(NULL, IDC_ARROW), .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH), .lpszMenuName = NULL, .lpszClassName = APP_CLASS, .hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_APP_ICON)), .hIconSm = LoadIcon(hInst, MAKEINTRESOURCE(IDI_APP_ICON))};
     RegisterClassEx(&wc);
 
     QuickBar_Register(hInst);
@@ -678,58 +702,59 @@ void Window_Create(HINSTANCE hInst)
     int ww = 820, wh = 540; /* initial window dimensions */
 
     g.hwnd = CreateWindowEx(0, APP_CLASS, APP_TITLE, WS_OVERLAPPEDWINDOW,
-        (sw-ww)/2, (sh-wh)/2, ww, wh, NULL, NULL, hInst, NULL); /* (sw-ww)/2 centres horizontally */
+                            (sw - ww) / 2, (sh - wh) / 2, ww, wh, NULL, NULL, hInst, NULL); /* (sw-ww)/2 centres horizontally */
 
     Window_ApplyDarkMode(g.hwnd);
 
     CreateWindow(L"BUTTON", L"\u2630  Menu",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
-        6, 5, 82, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_MENU, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+                 6, 5, 82, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_MENU, hInst, NULL);
     CreateWindow(L"BUTTON", L"\u27F3  Refresh",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
-        94, 5, 88, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_REFRESH, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+                 94, 5, 88, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_REFRESH, hInst, NULL);
     CreateWindow(L"BUTTON", L"\u2699  Settings",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
-        188, 5, 88, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_SETTINGS, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+                 188, 5, 88, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_SETTINGS, hInst, NULL);
     CreateWindow(L"BUTTON", L"\u2B07  Deps",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
-        282, 5, 76, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_UPDATE_DEPS, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+                 282, 5, 76, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_UPDATE_DEPS, hInst, NULL);
     CreateWindow(L"BUTTON", L"\u25A0  Stop",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_DISABLED,
-        364, 5, 70, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_STOP, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW | WS_DISABLED,
+                 364, 5, 70, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_STOP, hInst, NULL);
     CreateWindow(L"BUTTON", L"\u2261  Log",
-        WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
-        440, 5, 62, 28, g.hwnd,
-        (HMENU)(UINT_PTR)IDC_BTN_LOG, hInst, NULL);
+                 WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+                 440, 5, 62, 28, g.hwnd,
+                 (HMENU)(UINT_PTR)IDC_BTN_LOG, hInst, NULL);
 
-    int ids[] = { IDC_BTN_MENU, IDC_BTN_REFRESH,
-                  IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP, IDC_BTN_LOG };
+    int ids[] = {IDC_BTN_MENU, IDC_BTN_REFRESH,
+                 IDC_BTN_SETTINGS, IDC_BTN_UPDATE_DEPS, IDC_BTN_STOP, IDC_BTN_LOG};
     for (int i = 0; i < 6; i++) /* apply UI font to all 6 toolbar buttons */
         SendDlgItemMessage(g.hwnd, ids[i], WM_SETFONT,
                            (WPARAM)g.font_ui, TRUE);
 
     /* Search/filter box - full client width, positioned below toolbar */
     {
-        RECT cr; GetClientRect(g.hwnd, &cr);
+        RECT cr;
+        GetClientRect(g.hwnd, &cr);
         int cw = cr.right;
         g.hwnd_search = CreateWindowEx(WS_EX_CLIENTEDGE, L"EDIT", L"",
-            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-            4, TOOLBAR_H + 2, cw - 8, SEARCH_H - 4, g.hwnd,
-            (HMENU)(UINT_PTR)IDC_SEARCH, hInst, NULL);
+                                       WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+                                       4, TOOLBAR_H + 2, cw - 8, SEARCH_H - 4, g.hwnd,
+                                       (HMENU)(UINT_PTR)IDC_SEARCH, hInst, NULL);
     }
     SendMessage(g.hwnd_search, EM_SETCUEBANNER, 0,
                 (LPARAM)L"  Filter scripts...");
     SendMessage(g.hwnd_search, WM_SETFONT, (WPARAM)g.font_ui, TRUE);
 
     g.hwnd_tab = CreateWindow(L"CMW32TabBar", NULL,
-        WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS,
-        0, TOOLBAR_H + SEARCH_H, ww, TAB_H,
-        g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
+                              WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+                              0, TOOLBAR_H + SEARCH_H, ww, TAB_H,
+                              g.hwnd, (HMENU)(UINT_PTR)IDC_TAB_CTRL, hInst, NULL);
 
     int ct = TOOLBAR_H + SEARCH_H + TAB_H; /* top of scroll panel = toolbar + search + tab bar */
     int ch = wh - ct - STATUS_H; /* scroll panel height = remaining space above status bar */
@@ -739,20 +764,20 @@ void Window_Create(HINSTANCE hInst)
         SetWindowPos(g.hwnd_search, NULL, 4, TOOLBAR_H + 2, ww - 8, SEARCH_H - 4,
                      SWP_NOZORDER | SWP_NOACTIVATE);
     g.hwnd_scroll = CreateWindowEx(0, L"CMW32ScrollPanel", NULL,
-        WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_CLIPCHILDREN,
-        0, ct, ww, ch,
-        g.hwnd, (HMENU)(UINT_PTR)IDC_SCROLL_PANEL, hInst, NULL);
+                                   WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
+                                   0, ct, ww, ch,
+                                   g.hwnd, (HMENU)(UINT_PTR)IDC_SCROLL_PANEL, hInst, NULL);
 
     g.hwnd_status = CreateWindow(L"CMW32StatusBar",
-        L"Checking for updates\u2026",
-        WS_CHILD|WS_VISIBLE,
-        0, wh-STATUS_H, ww, STATUS_H,
-        g.hwnd, (HMENU)(UINT_PTR)IDC_STATUS_BAR, hInst, NULL);
+                                 L"Checking for updates\u2026",
+                                 WS_CHILD | WS_VISIBLE,
+                                 0, wh - STATUS_H, ww, STATUS_H,
+                                 g.hwnd, (HMENU)(UINT_PTR)IDC_STATUS_BAR, hInst, NULL);
     SendMessage(g.hwnd_status, WM_SETFONT, (WPARAM)g.font_small, TRUE);
 
-    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST|WS_EX_NOACTIVATE, /* WS_EX_NOACTIVATE: tooltip never steals focus */
-        L"CMW32Tip", NULL, WS_POPUP,
-        0, 0, 300, 160, g.hwnd, NULL, hInst, NULL);
+    g.hwnd_tip = CreateWindowEx(WS_EX_TOPMOST | WS_EX_NOACTIVATE, /* WS_EX_NOACTIVATE: tooltip never steals focus */
+                                L"CMW32Tip", NULL, WS_POPUP,
+                                0, 0, 300, 160, g.hwnd, NULL, hInst, NULL);
 }
 
 /* ================================================================== */
@@ -766,9 +791,9 @@ void Window_Create(HINSTANCE hInst)
 /* ================================================================== */
 void Window_OnSize(int w, int h)
 {
-    int tab_y    = TOOLBAR_H + SEARCH_H;
-    int ct       = tab_y + TAB_H;
-    int ch       = h - ct - STATUS_H;
+    int tab_y = TOOLBAR_H + SEARCH_H;
+    int ct = tab_y + TAB_H;
+    int ch = h - ct - STATUS_H;
     if (ch < 0) ch = 0; /* prevent negative height if window is smaller than the fixed chrome */
 
     /* Search box - full client width with small margin */
@@ -776,11 +801,11 @@ void Window_OnSize(int w, int h)
         SetWindowPos(g.hwnd_search, NULL, 4, TOOLBAR_H + 2, w - 8, SEARCH_H - 4,
                      SWP_NOZORDER | SWP_NOACTIVATE);
 
-    SetWindowPos(g.hwnd_tab,    NULL, 0, tab_y,     w, TAB_H,
+    SetWindowPos(g.hwnd_tab, NULL, 0, tab_y, w, TAB_H,
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    SetWindowPos(g.hwnd_scroll, NULL, 0, ct,        w, ch,
+    SetWindowPos(g.hwnd_scroll, NULL, 0, ct, w, ch,
                  SWP_NOZORDER | SWP_NOACTIVATE);
-    SetWindowPos(g.hwnd_status, NULL, 0, h-STATUS_H, w, STATUS_H,
+    SetWindowPos(g.hwnd_status, NULL, 0, h - STATUS_H, w, STATUS_H,
                  SWP_NOZORDER | SWP_NOACTIVATE);
 
     Tabs_RebuildButtons();

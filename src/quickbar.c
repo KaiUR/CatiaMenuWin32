@@ -12,27 +12,28 @@
 /* ------------------------------------------------------------------ */
 /*  Internal constants                                                  */
 /* ------------------------------------------------------------------ */
-#define QBAR_WNDCLASS   L"CMW32QuickBar"
-#define QBAR_TIPCLASS   L"CMW32QBarTip"
-#define HIT_NONE        (-1)   /* background / drag area               */
-#define HIT_ARROW_PREV  (-2)   /* scroll-back arrow (▲ or ◄)          */
-#define HIT_ARROW_NEXT  (-3)   /* scroll-forward arrow (▼ or ►)       */
+#define QBAR_WNDCLASS L"CMW32QuickBar"
+#define QBAR_TIPCLASS L"CMW32QBarTip"
+#define HIT_NONE (-1) /* background / drag area               */
+#define HIT_ARROW_PREV (-2) /* scroll-back arrow (▲ or ◄)          */
+#define HIT_ARROW_NEXT (-3) /* scroll-forward arrow (▼ or ►)       */
 
 /* ------------------------------------------------------------------ */
 /*  Module-level state                                                  */
 /* ------------------------------------------------------------------ */
-static HWINEVENTHOOK s_event_hook;    /* EVENT_SYSTEM_FOREGROUND hook    */
+static HWINEVENTHOOK s_event_hook; /* EVENT_SYSTEM_FOREGROUND hook    */
 static HWINEVENTHOOK s_minimize_hook; /* MINIMIZESTART..END hook         */
-static HFONT         s_font_label;   /* large bold font for 2-letter abbrev */
+static HFONT s_font_label; /* large bold font for 2-letter abbrev */
 
 /* ------------------------------------------------------------------ */
 /*  CatiaState                                                          */
 /*  Describes the aggregate visibility of all CATIA V5 windows.        */
 /* ------------------------------------------------------------------ */
-typedef enum {
-    CATIA_NONE      = 0,  /* no CATIA window found at all               */
-    CATIA_MINIMIZED = 1,  /* CATIA is running but all windows minimized  */
-    CATIA_VISIBLE   = 2   /* at least one CATIA window is visible        */
+typedef enum
+{
+    CATIA_NONE = 0, /* no CATIA window found at all               */
+    CATIA_MINIMIZED = 1, /* CATIA is running but all windows minimized  */
+    CATIA_VISIBLE = 2 /* at least one CATIA window is visible        */
 } CatiaState;
 
 /* ------------------------------------------------------------------ */
@@ -42,9 +43,9 @@ static LRESULT CALLBACK QuickBarProc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK QBarTipProc(HWND, UINT, WPARAM, LPARAM);
 static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND, UINT, WPARAM, LPARAM);
 static void QB_Paint(HWND hwnd, HDC hdc);
-static int  QB_HitTest(HWND hwnd, int x, int y);
+static int QB_HitTest(HWND hwnd, int x, int y);
 static void QB_BtnRect(HWND hwnd, int idx, RECT *r);
-static int  QB_FavCount(void);
+static int QB_FavCount(void);
 static Script *QB_GetFav(int idx, int *fi_out, int *si_out);
 static void QB_UpdateGeometry(void);
 static void QB_UpdateScrollMax(HWND hwnd);
@@ -56,7 +57,7 @@ static bool QB_IsTarget(HWND hwnd);
 static CatiaState QB_CatiaState(void);
 static void QB_UpdateVisibility(HWND fg_hwnd);
 static void CALLBACK QB_WinEventProc(HWINEVENTHOOK, DWORD, HWND,
-                                      LONG, LONG, DWORD, DWORD);
+                                     LONG, LONG, DWORD, DWORD);
 
 /* ================================================================== */
 /*  QB_FavCount                                                        */
@@ -64,12 +65,12 @@ static void CALLBACK QB_WinEventProc(HWINEVENTHOOK, DWORD, HWND,
 /* ================================================================== */
 static int QB_FavCount(void)
 {
-    if (g.folder_count == 0) return 0;                                      /* no data loaded yet */
-    if (wcscmp(g.folders[0].name, L"Favourites") != 0) return 0;           /* first folder must be Favourites */
+    if (g.folder_count == 0) return 0; /* no data loaded yet */
+    if (wcscmp(g.folders[0].name, L"Favourites") != 0) return 0; /* first folder must be Favourites */
     ScriptFolder *f = &g.folders[0];
     int n = 0;
     for (int i = 0; i < f->count; i++)
-        if (!f->scripts[i].is_hidden) n++;                                   /* count only visible scripts */
+        if (!f->scripts[i].is_hidden) n++; /* count only visible scripts */
     return n;
 }
 
@@ -83,9 +84,11 @@ static Script *QB_GetFav(int idx, int *fi_out, int *si_out)
     if (wcscmp(g.folders[0].name, L"Favourites") != 0) return NULL;
     ScriptFolder *f = &g.folders[0];
     int n = 0;
-    for (int i = 0; i < f->count; i++) {
+    for (int i = 0; i < f->count; i++)
+    {
         if (f->scripts[i].is_hidden) continue;
-        if (n == idx) {
+        if (n == idx)
+        {
             if (fi_out) *fi_out = 0; /* Favourites folder is always at index 0 */
             if (si_out) *si_out = i;
             return &f->scripts[i];
@@ -130,14 +133,14 @@ static bool QB_GetProcessExeName(HWND hwnd, WCHAR *buf, int len)
 /* ================================================================== */
 static bool QB_IsTarget(HWND hwnd)
 {
-    if (!hwnd || !g.cfg.qbar_target_app[0]) return false;  /* no target configured — nothing can match */
+    if (!hwnd || !g.cfg.qbar_target_app[0]) return false; /* no target configured — nothing can match */
     WCHAR title[256] = {0};
     GetWindowTextW(hwnd, title, 255);
-    if (!wcsstr(title, g.cfg.qbar_target_app)) return false;  /* title doesn't contain filter substring */
-    if (!g.cfg.qbar_target_exe[0]) return true;               /* no exe filter — title match is sufficient */
+    if (!wcsstr(title, g.cfg.qbar_target_app)) return false; /* title doesn't contain filter substring */
+    if (!g.cfg.qbar_target_exe[0]) return true; /* no exe filter — title match is sufficient */
     WCHAR exe[MAX_NAME] = {0};
     if (!QB_GetProcessExeName(hwnd, exe, MAX_NAME)) return false; /* can't query owning process */
-    return _wcsicmp(exe, g.cfg.qbar_target_exe) == 0;            /* case-insensitive exe filename comparison */
+    return _wcsicmp(exe, g.cfg.qbar_target_exe) == 0; /* case-insensitive exe filename comparison */
 }
 
 /* ================================================================== */
@@ -154,18 +157,22 @@ static BOOL CALLBACK CatiaCheckProc(HWND hwnd, LPARAM lp)
     if (!IsWindowVisible(hwnd)) return TRUE;
     WCHAR title[256] = {0};
     GetWindowTextW(hwnd, title, 255);
-    if (!wcsstr(title, g.cfg.qbar_target_app)) return TRUE;     /* title doesn't match filter; continue enum */
+    if (!wcsstr(title, g.cfg.qbar_target_app)) return TRUE; /* title doesn't match filter; continue enum */
     /* Optional exe filter — skip window if it belongs to a different process */
-    if (g.cfg.qbar_target_exe[0]) {
+    if (g.cfg.qbar_target_exe[0])
+    {
         WCHAR exe[MAX_NAME] = {0};
         if (!QB_GetProcessExeName(hwnd, exe, MAX_NAME)) return TRUE; /* can't determine exe; skip */
         if (_wcsicmp(exe, g.cfg.qbar_target_exe) != 0) return TRUE; /* exe mismatch; skip */
     }
     /* Passed all filters — categorise by window state */
-    if (IsIconic(hwnd)) {
+    if (IsIconic(hwnd))
+    {
         /* IsIconic = minimized; upgrade state but don't downgrade if VISIBLE already found */
         if (*result < CATIA_MINIMIZED) *result = CATIA_MINIMIZED;
-    } else {
+    }
+    else
+    {
         *result = CATIA_VISIBLE;
         return FALSE; /* found a visible one — stop EnumWindows early */
     }
@@ -195,7 +202,8 @@ static void QB_UpdateVisibility(HWND fg_hwnd)
 
     /* No target app configured: bar is always visible when enabled,
        no topmost behaviour. */
-    if (!g.cfg.qbar_target_app[0]) {
+    if (!g.cfg.qbar_target_app[0])
+    {
         if (g.cfg.qbar_enabled && !IsWindowVisible(g.hwnd_qbar)) /* only show if currently hidden */
             ShowWindow(g.hwnd_qbar, SW_SHOWNOACTIVATE);
         return;
@@ -204,7 +212,8 @@ static void QB_UpdateVisibility(HWND fg_hwnd)
     CatiaState state = QB_CatiaState();
 
     /* Hide the bar when the target app is not open or is fully minimised. */
-    if (state != CATIA_VISIBLE) {
+    if (state != CATIA_VISIBLE)
+    {
         QB_HideTip();
         ShowWindow(g.hwnd_qbar, SW_HIDE);
         return; /* nothing more to do when target isn't visible */
@@ -220,7 +229,8 @@ static void QB_UpdateVisibility(HWND fg_hwnd)
 
     /* Go topmost only when CATIA is visible AND the new foreground window is the target */
     HWND ins = (state == CATIA_VISIBLE && QB_IsTarget(fg_hwnd))
-               ? HWND_TOPMOST : HWND_NOTOPMOST;
+                   ? HWND_TOPMOST
+                   : HWND_NOTOPMOST;
     SetWindowPos(g.hwnd_qbar, ins, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 }
@@ -231,9 +241,13 @@ static void QB_UpdateVisibility(HWND fg_hwnd)
 /*  events.  Runs in the main thread via WINEVENT_OUTOFCONTEXT.       */
 /* ================================================================== */
 static void CALLBACK QB_WinEventProc(HWINEVENTHOOK hook, DWORD event,
-    HWND hwnd, LONG idObj, LONG idChild, DWORD thread, DWORD time)
+                                     HWND hwnd, LONG idObj, LONG idChild, DWORD thread, DWORD time)
 {
-    (void)hook; (void)idObj; (void)idChild; (void)thread; (void)time;
+    (void)hook;
+    (void)idObj;
+    (void)idChild;
+    (void)thread;
+    (void)time;
     /* Pass hwnd only for foreground events so QB_UpdateVisibility can
        use it for the topmost decision.  Minimize/restore events carry
        the window being minimised, not the new foreground window. */
@@ -251,20 +265,23 @@ static void QB_BtnRect(HWND hwnd, int idx, RECT *r)
     (void)hwnd;
     bool horiz = g.cfg.qbar_horizontal;
     bool has_arrows = (g.qbar_scroll_max > 0);
-    int  arrow_off  = has_arrows ? QBAR_ARROW_W : 0; /* shift origin past the scroll arrow zone */
-    int  step       = QBAR_BTN_SIZE + QBAR_GAP;       /* distance between button origins */
+    int arrow_off = has_arrows ? QBAR_ARROW_W : 0; /* shift origin past the scroll arrow zone */
+    int step = QBAR_BTN_SIZE + QBAR_GAP; /* distance between button origins */
 
-    if (horiz) {
+    if (horiz)
+    {
         int x = QBAR_PAD + arrow_off + idx * step - g.qbar_scroll; /* subtract scroll offset so buttons shift left */
-        r->left   = x;
-        r->top    = QBAR_PAD;
-        r->right  = x + QBAR_BTN_SIZE;
+        r->left = x;
+        r->top = QBAR_PAD;
+        r->right = x + QBAR_BTN_SIZE;
         r->bottom = QBAR_PAD + QBAR_BTN_SIZE;
-    } else {
+    }
+    else
+    {
         int y = QBAR_PAD + arrow_off + idx * step - g.qbar_scroll; /* subtract scroll offset so buttons shift up */
-        r->left   = QBAR_PAD;
-        r->top    = y;
-        r->right  = QBAR_PAD + QBAR_BTN_SIZE;
+        r->left = QBAR_PAD;
+        r->top = y;
+        r->right = QBAR_PAD + QBAR_BTN_SIZE;
         r->bottom = y + QBAR_BTN_SIZE;
     }
 }
@@ -275,23 +292,30 @@ static void QB_BtnRect(HWND hwnd, int idx, RECT *r)
 /* ================================================================== */
 static int QB_HitTest(HWND hwnd, int x, int y)
 {
-    RECT rc; GetClientRect(hwnd, &rc);
-    bool horiz      = g.cfg.qbar_horizontal;
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+    bool horiz = g.cfg.qbar_horizontal;
     bool has_arrows = (g.qbar_scroll_max > 0);
 
-    if (has_arrows) {
-        if (horiz) {
-            if (x < QBAR_ARROW_W)              return HIT_ARROW_PREV;
-            if (x > rc.right - QBAR_ARROW_W)   return HIT_ARROW_NEXT;
-        } else {
-            if (y < QBAR_ARROW_W)              return HIT_ARROW_PREV;
-            if (y > rc.bottom - QBAR_ARROW_W)  return HIT_ARROW_NEXT;
+    if (has_arrows)
+    {
+        if (horiz)
+        {
+            if (x < QBAR_ARROW_W) return HIT_ARROW_PREV;
+            if (x > rc.right - QBAR_ARROW_W) return HIT_ARROW_NEXT;
+        }
+        else
+        {
+            if (y < QBAR_ARROW_W) return HIT_ARROW_PREV;
+            if (y > rc.bottom - QBAR_ARROW_W) return HIT_ARROW_NEXT;
         }
     }
 
     int n = QB_FavCount();
-    for (int i = 0; i < n; i++) {
-        RECT br; QB_BtnRect(hwnd, i, &br);
+    for (int i = 0; i < n; i++)
+    {
+        RECT br;
+        QB_BtnRect(hwnd, i, &br);
         if (x >= br.left && x < br.right && y >= br.top && y < br.bottom)
             return i;
     }
@@ -304,10 +328,11 @@ static int QB_HitTest(HWND hwnd, int x, int y)
 /* ================================================================== */
 static void QB_UpdateScrollMax(HWND hwnd)
 {
-    RECT rc; GetClientRect(hwnd, &rc);
+    RECT rc;
+    GetClientRect(hwnd, &rc);
     bool horiz = g.cfg.qbar_horizontal;
-    int  n     = QB_FavCount();
-    int  step  = QBAR_BTN_SIZE + QBAR_GAP;
+    int n = QB_FavCount();
+    int step = QBAR_BTN_SIZE + QBAR_GAP;
 
     /* Total logical content size:
        2*PAD for both ends; last button has no trailing gap; minimum = one button when n=0 */
@@ -317,11 +342,11 @@ static void QB_UpdateScrollMax(HWND hwnd)
     int visible = horiz ? (rc.right - rc.left) : (rc.bottom - rc.top);
 
     /* Arrow areas eat into the drawable space */
-    bool need_arrows = content > visible;                               /* arrows appear only when content overflows */
-    int  drawable    = need_arrows ? visible - 2 * QBAR_ARROW_W : visible; /* each arrow zone subtracts QBAR_ARROW_W */
-    if (drawable < 0) drawable = 0;                                    /* safety guard for windows narrower than two arrows */
+    bool need_arrows = content > visible; /* arrows appear only when content overflows */
+    int drawable = need_arrows ? visible - 2 * QBAR_ARROW_W : visible; /* each arrow zone subtracts QBAR_ARROW_W */
+    if (drawable < 0) drawable = 0; /* safety guard for windows narrower than two arrows */
 
-    g.qbar_scroll_max = max(0, content - drawable);                    /* px of content hidden beyond the visible edge */
+    g.qbar_scroll_max = max(0, content - drawable); /* px of content hidden beyond the visible edge */
     if (g.qbar_scroll > g.qbar_scroll_max) g.qbar_scroll = g.qbar_scroll_max; /* clamp current offset after resize */
 }
 
@@ -333,24 +358,25 @@ static void QB_UpdateGeometry(void)
 {
     if (!g.hwnd_qbar) return;
 
-    MONITORINFO mi = {0}; mi.cbSize = sizeof(mi);
+    MONITORINFO mi = {0};
+    mi.cbSize = sizeof(mi);
     HMONITOR hm = MonitorFromWindow(g.hwnd_qbar, MONITOR_DEFAULTTONEAREST);
     GetMonitorInfo(hm, &mi);
     RECT work = mi.rcWork;
 
-    int n    = QB_FavCount();
+    int n = QB_FavCount();
     int step = QBAR_BTN_SIZE + QBAR_GAP;
     bool horiz = g.cfg.qbar_horizontal;
 
     int content = 2 * QBAR_PAD + (n > 0 ? (n * step - QBAR_GAP) : QBAR_BTN_SIZE);
     int max_vis = horiz
-        ? (work.right  - work.left) * 4 / 5   /* cap at 80% of screen width  */
-        : (work.bottom - work.top)  * 4 / 5;  /* cap at 80% of screen height */
+                      ? (work.right - work.left) * 4 / 5 /* cap at 80% of screen width  */
+                      : (work.bottom - work.top) * 4 / 5; /* cap at 80% of screen height */
     if (max_vis < QBAR_BTN_SIZE + 2 * QBAR_PAD)
         max_vis = QBAR_BTN_SIZE + 2 * QBAR_PAD; /* floor: at least one button must fit */
 
-    int vis       = min(content, max_vis);          /* actual client length in scroll direction */
-    int fixed_dim = QBAR_BTN_SIZE + 2 * QBAR_PAD;  /* client dimension perpendicular to scroll */
+    int vis = min(content, max_vis); /* actual client length in scroll direction */
+    int fixed_dim = QBAR_BTN_SIZE + 2 * QBAR_PAD; /* client dimension perpendicular to scroll */
 
     /* WS_BORDER adds 1px each side — window = client + 2 */
     int window_w = horiz ? (vis + 2) : (fixed_dim + 2);
@@ -358,10 +384,10 @@ static void QB_UpdateGeometry(void)
 
     /* Clamp saved position to monitor work area */
     int x = g.cfg.qbar_x, y = g.cfg.qbar_y;
-    if (x + window_w > work.right)  x = work.right  - window_w; /* clamp right edge  */
+    if (x + window_w > work.right) x = work.right - window_w; /* clamp right edge  */
     if (y + window_h > work.bottom) y = work.bottom - window_h; /* clamp bottom edge */
     if (x < work.left) x = work.left; /* clamp left edge */
-    if (y < work.top)  y = work.top;  /* clamp top edge  */
+    if (y < work.top) y = work.top; /* clamp top edge  */
 
     SetWindowPos(g.hwnd_qbar, NULL, x, y, window_w, window_h,
                  SWP_NOZORDER | SWP_NOACTIVATE);
@@ -375,7 +401,8 @@ static void QB_UpdateGeometry(void)
 static void QB_SavePos(void)
 {
     if (!g.hwnd_qbar) return;
-    RECT rc; GetWindowRect(g.hwnd_qbar, &rc);
+    RECT rc;
+    GetWindowRect(g.hwnd_qbar, &rc);
     if (rc.left == g.cfg.qbar_x && rc.top == g.cfg.qbar_y) return;
     g.cfg.qbar_x = rc.left;
     g.cfg.qbar_y = rc.top;
@@ -388,10 +415,11 @@ static void QB_SavePos(void)
 /* ================================================================== */
 static void QB_Paint(HWND hwnd, HDC hdc)
 {
-    RECT rc; GetClientRect(hwnd, &rc);
-    bool horiz      = g.cfg.qbar_horizontal;
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+    bool horiz = g.cfg.qbar_horizontal;
     bool has_arrows = (g.qbar_scroll_max > 0);
-    int  n          = QB_FavCount();
+    int n = QB_FavCount();
 
     /* ── Background ──────────────────────────────────────────────── */
     HBRUSH br_bg = CreateSolidBrush(COL_TOOLBAR());
@@ -408,7 +436,8 @@ static void QB_Paint(HWND hwnd, HDC hdc)
     DeleteObject(pen_brd);
 
     /* ── Empty state hint ─────────────────────────────────────────── */
-    if (n == 0) { /* no favourites — show placeholder text instead of buttons */
+    if (n == 0)
+    { /* no favourites — show placeholder text instead of buttons */
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, COL_SUBTEXT());
         HFONT of = SelectObject(hdc, g.font_small);
@@ -419,41 +448,55 @@ static void QB_Paint(HWND hwnd, HDC hdc)
     }
 
     /* ── Scroll arrows ─────────────────────────────────────────────── */
-    if (has_arrows) { /* content overflows window — draw scroll controls */
+    if (has_arrows)
+    { /* content overflows window — draw scroll controls */
         COLORREF arrow_col = COL_SUBTEXT();
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, arrow_col);
         HFONT of = SelectObject(hdc, g.font_bold);
 
         RECT ar;
-        if (!horiz) {
+        if (!horiz)
+        {
             /* ▲ at top */
-            ar.left = rc.left; ar.right = rc.right;
-            ar.top  = 0;       ar.bottom = QBAR_ARROW_W;
-            if (g.qbar_scroll > 0) { /* not at start — back arrow is active */
+            ar.left = rc.left;
+            ar.right = rc.right;
+            ar.top = 0;
+            ar.bottom = QBAR_ARROW_W;
+            if (g.qbar_scroll > 0)
+            { /* not at start — back arrow is active */
                 SetTextColor(hdc, COL_ACCENT);
                 DrawTextW(hdc, L"▲", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 SetTextColor(hdc, arrow_col);
             }
             /* ▼ at bottom */
-            ar.top = rc.bottom - QBAR_ARROW_W; ar.bottom = rc.bottom;
-            if (g.qbar_scroll < g.qbar_scroll_max) { /* not at end — forward arrow is active */
+            ar.top = rc.bottom - QBAR_ARROW_W;
+            ar.bottom = rc.bottom;
+            if (g.qbar_scroll < g.qbar_scroll_max)
+            { /* not at end — forward arrow is active */
                 SetTextColor(hdc, COL_ACCENT);
                 DrawTextW(hdc, L"▼", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 SetTextColor(hdc, arrow_col);
             }
-        } else {
+        }
+        else
+        {
             /* ◄ at left */
-            ar.left = 0; ar.right = QBAR_ARROW_W;
-            ar.top  = rc.top; ar.bottom = rc.bottom;
-            if (g.qbar_scroll > 0) { /* not at start — back arrow is active */
+            ar.left = 0;
+            ar.right = QBAR_ARROW_W;
+            ar.top = rc.top;
+            ar.bottom = rc.bottom;
+            if (g.qbar_scroll > 0)
+            { /* not at start — back arrow is active */
                 SetTextColor(hdc, COL_ACCENT);
                 DrawTextW(hdc, L"◄", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 SetTextColor(hdc, arrow_col);
             }
             /* ► at right */
-            ar.left = rc.right - QBAR_ARROW_W; ar.right = rc.right;
-            if (g.qbar_scroll < g.qbar_scroll_max) { /* not at end — forward arrow is active */
+            ar.left = rc.right - QBAR_ARROW_W;
+            ar.right = rc.right;
+            if (g.qbar_scroll < g.qbar_scroll_max)
+            { /* not at end — forward arrow is active */
                 SetTextColor(hdc, COL_ACCENT);
                 DrawTextW(hdc, L"►", -1, &ar, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
@@ -464,26 +507,32 @@ static void QB_Paint(HWND hwnd, HDC hdc)
     /* ── Buttons ──────────────────────────────────────────────────── */
     /* Clip to avoid drawing into arrow areas */
     HRGN clip_rgn = NULL;
-    if (has_arrows) {
+    if (has_arrows)
+    {
         RECT clip = rc;
-        if (!horiz) {
-            clip.top    = QBAR_ARROW_W;
+        if (!horiz)
+        {
+            clip.top = QBAR_ARROW_W;
             clip.bottom = rc.bottom - QBAR_ARROW_W;
-        } else {
-            clip.left  = QBAR_ARROW_W;
+        }
+        else
+        {
+            clip.left = QBAR_ARROW_W;
             clip.right = rc.right - QBAR_ARROW_W;
         }
         clip_rgn = CreateRectRgnIndirect(&clip);
         SelectClipRgn(hdc, clip_rgn);
     }
 
-    for (int i = 0; i < n; i++) {
-        RECT br; QB_BtnRect(hwnd, i, &br);
+    for (int i = 0; i < n; i++)
+    {
+        RECT br;
+        QB_BtnRect(hwnd, i, &br);
 
         /* Skip fully off-screen buttons (scrolled out of view) */
         if (br.right < 0 || br.bottom < 0) continue;
         if (!horiz && (br.top > rc.bottom || br.bottom < 0)) continue;
-        if ( horiz && (br.left > rc.right  || br.right  < 0)) continue;
+        if (horiz && (br.left > rc.right || br.right < 0)) continue;
 
         bool hot = (i == g.qbar_hot);
 
@@ -499,23 +548,33 @@ static void QB_Paint(HWND hwnd, HDC hdc)
 
         /* Button background — offline tint takes priority over source tint; local scripts never tinted red */
         COLORREF idle_bg = COL_BTN_NORM();
-        if (!hot) {
-            if (g.status_offline && g.cfg.offline_use_cache) {
-                if      (s->source == SCRIPT_SRC_MAIN)  idle_bg = COL_BTN_OFFLINE_MAIN();
-                else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_OFFLINE_EXTRA();
-                else if (g.cfg.tint_script_sources)     idle_bg = COL_BTN_LOCAL();
-            } else if (g.cfg.tint_script_sources) {
-                if      (s->source == SCRIPT_SRC_LOCAL) idle_bg = COL_BTN_LOCAL();
-                else if (s->source == SCRIPT_SRC_EXTRA) idle_bg = COL_BTN_EXTRA();
+        if (!hot)
+        {
+            if (g.status_offline && g.cfg.offline_use_cache)
+            {
+                if (s->source == SCRIPT_SRC_MAIN)
+                    idle_bg = COL_BTN_OFFLINE_MAIN();
+                else if (s->source == SCRIPT_SRC_EXTRA)
+                    idle_bg = COL_BTN_OFFLINE_EXTRA();
+                else if (g.cfg.tint_script_sources)
+                    idle_bg = COL_BTN_LOCAL();
+            }
+            else if (g.cfg.tint_script_sources)
+            {
+                if (s->source == SCRIPT_SRC_LOCAL)
+                    idle_bg = COL_BTN_LOCAL();
+                else if (s->source == SCRIPT_SRC_EXTRA)
+                    idle_bg = COL_BTN_EXTRA();
             }
         }
-        COLORREF bg  = hot ? COL_BTN_HOT() : idle_bg;
-        COLORREF brd = rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_DIVIDER());
+        COLORREF bg = hot ? COL_BTN_HOT() : idle_bg;
+        COLORREF brd = rep ? COL_WARN : run ? COL_SUCCESS
+                                            : (hot ? COL_ACCENT : COL_DIVIDER());
         /* border priority: repeating > running > hovered > idle */
         HBRUSH br_btn = CreateSolidBrush(bg);
-        HPEN   pen    = CreatePen(PS_SOLID, (rep || run) ? 2 : 1, brd); /* 2px border for active states */
-        HPEN   op     = SelectObject(hdc, pen);
-        HBRUSH ob     = SelectObject(hdc, br_btn);
+        HPEN pen = CreatePen(PS_SOLID, (rep || run) ? 2 : 1, brd); /* 2px border for active states */
+        HPEN op = SelectObject(hdc, pen);
+        HBRUSH ob = SelectObject(hdc, br_btn);
         RoundRect(hdc, br.left, br.top, br.right, br.bottom, 10, 10); /* corner radius 10 */
         SelectObject(hdc, op);
         SelectObject(hdc, ob);
@@ -523,21 +582,26 @@ static void QB_Paint(HWND hwnd, HDC hdc)
         DeleteObject(br_btn);
 
         /* Accent edge bar when hot, repeating, or running */
-        if (hot || rep || run) {
-            HBRUSH ba = CreateSolidBrush(rep ? COL_WARN : run ? COL_SUCCESS : COL_ACCENT);
-            RECT   acc;
-            if (!horiz) {
+        if (hot || rep || run)
+        {
+            HBRUSH ba = CreateSolidBrush(rep ? COL_WARN : run ? COL_SUCCESS
+                                                              : COL_ACCENT);
+            RECT acc;
+            if (!horiz)
+            {
                 /* Vertical bar: accent strip on the left edge */
-                acc.left   = br.left;
-                acc.top    = br.top    + 8; /* 8px inset from button top */
-                acc.right  = br.left   + 3; /* 3px wide */
+                acc.left = br.left;
+                acc.top = br.top + 8; /* 8px inset from button top */
+                acc.right = br.left + 3; /* 3px wide */
                 acc.bottom = br.bottom - 8; /* 8px inset from button bottom */
-            } else {
+            }
+            else
+            {
                 /* Horizontal bar: accent strip on the top edge */
-                acc.left   = br.left   + 8; /* 8px inset from button left */
-                acc.top    = br.top;
-                acc.right  = br.right  - 8; /* 8px inset from button right */
-                acc.bottom = br.top    + 3; /* 3px tall */
+                acc.left = br.left + 8; /* 8px inset from button left */
+                acc.top = br.top;
+                acc.right = br.right - 8; /* 8px inset from button right */
+                acc.bottom = br.top + 3; /* 3px tall */
             }
             FillRect(hdc, &acc, ba);
             DeleteObject(ba);
@@ -551,21 +615,24 @@ static void QB_Paint(HWND hwnd, HDC hdc)
 
         /* Extract the first 2 non-separator characters as the button label */
         WCHAR label[3] = {0};
-        int   li = 0;
-        for (int j = 0; tmp[j] && li < 2; j++) {
+        int li = 0;
+        for (int j = 0; tmp[j] && li < 2; j++)
+        {
             WCHAR ch = tmp[j];
-            if (ch != L'_' && ch != L' ' && ch != L'-')  /* skip separator characters */
-                label[li++] = (WCHAR)towupper(ch);        /* accumulate up to 2 uppercase characters */
+            if (ch != L'_' && ch != L' ' && ch != L'-') /* skip separator characters */
+                label[li++] = (WCHAR)towupper(ch); /* accumulate up to 2 uppercase characters */
         }
 
         SetBkMode(hdc, TRANSPARENT);
-        SetTextColor(hdc, rep ? COL_WARN : run ? COL_SUCCESS : (hot ? COL_ACCENT : COL_TEXT()));
+        SetTextColor(hdc, rep ? COL_WARN : run ? COL_SUCCESS
+                                               : (hot ? COL_ACCENT : COL_TEXT()));
         HFONT of = SelectObject(hdc, s_font_label);
         DrawTextW(hdc, label, -1, &br, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         SelectObject(hdc, of);
     }
 
-    if (clip_rgn) {
+    if (clip_rgn)
+    {
         SelectClipRgn(hdc, NULL);
         DeleteObject(clip_rgn);
     }
@@ -583,36 +650,41 @@ static void QB_ShowTip(HWND hwnd, int idx)
     g.qbar_tip_idx = idx;
     if (!s->meta_loaded) Meta_Parse(s);
 
-    int rows   = 1 + (s->meta.purpose[0] ? 1 : 0); /* 1 name row + optional purpose row */
-    int tip_h  = 2 * QBAR_TIP_PAD + rows * QBAR_TIP_ROW; /* height scales with row count */
-    int tip_w  = QBAR_TIP_W;
+    int rows = 1 + (s->meta.purpose[0] ? 1 : 0); /* 1 name row + optional purpose row */
+    int tip_h = 2 * QBAR_TIP_PAD + rows * QBAR_TIP_ROW; /* height scales with row count */
+    int tip_w = QBAR_TIP_W;
 
-    RECT br; QB_BtnRect(hwnd, idx, &br);
+    RECT br;
+    QB_BtnRect(hwnd, idx, &br);
     POINT tl = {br.left, br.top};
     POINT tr = {br.right, br.bottom};
     ClientToScreen(hwnd, &tl);
     ClientToScreen(hwnd, &tr);
 
-    MONITORINFO mi = {0}; mi.cbSize = sizeof(mi);
+    MONITORINFO mi = {0};
+    mi.cbSize = sizeof(mi);
     HMONITOR hm = MonitorFromPoint(tl, MONITOR_DEFAULTTONEAREST);
     GetMonitorInfo(hm, &mi);
     RECT work = mi.rcWork;
 
     int x, y;
-    if (!g.cfg.qbar_horizontal) {
+    if (!g.cfg.qbar_horizontal)
+    {
         /* Vertical bar: show to the right, fallback left */
-        x = tr.x + 4;              /* 4px gap from bar right edge */
+        x = tr.x + 4; /* 4px gap from bar right edge */
         y = tl.y;
         if (x + tip_w > work.right) x = tl.x - tip_w - 4; /* flip left if clipping right edge */
         if (y + tip_h > work.bottom) y = work.bottom - tip_h; /* clamp to bottom of work area */
-        if (y < work.top) y = work.top;                        /* clamp to top of work area */
-    } else {
+        if (y < work.top) y = work.top; /* clamp to top of work area */
+    }
+    else
+    {
         /* Horizontal bar: show below, fallback above */
         x = tl.x;
-        y = tr.y + 4;              /* 4px gap below bar bottom edge */
+        y = tr.y + 4; /* 4px gap below bar bottom edge */
         if (y + tip_h > work.bottom) y = tl.y - tip_h - 4; /* flip above bar if clipping bottom */
-        if (x + tip_w > work.right)  x = work.right - tip_w; /* clamp right edge */
-        if (x < work.left) x = work.left;                     /* clamp left edge */
+        if (x + tip_w > work.right) x = work.right - tip_w; /* clamp right edge */
+        if (x < work.left) x = work.left; /* clamp left edge */
     }
 
     SetWindowPos(g.hwnd_qbar_tip, HWND_TOPMOST, x, y, tip_w, tip_h,
@@ -636,8 +708,8 @@ static void QB_HideTip(void)
 static void QB_Scroll(HWND hwnd, int delta)
 {
     g.qbar_scroll += delta;
-    if (g.qbar_scroll < 0)                    g.qbar_scroll = 0;              /* clamp at start */
-    if (g.qbar_scroll > g.qbar_scroll_max)    g.qbar_scroll = g.qbar_scroll_max; /* clamp at end */
+    if (g.qbar_scroll < 0) g.qbar_scroll = 0; /* clamp at start */
+    if (g.qbar_scroll > g.qbar_scroll_max) g.qbar_scroll = g.qbar_scroll_max; /* clamp at end */
     InvalidateRect(hwnd, NULL, FALSE);
 }
 
@@ -649,32 +721,33 @@ static void QB_ShowContextMenu(HWND hwnd)
     bool has_target = g.cfg.qbar_target_app[0] != L'\0';
 
     HMENU hm = CreatePopupMenu();
-    AppendMenu(hm, MF_STRING,    IDM_QBAR_TOGGLE,     L"Enable Quick Bar");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_TOGGLE, L"Enable Quick Bar");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING,    IDM_QBAR_HORIZONTAL, L"Horizontal");
-    AppendMenu(hm, MF_STRING,    IDM_QBAR_VERTICAL,   L"Vertical");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_HORIZONTAL, L"Horizontal");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_VERTICAL, L"Vertical");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
     AppendMenu(hm, has_target ? MF_STRING : (MF_STRING | MF_GRAYED),
                IDM_QBAR_TOPMOST, L"On Top with Target App");
-    AppendMenu(hm, MF_STRING,    IDM_QBAR_SET_TARGET, L"Set Target App...");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_SET_TARGET, L"Set Target App...");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING,    IDM_QBAR_RESET_POS,  L"Reset Position");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_RESET_POS, L"Reset Position");
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hm, MF_STRING,    IDM_REPEAT_QBAR,     L"Repeat on Double-Click");
+    AppendMenu(hm, MF_STRING, IDM_REPEAT_QBAR, L"Repeat on Double-Click");
 
     CheckMenuItem(hm, IDM_QBAR_TOGGLE,
-        g.cfg.qbar_enabled            ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_enabled ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hm, IDM_QBAR_HORIZONTAL,
-        g.cfg.qbar_horizontal         ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_horizontal ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hm, IDM_QBAR_VERTICAL,
-        !g.cfg.qbar_horizontal        ? MF_CHECKED : MF_UNCHECKED);
+                  !g.cfg.qbar_horizontal ? MF_CHECKED : MF_UNCHECKED);
     if (has_target)
         CheckMenuItem(hm, IDM_QBAR_TOPMOST,
-            g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
+                      g.cfg.qbar_topmost_with_catia ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hm, IDM_REPEAT_QBAR,
-        g.cfg.qbar_repeat_on_dblclick ? MF_CHECKED : MF_UNCHECKED);
+                  g.cfg.qbar_repeat_on_dblclick ? MF_CHECKED : MF_UNCHECKED);
 
-    POINT pt; GetCursorPos(&pt);
+    POINT pt;
+    GetCursorPos(&pt);
     /* SetForegroundWindow ensures the menu closes properly */
     SetForegroundWindow(hwnd);
     TrackPopupMenu(hm, TPM_RIGHTBUTTON | TPM_LEFTALIGN,
@@ -687,9 +760,10 @@ static void QB_ShowContextMenu(HWND hwnd)
 /*  Tooltip popup window procedure.                                   */
 /* ================================================================== */
 static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
-                                     WPARAM wp, LPARAM lp)
+                                    WPARAM wp, LPARAM lp)
 {
-    (void)wp; (void)lp;
+    (void)wp;
+    (void)lp;
     switch (msg)
     {
     case WM_ERASEBKGND:
@@ -699,7 +773,8 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
 
         /* Background */
         HBRUSH br = CreateSolidBrush(COL_TIP_BG());
@@ -708,16 +783,24 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
 
         /* Border */
         HPEN pen = CreatePen(PS_SOLID, 1, COL_TIP_BORDER);
-        HPEN op  = SelectObject(hdc, pen);
+        HPEN op = SelectObject(hdc, pen);
         HBRUSH ob = SelectObject(hdc, GetStockObject(NULL_BRUSH));
         Rectangle(hdc, rc.left, rc.top, rc.right - 1, rc.bottom - 1);
         SelectObject(hdc, op);
         SelectObject(hdc, ob);
         DeleteObject(pen);
 
-        if (g.qbar_tip_idx < 0) { EndPaint(hwnd, &ps); return 0; } /* no tip active — nothing to draw */
+        if (g.qbar_tip_idx < 0)
+        {
+            EndPaint(hwnd, &ps);
+            return 0;
+        } /* no tip active — nothing to draw */
         Script *s = QB_GetFav(g.qbar_tip_idx, NULL, NULL);
-        if (!s)                  { EndPaint(hwnd, &ps); return 0; } /* stale index; script was removed */
+        if (!s)
+        {
+            EndPaint(hwnd, &ps);
+            return 0;
+        } /* stale index; script was removed */
 
         SetBkMode(hdc, TRANSPARENT);
         int y = QBAR_TIP_PAD; /* start drawing below top padding */
@@ -729,9 +812,9 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
         Util_StripExt(disp);
         Util_SnakeToTitle(disp);
 
-        tr.left   = QBAR_TIP_PAD;
-        tr.right  = rc.right - QBAR_TIP_PAD;
-        tr.top    = y;
+        tr.left = QBAR_TIP_PAD;
+        tr.right = rc.right - QBAR_TIP_PAD;
+        tr.top = y;
         tr.bottom = y + QBAR_TIP_ROW;
         SetTextColor(hdc, COL_TEXT());
         HFONT of = SelectObject(hdc, g.font_bold);
@@ -740,8 +823,9 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
         y += QBAR_TIP_ROW; /* advance to next row */
 
         /* Purpose line in small text */
-        if (s->meta.purpose[0]) { /* show purpose only when metadata has been parsed */
-            tr.top    = y;
+        if (s->meta.purpose[0])
+        { /* show purpose only when metadata has been parsed */
+            tr.top = y;
             tr.bottom = y + QBAR_TIP_ROW;
             SetTextColor(hdc, COL_SUBTEXT());
             of = SelectObject(hdc, g.font_small);
@@ -764,13 +848,13 @@ static LRESULT CALLBACK QBarTipProc(HWND hwnd, UINT msg,
 /*  cancels both repeat mode and any running background script.       */
 /* ================================================================== */
 static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
-                                      WPARAM wp, LPARAM lp)
+                                     WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
     case WM_CREATE:
-        g.qbar_hot     = -1;      /* -1 = no button is hovered */
-        g.qbar_tip_idx = -1;      /* -1 = no tooltip displayed */
+        g.qbar_hot = -1; /* -1 = no button is hovered */
+        g.qbar_tip_idx = -1; /* -1 = no tooltip displayed */
         g.qbar_dragging = false;
         return 0;
 
@@ -781,10 +865,11 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     {
         PAINTSTRUCT ps;
         HDC hdc_raw = BeginPaint(hwnd, &ps);
-        RECT rc; GetClientRect(hwnd, &rc);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
 
         /* Double-buffered to prevent flicker */
-        HDC     hdc = CreateCompatibleDC(hdc_raw);
+        HDC hdc = CreateCompatibleDC(hdc_raw);
         HBITMAP bmp = CreateCompatibleBitmap(hdc_raw, rc.right, rc.bottom);
         HBITMAP old = SelectObject(hdc, bmp);
 
@@ -801,8 +886,11 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     /* Make the background area act as a drag handle */
     case WM_SETCURSOR:
     {
-        POINT pt; GetCursorPos(&pt); ScreenToClient(hwnd, &pt);
-        if (QB_HitTest(hwnd, pt.x, pt.y) == HIT_NONE) { /* pointer is on background, not a button */
+        POINT pt;
+        GetCursorPos(&pt);
+        ScreenToClient(hwnd, &pt);
+        if (QB_HitTest(hwnd, pt.x, pt.y) == HIT_NONE)
+        { /* pointer is on background, not a button */
             SetCursor(LoadCursor(NULL, IDC_SIZEALL));
             return TRUE; /* handled; suppress default cursor */
         }
@@ -814,20 +902,27 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
         int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
         int hit = QB_HitTest(hwnd, x, y);
 
-        if (hit == HIT_NONE) {
+        if (hit == HIT_NONE)
+        {
             /* Start drag */
             QB_HideTip();
             g.qbar_hot = -1;
             InvalidateRect(hwnd, NULL, FALSE);
             SetCapture(hwnd);
             g.qbar_dragging = true;
-            POINT sp; GetCursorPos(&sp);
-            RECT  wr; GetWindowRect(hwnd, &wr);
+            POINT sp;
+            GetCursorPos(&sp);
+            RECT wr;
+            GetWindowRect(hwnd, &wr);
             g.qbar_drag_ox = sp.x - wr.left;
             g.qbar_drag_oy = sp.y - wr.top;
-        } else if (hit == HIT_ARROW_PREV) {
+        }
+        else if (hit == HIT_ARROW_PREV)
+        {
             QB_Scroll(hwnd, -(QBAR_BTN_SIZE + QBAR_GAP)); /* scroll back by one button step */
-        } else if (hit == HIT_ARROW_NEXT) {
+        }
+        else if (hit == HIT_ARROW_NEXT)
+        {
             QB_Scroll(hwnd, +(QBAR_BTN_SIZE + QBAR_GAP)); /* scroll forward by one button step */
         }
         /* Button presses are handled on LBUTTONUP to avoid false triggers */
@@ -837,22 +932,27 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     case WM_LBUTTONUP:
     {
         bool was_drag = g.qbar_dragging; /* capture before clearing so post-drag clicks are skipped */
-        if (g.qbar_dragging) {
+        if (g.qbar_dragging)
+        {
             ReleaseCapture();
             g.qbar_dragging = false;
             QB_SavePos();
         }
-        if (g.suppress_lbuttonup) { /* eat the LBUTTONUP that follows a double-click */
+        if (g.suppress_lbuttonup)
+        { /* eat the LBUTTONUP that follows a double-click */
             g.suppress_lbuttonup = false;
             return 0;
         }
-        if (!was_drag) {
-            int x   = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
+        if (!was_drag)
+        {
+            int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
             int hit = QB_HitTest(hwnd, x, y);
-            if (hit >= 0) {
+            if (hit >= 0)
+            {
                 int fi = 0, si = 0;
                 QB_GetFav(hit, &fi, &si);
-                if (g.repeat_mode) {
+                if (g.repeat_mode)
+                {
                     bool same = (g.repeat_fi == fi && g.repeat_si == si);
                     Repeat_Stop();
                     if (same) return 0; /* clicking the repeating script cancels repeat; don't re-run */
@@ -865,17 +965,19 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
 
     case WM_LBUTTONDBLCLK:
     {
-        int x   = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
+        int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
         int hit = QB_HitTest(hwnd, x, y);
-        if (hit < 0) return 0;                          /* clicked arrow or background — not a button */
-        if (!g.cfg.qbar_repeat_on_dblclick) return 0;  /* feature disabled in settings */
-        if (g.cfg.show_console) { /* repeat mode uses background process; incompatible with console mode */
+        if (hit < 0) return 0; /* clicked arrow or background — not a button */
+        if (!g.cfg.qbar_repeat_on_dblclick) return 0; /* feature disabled in settings */
+        if (g.cfg.show_console)
+        { /* repeat mode uses background process; incompatible with console mode */
             PostStatus(L"Repeat mode not available in console mode.");
             return 0;
         }
         int fi = 0, si = 0;
         QB_GetFav(hit, &fi, &si);
-        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si) {
+        if (g.repeat_mode && g.repeat_fi == fi && g.repeat_si == si)
+        {
             /* Double-click on the already-repeating script — toggle repeat off */
             Repeat_Stop();
             g.suppress_lbuttonup = false;
@@ -894,8 +996,10 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     }
 
     case WM_KEYDOWN:
-        if (wp == VK_ESCAPE) {
-            if (g.repeat_mode) {
+        if (wp == VK_ESCAPE)
+        {
+            if (g.repeat_mode)
+            {
                 Repeat_Stop();
                 PostStatus(L"Repeat cancelled.");
             }
@@ -908,21 +1012,26 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
     {
         int x = GET_X_LPARAM(lp), y = GET_Y_LPARAM(lp);
 
-        if (g.qbar_dragging) {
-            POINT sp; GetCursorPos(&sp);
+        if (g.qbar_dragging)
+        {
+            POINT sp;
+            GetCursorPos(&sp);
             SetWindowPos(hwnd, NULL,
-                sp.x - g.qbar_drag_ox, sp.y - g.qbar_drag_oy,
-                0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+                         sp.x - g.qbar_drag_ox, sp.y - g.qbar_drag_oy,
+                         0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
             return 0;
         }
 
         int hit = QB_HitTest(hwnd, x, y);
         int btn = (hit >= 0) ? hit : HIT_NONE;
-        if (btn != g.qbar_hot) {
+        if (btn != g.qbar_hot)
+        {
             g.qbar_hot = btn;
             InvalidateRect(hwnd, NULL, FALSE);
-            if (btn >= 0) QB_ShowTip(hwnd, btn);
-            else          QB_HideTip();
+            if (btn >= 0)
+                QB_ShowTip(hwnd, btn);
+            else
+                QB_HideTip();
         }
 
         TRACKMOUSEEVENT tme = {sizeof(tme), TME_LEAVE, hwnd, 0};
@@ -965,25 +1074,23 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
 void QuickBar_Register(HINSTANCE hInst)
 {
     WNDCLASSEX wc = {
-        .cbSize        = sizeof(wc),
-        .style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, /* CS_DBLCLKS required for WM_LBUTTONDBLCLK */
-        .lpfnWndProc   = QuickBarProc,
-        .hInstance     = hInst,
-        .hCursor       = LoadCursor(NULL, IDC_ARROW),
+        .cbSize = sizeof(wc),
+        .style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, /* CS_DBLCLKS required for WM_LBUTTONDBLCLK */
+        .lpfnWndProc = QuickBarProc,
+        .hInstance = hInst,
+        .hCursor = LoadCursor(NULL, IDC_ARROW),
         .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName = QBAR_WNDCLASS
-    };
+        .lpszClassName = QBAR_WNDCLASS};
     RegisterClassEx(&wc);
 
     WNDCLASSEX wct = {
-        .cbSize        = sizeof(wct),
-        .style         = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc   = QBarTipProc,
-        .hInstance     = hInst,
-        .hCursor       = LoadCursor(NULL, IDC_ARROW),
+        .cbSize = sizeof(wct),
+        .style = CS_HREDRAW | CS_VREDRAW,
+        .lpfnWndProc = QBarTipProc,
+        .hInstance = hInst,
+        .hCursor = LoadCursor(NULL, IDC_ARROW),
         .hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH),
-        .lpszClassName = QBAR_TIPCLASS
-    };
+        .lpszClassName = QBAR_TIPCLASS};
     RegisterClassEx(&wct);
 
     /* Large bold font for 2-letter button labels; -22 ≈ 16pt */
@@ -1004,8 +1111,10 @@ void QuickBar_Create(void)
     HINSTANCE hInst = GetModuleHandle(NULL);
 
     /* Default position: near the right edge below the taskbar */
-    if (!g.cfg.qbar_x && !g.cfg.qbar_y) { /* both zero = first launch or settings cleared */
-        RECT work; SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
+    if (!g.cfg.qbar_x && !g.cfg.qbar_y)
+    { /* both zero = first launch or settings cleared */
+        RECT work;
+        SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
         g.cfg.qbar_x = work.right - (QBAR_BTN_SIZE + 2 * QBAR_PAD + 2) - 20; /* 20px from right edge */
         g.cfg.qbar_y = work.top + 60; /* 60px below top of work area (below taskbar with a gap) */
     }
@@ -1065,12 +1174,32 @@ void QuickBar_Create(void)
 /* ================================================================== */
 void QuickBar_Destroy(void)
 {
-    if (s_event_hook)   { UnhookWinEvent(s_event_hook);   s_event_hook   = NULL; }
-    if (s_minimize_hook){ UnhookWinEvent(s_minimize_hook); s_minimize_hook = NULL; }
+    if (s_event_hook)
+    {
+        UnhookWinEvent(s_event_hook);
+        s_event_hook = NULL;
+    }
+    if (s_minimize_hook)
+    {
+        UnhookWinEvent(s_minimize_hook);
+        s_minimize_hook = NULL;
+    }
     QB_HideTip();
-    if (g.hwnd_qbar_tip) { DestroyWindow(g.hwnd_qbar_tip); g.hwnd_qbar_tip = NULL; }
-    if (g.hwnd_qbar)     { DestroyWindow(g.hwnd_qbar);     g.hwnd_qbar     = NULL; }
-    if (s_font_label)    { DeleteObject(s_font_label);      s_font_label    = NULL; }
+    if (g.hwnd_qbar_tip)
+    {
+        DestroyWindow(g.hwnd_qbar_tip);
+        g.hwnd_qbar_tip = NULL;
+    }
+    if (g.hwnd_qbar)
+    {
+        DestroyWindow(g.hwnd_qbar);
+        g.hwnd_qbar = NULL;
+    }
+    if (s_font_label)
+    {
+        DeleteObject(s_font_label);
+        s_font_label = NULL;
+    }
 }
 
 /* ================================================================== */
@@ -1079,13 +1208,16 @@ void QuickBar_Destroy(void)
 void QuickBar_Show(bool show)
 {
     if (!g.hwnd_qbar) return;
-    if (show) {
+    if (show)
+    {
         /* When no target is configured, always show.
            Otherwise only show if the target has a visible window. */
         if (!g.cfg.qbar_target_app[0] || QB_CatiaState() == CATIA_VISIBLE)
             ShowWindow(g.hwnd_qbar, SW_SHOWNOACTIVATE);
         /* else: bar will appear automatically when the target app becomes visible */
-    } else {
+    }
+    else
+    {
         QB_HideTip();
         ShowWindow(g.hwnd_qbar, SW_HIDE);
     }
@@ -1099,8 +1231,8 @@ void QuickBar_Show(bool show)
 void QuickBar_Rebuild(void)
 {
     if (!g.hwnd_qbar) return;
-    g.qbar_scroll = 0;   /* reset to start after content changes */
-    g.qbar_hot    = -1;  /* clear highlight; button indices may have shifted */
+    g.qbar_scroll = 0; /* reset to start after content changes */
+    g.qbar_hot = -1; /* clear highlight; button indices may have shifted */
     QB_HideTip();
     QB_UpdateGeometry();
 }
@@ -1110,11 +1242,13 @@ void QuickBar_Rebuild(void)
 /* ================================================================== */
 void QuickBar_OnThemeChange(void)
 {
-    if (g.hwnd_qbar) {
+    if (g.hwnd_qbar)
+    {
         Window_ApplyDarkMode(g.hwnd_qbar);
         InvalidateRect(g.hwnd_qbar, NULL, FALSE);
     }
-    if (g.hwnd_qbar_tip) {
+    if (g.hwnd_qbar_tip)
+    {
         Window_ApplyDarkMode(g.hwnd_qbar_tip);
         InvalidateRect(g.hwnd_qbar_tip, NULL, FALSE);
     }
@@ -1137,27 +1271,25 @@ void QuickBar_SetTopmost(bool topmost)
 /*  and the optional process executable name (qbar_target_exe).       */
 /* ================================================================== */
 static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
-                                              WPARAM wp, LPARAM lp)
+                                            WPARAM wp, LPARAM lp)
 {
     (void)lp;
-    switch (msg) {
+    switch (msg)
+    {
     case WM_INITDIALOG:
-        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET,     g.cfg.qbar_target_app);
+        SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET, g.cfg.qbar_target_app);
         SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, g.cfg.qbar_target_exe);
         return TRUE; /* let Windows set default keyboard focus */
     case WM_COMMAND:
-        switch (LOWORD(wp)) {
+        switch (LOWORD(wp))
+        {
         case IDC_BTN_BROWSE_TARGET_EXE:
         {
             WCHAR path[MAX_APPPATH] = {0};
             OPENFILENAME ofn = {
-                .lStructSize = sizeof(ofn), .hwndOwner = hwnd,
-                .lpstrFilter = L"Executables\0*.exe\0All Files\0*.*\0",
-                .lpstrFile = path, .nMaxFile = MAX_APPPATH,
-                .Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
-                .lpstrTitle = L"Select Target Application"
-            };
-            if (GetOpenFileName(&ofn)) {
+                .lStructSize = sizeof(ofn), .hwndOwner = hwnd, .lpstrFilter = L"Executables\0*.exe\0All Files\0*.*\0", .lpstrFile = path, .nMaxFile = MAX_APPPATH, .Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST, .lpstrTitle = L"Select Target Application"};
+            if (GetOpenFileName(&ofn))
+            {
                 /* Strip the directory path — store only the executable filename */
                 WCHAR *slash = wcsrchr(path, L'\\');
                 SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, slash ? slash + 1 : path);
@@ -1166,15 +1298,19 @@ static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
         }
         case IDOK:
         {
-            /* Helper lambda-equivalent: trim spaces from a buffer in-place */
-            #define TRIM(buf) do { \
-                WCHAR *_s = (buf); \
-                while (*_s == L' ') _s++; \
-                WCHAR *_e = _s + wcslen(_s); \
-                while (_e > _s && *(_e-1) == L' ') _e--; \
-                *_e = L'\0'; \
-                wcsncpy_s((buf), MAX_NAME, _s, _TRUNCATE); \
-            } while (0)
+/* Helper lambda-equivalent: trim spaces from a buffer in-place */
+#define TRIM(buf)                                  \
+    do                                             \
+    {                                              \
+        WCHAR *_s = (buf);                         \
+        while (*_s == L' ')                        \
+            _s++;                                  \
+        WCHAR *_e = _s + wcslen(_s);               \
+        while (_e > _s && *(_e - 1) == L' ')       \
+            _e--;                                  \
+        *_e = L'\0';                               \
+        wcsncpy_s((buf), MAX_NAME, _s, _TRUNCATE); \
+    } while (0)
 
             WCHAR buf[MAX_NAME] = {0};
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET, buf, MAX_NAME);
@@ -1184,7 +1320,7 @@ static INT_PTR CALLBACK QB_TargetAppDlgProc(HWND hwnd, UINT msg,
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE, buf, MAX_NAME);
             TRIM(buf);
             wcsncpy_s(g.cfg.qbar_target_exe, MAX_NAME, buf, _TRUNCATE);
-            #undef TRIM
+#undef TRIM
 
             Settings_Save(&g.cfg);
             QB_UpdateVisibility(NULL); /* re-evaluate visibility; NULL = no specific fg window to use */
