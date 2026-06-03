@@ -601,7 +601,7 @@ CatiaMenuWin32 reads metadata from a structured header block at the top of each 
 ### Rules
 - The header must be inside a triple-quoted string `'''...'''` or `"""..."""` at the top of the file
 - The dashed separator lines (`-----...`) mark the start and end of the header block
-- Keys are matched case-insensitively: `Script name:`, `Purpose:`, `Author:`, `Date:`, `Version:`, `Description:`
+- Keys are matched case-insensitively: `Script name:`, `Purpose:`, `Author:`, `Date:`, `Version:`, `Description:`, `Change:`
 - **Purpose** — shown as the subtitle line on the script button (keep it short, one line)
 - **Description** — shown in the tooltip; continuation lines must be indented with spaces or tabs
 - Parsing stops at the second dashed separator line, or at `dependencies`, `requirements`, `import`, `def`, or `class`
