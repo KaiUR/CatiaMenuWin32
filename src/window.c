@@ -135,8 +135,16 @@ void Window_ShowMenu(void)
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort, L"Sort Scripts");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     bool qbar_has_target = g.cfg.qbar_target_app[0] != L'\0';
+    /* Show the hotkey next to the toggle so it is discoverable */
+    WCHAR qbar_toggle_label[96] = L"Enable Quick Bar";
+    if (g.cfg.qbar_hotkey_enabled && g.cfg.qbar_hotkey_mods)
+    {
+        WCHAR hk[64];
+        QuickBar_HotkeyText(hk, 64);
+        _snwprintf_s(qbar_toggle_label, 96, _TRUNCATE, L"Enable Quick Bar\t%s", hk);
+    }
     HMENU hQBar = CreatePopupMenu();
-    AppendMenu(hQBar, MF_STRING, IDM_QBAR_TOGGLE, L"Enable Quick Bar");
+    AppendMenu(hQBar, MF_STRING, IDM_QBAR_TOGGLE, qbar_toggle_label);
     AppendMenu(hQBar, MF_SEPARATOR, 0, NULL);
     AppendMenu(hQBar, MF_STRING, IDM_QBAR_HORIZONTAL, L"Horizontal");
     AppendMenu(hQBar, MF_STRING, IDM_QBAR_VERTICAL, L"Vertical");

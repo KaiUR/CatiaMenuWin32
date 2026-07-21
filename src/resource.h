@@ -318,4 +318,19 @@
 #define IDC_CHK_TRANS_OPTIONS 482 /* "Options, theme, window & Quick Bar" checkbox      */
 #define IDC_LST_TRANS_TOKENS 483 /* ListView — tokens with per-item checkboxes         */
 
+/* ------------------------------------------------------------------ */
+/*  Settings dialog — Quick Bar show/hide hotkey  (488–495)            */
+/*  Quick Bar tab.  Deliberately NOT disabled together with the rest   */
+/*  of the Quick Bar controls: the hotkey is what re-enables the bar   */
+/*  once it has been hidden.                                           */
+/* ------------------------------------------------------------------ */
+#define IDC_GRP_QBAR_HOTKEY 488 /* "Show / Hide Hotkey" groupbox            */
+#define IDC_CHK_QBAR_HOTKEY 489 /* "Enable global hotkey" checkbox          */
+#define IDC_CHK_HK_CTRL 490 /* Ctrl modifier checkbox                   */
+#define IDC_CHK_HK_ALT 491 /* Alt modifier checkbox                    */
+#define IDC_CHK_HK_SHIFT 492 /* Shift modifier checkbox                  */
+#define IDC_CHK_HK_WIN 493 /* Win modifier checkbox                    */
+#define IDC_LBL_HK_KEY 494 /* "Key:" label                             */
+#define IDC_CBO_HK_KEY 495 /* key dropdown (A–Z, 0–9, F1–F12)          */
+
 #endif /* RESOURCE_H */

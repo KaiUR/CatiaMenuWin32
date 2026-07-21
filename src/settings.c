@@ -22,6 +22,26 @@ static void IniPath(WCHAR *out, int max)
 }
 
 /* ================================================================== */
+/*  Settings_ClampHotkey  (static)                                     */
+/*  Purpose: Sanitises the Quick Bar hotkey fields after they have     */
+/*           been read from an INI file, which may be hand-edited or   */
+/*           corrupt.  Drops unknown modifier bits, rejects            */
+/*           out-of-range virtual keys, and disables the hotkey        */
+/*           entirely when no modifier remains — a bare unmodified key */
+/*           registered system-wide would be swallowed in every        */
+/*           application.                                              */
+/*  In:  s — settings struct to sanitise in place                      */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_ClampHotkey(Settings *s)
+{
+    s->qbar_hotkey_mods &= (MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN);
+    if (s->qbar_hotkey_vk == 0 || s->qbar_hotkey_vk > 0xFF)
+        s->qbar_hotkey_vk = 'Q'; /* fall back to the default key */
+    if (!s->qbar_hotkey_mods) s->qbar_hotkey_enabled = false;
+}
+
+/* ================================================================== */
 /*  Settings_Load                                                       */
 /*  Purpose: Reads all application settings from settings.ini into the */
 /*           provided Settings struct.  Applies defaults for missing   */
@@ -98,6 +118,13 @@ void Settings_Load(Settings *s)
                             s->qbar_target_app, MAX_NAME, ini);
     GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
                             s->qbar_target_exe, MAX_NAME, ini);
+
+    /* Quick Bar show/hide hotkey — default Ctrl+Alt+Q */
+    s->qbar_hotkey_enabled = GetPrivateProfileInt(L"QuickBar", L"HotkeyEnabled", 1, ini) != 0; /* default 1 = registered */
+    s->qbar_hotkey_mods = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyMods",
+                                                     MOD_CONTROL | MOD_ALT, ini);
+    s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", 'Q', ini);
+    Settings_ClampHotkey(s);
 
     /* Double-click repeat */
     s->repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick", 1, ini) != 0;
@@ -187,6 +214,12 @@ void Settings_Save(const Settings *s)
     WritePrivateProfileString(L"QuickBar", L"Y", tmp, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyEnabled",
+                              s->qbar_hotkey_enabled ? L"1" : L"0", ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%u", s->qbar_hotkey_mods);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyMods", tmp, ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%u", s->qbar_hotkey_vk);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyKey", tmp, ini);
 
     /* Double-click repeat */
     WritePrivateProfileString(L"Options", L"RepeatOnDblClick",
@@ -280,6 +313,9 @@ static const int s_stab4[] = {/* Quick Bar */
                               IDC_LBL_QBAR_TARGET_EXE, IDC_EDIT_QBAR_TARGET_EXE_S, IDC_BTN_BROWSE_QBAR_EXE_S,
                               IDC_LBL_QBAR_EXE_TIP,
                               IDC_CHK_REPEAT_QBAR,
+                              IDC_GRP_QBAR_HOTKEY, IDC_CHK_QBAR_HOTKEY,
+                              IDC_CHK_HK_CTRL, IDC_CHK_HK_ALT, IDC_CHK_HK_SHIFT, IDC_CHK_HK_WIN,
+                              IDC_LBL_HK_KEY, IDC_CBO_HK_KEY,
                               -1};
 static const int *s_stabs[5] = {
     s_stab0, s_stab1, s_stab2, s_stab3, s_stab4};
@@ -322,6 +358,72 @@ static void Settings_QBarEnableControls(HWND hwnd, bool enabled)
         -1};
     for (const int *p = ids; *p != -1; p++)
         EnableWindow(GetDlgItem(hwnd, *p), enabled);
+}
+
+/* ================================================================== */
+/*  Settings_HotkeyEnableControls  (static)                            */
+/*  Purpose: Greys the modifier checkboxes and the key dropdown when   */
+/*           the hotkey itself is switched off.                        */
+/*  In:  hwnd    — settings dialog handle                              */
+/*       enabled — true to enable the sub-controls                     */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_HotkeyEnableControls(HWND hwnd, bool enabled)
+{
+    static const int ids[] = {
+        IDC_CHK_HK_CTRL, IDC_CHK_HK_ALT, IDC_CHK_HK_SHIFT, IDC_CHK_HK_WIN,
+        IDC_LBL_HK_KEY, IDC_CBO_HK_KEY,
+        -1};
+    for (const int *p = ids; *p != -1; p++)
+        EnableWindow(GetDlgItem(hwnd, *p), enabled);
+}
+
+/* ================================================================== */
+/*  Hotkey key list                                                    */
+/*  The dropdown offers A–Z (index 0–25), 0–9 (26–35) and F1–F12       */
+/*  (36–47).  These three helpers keep the list, the index mapping and */
+/*  the reverse lookup in one place.                                   */
+/* ================================================================== */
+#define HK_COUNT 48 /* 26 letters + 10 digits + 12 function keys */
+
+static void Settings_FillHotkeyCombo(HWND hwnd)
+{
+    HWND cb = GetDlgItem(hwnd, IDC_CBO_HK_KEY);
+    SendMessage(cb, CB_RESETCONTENT, 0, 0);
+    WCHAR item[8];
+    for (int i = 0; i < 26; i++)
+    { /* A–Z */
+        item[0] = (WCHAR)(L'A' + i);
+        item[1] = L'\0';
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)item);
+    }
+    for (int i = 0; i < 10; i++)
+    { /* 0–9 */
+        item[0] = (WCHAR)(L'0' + i);
+        item[1] = L'\0';
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)item);
+    }
+    for (int i = 1; i <= 12; i++)
+    { /* F1–F12 */
+        _snwprintf_s(item, 8, _TRUNCATE, L"F%d", i);
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)item);
+    }
+}
+
+static UINT Settings_HotkeyVkFromIndex(int idx)
+{
+    if (idx >= 0 && idx < 26) return (UINT)('A' + idx);
+    if (idx >= 26 && idx < 36) return (UINT)('0' + (idx - 26));
+    if (idx >= 36 && idx < HK_COUNT) return (UINT)(VK_F1 + (idx - 36));
+    return 'Q'; /* no/invalid selection — fall back to the default key */
+}
+
+static int Settings_HotkeyIndexFromVk(UINT vk)
+{
+    if (vk >= 'A' && vk <= 'Z') return (int)(vk - 'A');
+    if (vk >= '0' && vk <= '9') return 26 + (int)(vk - '0');
+    if (vk >= VK_F1 && vk <= VK_F12) return 36 + (int)(vk - VK_F1);
+    return Settings_HotkeyIndexFromVk('Q'); /* unknown key — show the default */
 }
 
 /* ================================================================== */
@@ -415,6 +517,12 @@ static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini,
     WritePrivateProfileString(L"QuickBar", L"Y", tmp, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetApp", s->qbar_target_app, ini);
     WritePrivateProfileString(L"QuickBar", L"TargetExe", s->qbar_target_exe, ini);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyEnabled",
+                              s->qbar_hotkey_enabled ? L"1" : L"0", ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%u", s->qbar_hotkey_mods);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyMods", tmp, ini);
+    _snwprintf_s(tmp, 7, _TRUNCATE, L"%u", s->qbar_hotkey_vk);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyKey", tmp, ini);
 }
 
 /* ================================================================== */
@@ -471,6 +579,11 @@ static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini,
                                 s->qbar_target_app, MAX_NAME, ini);
         GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
                                 s->qbar_target_exe, MAX_NAME, ini);
+        s->qbar_hotkey_enabled = GetPrivateProfileInt(L"QuickBar", L"HotkeyEnabled", 1, ini) != 0;
+        s->qbar_hotkey_mods = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyMods",
+                                                         MOD_CONTROL | MOD_ALT, ini);
+        s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", 'Q', ini);
+        Settings_ClampHotkey(s);
     }
 
     if (incl_cache_dir && !s->cache_dir[0])
@@ -824,6 +937,17 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_REPEAT_QBAR, s->qbar_repeat_on_dblclick ? BST_CHECKED : BST_UNCHECKED);
         Settings_QBarEnableControls(hwnd, s->qbar_enabled);
 
+        /* Show/hide hotkey — not covered by Settings_QBarEnableControls */
+        Settings_FillHotkeyCombo(hwnd);
+        CheckDlgButton(hwnd, IDC_CHK_QBAR_HOTKEY, s->qbar_hotkey_enabled ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_HK_CTRL, (s->qbar_hotkey_mods & MOD_CONTROL) ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_HK_ALT, (s->qbar_hotkey_mods & MOD_ALT) ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_HK_SHIFT, (s->qbar_hotkey_mods & MOD_SHIFT) ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_HK_WIN, (s->qbar_hotkey_mods & MOD_WIN) ? BST_CHECKED : BST_UNCHECKED);
+        SendDlgItemMessage(hwnd, IDC_CBO_HK_KEY, CB_SETCURSEL,
+                           (WPARAM)Settings_HotkeyIndexFromVk(s->qbar_hotkey_vk), 0);
+        Settings_HotkeyEnableControls(hwnd, s->qbar_hotkey_enabled);
+
         /* Show only tab 0, hide the rest */
         Settings_ShowTab(hwnd, 0);
         return TRUE;
@@ -1150,6 +1274,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                                         IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED);
             break;
 
+        case IDC_CHK_QBAR_HOTKEY:
+            Settings_HotkeyEnableControls(hwnd,
+                                          IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_HOTKEY) == BST_CHECKED);
+            break;
+
         /* ================================================================== */
         /*  IDC_BTN_EXPORT_SETTINGS                                           */
         /*  Purpose: Shows IDD_SETTINGS_TRANSFER so the user picks which     */
@@ -1391,6 +1520,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 QuickBar_Show(false);
             }
 
+            QuickBar_RegisterHotkey(); /* imported file may carry a different combination */
+
             MessageBox(hwnd,
                        L"Settings imported successfully.\n\n"
                        L"The dialog will now close.",
@@ -1436,6 +1567,9 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_topmost_with_catia = true;
             wcsncpy_s(s->qbar_target_app, MAX_NAME, L"CATIA V5", _TRUNCATE);
             wcsncpy_s(s->qbar_target_exe, MAX_NAME, L"CNEXT.exe", _TRUNCATE);
+            s->qbar_hotkey_enabled = true;
+            s->qbar_hotkey_mods = MOD_CONTROL | MOD_ALT;
+            s->qbar_hotkey_vk = 'Q';
             s->repeat_on_dblclick = true;
             s->qbar_repeat_on_dblclick = true;
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
@@ -1483,6 +1617,15 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, L"CNEXT.exe");
             CheckDlgButton(hwnd, IDC_CHK_REPEAT_QBAR, BST_CHECKED);
             Settings_QBarEnableControls(hwnd, true);
+
+            CheckDlgButton(hwnd, IDC_CHK_QBAR_HOTKEY, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_CTRL, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_ALT, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_SHIFT, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_WIN, BST_UNCHECKED);
+            SendDlgItemMessage(hwnd, IDC_CBO_HK_KEY, CB_SETCURSEL,
+                               (WPARAM)Settings_HotkeyIndexFromVk('Q'), 0);
+            Settings_HotkeyEnableControls(hwnd, true);
             break;
         }
 
@@ -1492,6 +1635,29 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             bool old_dark = g.dark_mode;
             bool old_qbar_horiz = s->qbar_horizontal;
             bool old_qbar_en = s->qbar_enabled;
+
+            /* Read and validate the hotkey before anything is committed, so a
+               rejected combination leaves g.cfg completely untouched. */
+            bool hk_on = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_HOTKEY) == BST_CHECKED;
+            UINT hk_mods = 0;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_HK_CTRL) == BST_CHECKED) hk_mods |= MOD_CONTROL;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_HK_ALT) == BST_CHECKED) hk_mods |= MOD_ALT;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_HK_SHIFT) == BST_CHECKED) hk_mods |= MOD_SHIFT;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_HK_WIN) == BST_CHECKED) hk_mods |= MOD_WIN;
+            UINT hk_vk = Settings_HotkeyVkFromIndex(
+                (int)SendDlgItemMessage(hwnd, IDC_CBO_HK_KEY, CB_GETCURSEL, 0, 0));
+            if (hk_on && !hk_mods)
+            { /* a bare key would be swallowed system-wide in every application */
+                TabCtrl_SetCurSel(GetDlgItem(hwnd, IDC_TAB_SETTINGS), 4);
+                Settings_ShowTab(hwnd, 4); /* bring the offending controls into view */
+                MessageBox(hwnd,
+                           L"The Quick Bar hotkey needs at least one modifier "
+                           L"(Ctrl, Alt, Shift or Win).\n\n"
+                           L"Without one, the key would be captured in every "
+                           L"application, not just this one.",
+                           L"Quick Bar Hotkey", MB_OK | MB_ICONWARNING);
+                return TRUE; /* keep the dialog open; nothing has been changed */
+            }
 
             /* General */
             GetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe, MAX_APPPATH);
@@ -1549,6 +1715,9 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->qbar_repeat_on_dblclick = IsDlgButtonChecked(hwnd, IDC_CHK_REPEAT_QBAR) == BST_CHECKED;
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_S, s->qbar_target_app, MAX_NAME);
             GetDlgItemText(hwnd, IDC_EDIT_QBAR_TARGET_EXE_S, s->qbar_target_exe, MAX_NAME);
+            s->qbar_hotkey_enabled = hk_on; /* validated above */
+            s->qbar_hotkey_mods = hk_mods;
+            s->qbar_hotkey_vk = hk_vk;
 
             Settings_Save(s);
             SHCreateDirectoryEx(NULL, s->cache_dir, NULL); /* create cache dir if it doesn't exist yet */
@@ -1589,6 +1758,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 QuickBar_Show(false); /* was enabled, now disabled — hide it */
             }
+
+            QuickBar_RegisterHotkey(); /* re-register with the new combination */
 
             EndDialog(hwnd, IDOK);
             break;

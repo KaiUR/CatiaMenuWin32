@@ -99,6 +99,11 @@
 #define QBAR_TIP_ROW 18 /* tooltip row height                      */
 
 /* ------------------------------------------------------------------ */
+/*  Global hotkey identifiers  (RegisterHotKey ids, main window)       */
+/* ------------------------------------------------------------------ */
+#define HOTKEY_QBAR_TOGGLE 1 /* show/hide the Quick Launch Bar          */
+
+/* ------------------------------------------------------------------ */
 /*  Limits                                                              */
 /* ------------------------------------------------------------------ */
 #define MAX_FOLDERS 64 /* maximum number of tabs/folders                 */
@@ -389,6 +394,10 @@ typedef struct
     int qbar_y;
     WCHAR qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target      */
     WCHAR qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
+    /* Show/hide hotkey — system-wide, registered on the main window */
+    bool qbar_hotkey_enabled; /* register the hotkey at all (default: true)     */
+    UINT qbar_hotkey_mods; /* MOD_* flags (default: MOD_CONTROL|MOD_ALT)     */
+    UINT qbar_hotkey_vk; /* virtual-key code (default: 'Q')                */
     /* Double-click repeat */
     bool repeat_on_dblclick; /* repeat main-window scripts on double-click (default: true) */
     bool qbar_repeat_on_dblclick; /* repeat Quick Bar scripts on double-click (default: true)   */
@@ -508,6 +517,7 @@ typedef struct
     int qbar_drag_ox; /* drag start: cursor offset from left  */
     int qbar_drag_oy; /* drag start: cursor offset from top   */
     int qbar_tip_idx; /* button index shown in tip, -1 = none */
+    bool qbar_hotkey_active; /* show/hide hotkey is currently registered */
 
     /* Double-click repeat mode */
     bool repeat_mode; /* true = re-run script after each completion  */
@@ -725,6 +735,9 @@ void QuickBar_Rebuild(void);
 void QuickBar_OnThemeChange(void);
 void QuickBar_SetTopmost(bool topmost);
 void QuickBar_ShowTargetDlg(void);
+void QuickBar_RegisterHotkey(void);
+void QuickBar_UnregisterHotkey(void);
+void QuickBar_HotkeyText(WCHAR *buf, int len);
 
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);

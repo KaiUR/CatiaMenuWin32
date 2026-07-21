@@ -720,8 +720,17 @@ static void QB_ShowContextMenu(HWND hwnd)
 {
     bool has_target = g.cfg.qbar_target_app[0] != L'\0';
 
+    /* Show the hotkey next to the toggle so it is discoverable */
+    WCHAR toggle_label[96] = L"Enable Quick Bar";
+    if (g.cfg.qbar_hotkey_enabled && g.cfg.qbar_hotkey_mods)
+    {
+        WCHAR hk[64];
+        QuickBar_HotkeyText(hk, 64);
+        _snwprintf_s(toggle_label, 96, _TRUNCATE, L"Enable Quick Bar\t%s", hk);
+    }
+
     HMENU hm = CreatePopupMenu();
-    AppendMenu(hm, MF_STRING, IDM_QBAR_TOGGLE, L"Enable Quick Bar");
+    AppendMenu(hm, MF_STRING, IDM_QBAR_TOGGLE, toggle_label);
     AppendMenu(hm, MF_SEPARATOR, 0, NULL);
     AppendMenu(hm, MF_STRING, IDM_QBAR_HORIZONTAL, L"Horizontal");
     AppendMenu(hm, MF_STRING, IDM_QBAR_VERTICAL, L"Vertical");
@@ -1262,6 +1271,80 @@ void QuickBar_SetTopmost(bool topmost)
     if (!g.hwnd_qbar) return;
     SetWindowPos(g.hwnd_qbar, topmost ? HWND_TOPMOST : HWND_NOTOPMOST,
                  0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+/* ================================================================== */
+/*  QuickBar_HotkeyText                                                */
+/*  Formats the configured hotkey for display, e.g. "Ctrl+Alt+Q".     */
+/*  Writes "(none)" when no hotkey is configured.                     */
+/* ================================================================== */
+void QuickBar_HotkeyText(WCHAR *buf, int len)
+{
+    if (!buf || len < 1) return;
+    buf[0] = L'\0';
+    if (!g.cfg.qbar_hotkey_enabled || !g.cfg.qbar_hotkey_mods)
+    {
+        wcsncpy_s(buf, len, L"(none)", _TRUNCATE);
+        return;
+    }
+
+    if (g.cfg.qbar_hotkey_mods & MOD_CONTROL) wcsncat_s(buf, len, L"Ctrl+", _TRUNCATE);
+    if (g.cfg.qbar_hotkey_mods & MOD_ALT) wcsncat_s(buf, len, L"Alt+", _TRUNCATE);
+    if (g.cfg.qbar_hotkey_mods & MOD_SHIFT) wcsncat_s(buf, len, L"Shift+", _TRUNCATE);
+    if (g.cfg.qbar_hotkey_mods & MOD_WIN) wcsncat_s(buf, len, L"Win+", _TRUNCATE);
+
+    WCHAR key[8];
+    UINT vk = g.cfg.qbar_hotkey_vk;
+    if (vk >= VK_F1 && vk <= VK_F12)
+        _snwprintf_s(key, 8, _TRUNCATE, L"F%u", vk - VK_F1 + 1);
+    else
+    { /* letters and digits map straight onto their character */
+        key[0] = (WCHAR)vk;
+        key[1] = L'\0';
+    }
+    wcsncat_s(buf, len, key, _TRUNCATE);
+}
+
+/* ================================================================== */
+/*  QuickBar_UnregisterHotkey                                          */
+/*  Releases the show/hide hotkey if one is currently registered.     */
+/*  Safe to call when nothing is registered.                          */
+/* ================================================================== */
+void QuickBar_UnregisterHotkey(void)
+{
+    if (!g.qbar_hotkey_active) return;
+    UnregisterHotKey(g.hwnd, HOTKEY_QBAR_TOGGLE);
+    g.qbar_hotkey_active = false;
+}
+
+/* ================================================================== */
+/*  QuickBar_RegisterHotkey                                            */
+/*  Registers the system-wide show/hide hotkey on the main window.    */
+/*  Always releases any previous registration first, so this is the   */
+/*  single entry point for both initial setup and re-registration     */
+/*  after a settings change.                                          */
+/*  MOD_NOREPEAT stops auto-repeat from flickering the bar while the  */
+/*  combination is held down.                                         */
+/*  A failure means another application already owns the combination; */
+/*  the user is told rather than left with a silently dead hotkey.    */
+/* ================================================================== */
+void QuickBar_RegisterHotkey(void)
+{
+    QuickBar_UnregisterHotkey();
+    if (!g.hwnd) return; /* main window not created yet */
+    if (!g.cfg.qbar_hotkey_enabled || !g.cfg.qbar_hotkey_mods) return; /* feature off */
+
+    if (RegisterHotKey(g.hwnd, HOTKEY_QBAR_TOGGLE,
+                       g.cfg.qbar_hotkey_mods | MOD_NOREPEAT,
+                       g.cfg.qbar_hotkey_vk))
+    {
+        g.qbar_hotkey_active = true;
+        return;
+    }
+
+    WCHAR hk[64];
+    QuickBar_HotkeyText(hk, 64);
+    PostStatus(L"Quick Bar hotkey %s is already in use by another application.", hk);
 }
 
 /* ================================================================== */
