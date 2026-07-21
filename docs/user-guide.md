@@ -337,6 +337,9 @@ The Settings dialog is organised into five tabs:
 | Target App | `CATIA V5` | Window-title substring to track; leave empty for always-visible bar |
 | Target Exe | `CNEXT.exe` | Process executable filename to match alongside **Target App**. Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
 | Repeat script on double-click (Quick Bar) | On | Enable [repeat mode](#repeat-script-on-double-click) for Quick Bar buttons |
+| Enable global hotkey | On | Register the system-wide [show/hide hotkey](#showhide-hotkey) |
+| Hotkey modifiers | Ctrl + Alt | Ctrl, Alt, Shift and/or Win — at least one is required |
+| Hotkey key | `Q` | A–Z, 0–9 or F1–F12 |
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -442,7 +445,23 @@ The Quick Launch Bar is a small floating button bar that gives you one-click acc
 
 ### Enabling the bar
 
-Go to **☰ Menu → View → Quick Bar → Enable Quick Bar**, or right-click the bar itself and tick **Enable Quick Bar**.
+Go to **☰ Menu → View → Quick Bar → Enable Quick Bar**, or right-click the bar itself and tick **Enable Quick Bar**. You can also press the [show/hide hotkey](#showhide-hotkey) — **Ctrl+Alt+Q** by default — from anywhere.
+
+### Show/hide hotkey
+
+A system-wide hotkey toggles the bar without switching away from whatever you are working in. The default is **Ctrl+Alt+Q**, and it works while CATIA (or any other application) has focus.
+
+The hotkey toggles the same setting as the menu item, so the tick in the View menu and the right-click menu always reflects what the hotkey did, and the state is remembered the next time you start the app. The current combination is shown next to **Enable Quick Bar** in both menus.
+
+To change it, go to **Settings → Quick Bar → Show / Hide Hotkey**:
+
+- **Enable global hotkey** — untick to release the hotkey entirely
+- **Ctrl / Alt / Shift / Win** — at least one modifier is required. A bare key would be captured in *every* application, not just this one, so the dialog will not accept a combination without a modifier
+- **Key** — any letter, digit, or F1–F12
+
+If another application has already claimed the combination, Windows refuses to register it and the status bar tells you so. Pick a different combination in that case.
+
+> **Note:** If you have set a **Target App** and it is not currently on screen, the bar stays hidden until a visible target window appears — the hotkey still records your choice, and the status bar says so.
 
 ### Buttons
 
@@ -482,7 +501,7 @@ To disable target tracking entirely — keeping the bar always visible with no t
 
 | Option | Description |
 |--------|-------------|
-| Enable Quick Bar | Toggle the bar on or off |
+| Enable Quick Bar | Toggle the bar on or off — the configured [hotkey](#showhide-hotkey) is shown alongside |
 | Horizontal / Vertical | Switch orientation |
 | On Top with Target App | Toggle topmost-with-target behaviour (greyed out when no target is set) |
 | Set Target App… | Enter the window-title substring to track |
@@ -706,6 +725,7 @@ The help window has a topic list on the left and formatted content on the right.
 | `F1` | Open Help |
 | `F5` | Refresh + Sync |
 | `F9` | Run last script |
+| `Ctrl+Alt+Q` | Show / hide the [Quick Launch Bar](#showhide-hotkey) — works from any application; configurable |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Escape` | Cancel repeat mode and stop running script (when active) |

@@ -186,7 +186,8 @@ Settings persistence and dialogs.
 - `Settings_Load` — reads `settings.ini` using `GetPrivateProfileString/Int`; sets defaults for missing values
 - `Settings_Save` — writes all settings to `settings.ini`
 - `Settings_ApplyAutorun` — adds/removes the app from `HKCU\...\Run` registry key
-- `SettingsDlgProc` — dialog proc for `IDD_SETTINGS`; includes Reset to Defaults
+- `Settings_ClampHotkey` — sanitises the Quick Bar hotkey after any INI read: drops unknown modifier bits, rejects out-of-range virtual keys, and disables the hotkey entirely when no modifier remains (a bare key registered system-wide would be swallowed in every application)
+- `SettingsDlgProc` — dialog proc for `IDD_SETTINGS`; includes Reset to Defaults. The hotkey is read and validated at the top of the `IDOK` handler so a rejected combination leaves `g.cfg` untouched
 - `AboutDlgProc` — dialog proc for `IDD_ABOUT`
 
 ### `updater.c`
@@ -211,6 +212,9 @@ Public API (called from `main.c` and `window.c`):
 - `QuickBar_OnThemeChange` — reapplies `DwmSetWindowAttribute` dark mode and repaints both windows on theme change
 - `QuickBar_SetTopmost` — sets or clears `HWND_TOPMOST` on the bar window
 - `QuickBar_ShowTargetDlg` — opens the `IDD_QBAR_TARGET` dialog to set the window-title tracking substring
+- `QuickBar_RegisterHotkey` — registers the system-wide show/hide hotkey (`HOTKEY_QBAR_TOGGLE`) on `g.hwnd` via `RegisterHotKey` with `MOD_NOREPEAT`; always unregisters first, so it is the single entry point for both initial setup and re-registration after a settings change. Posts a status-bar warning when the combination is already owned by another application
+- `QuickBar_UnregisterHotkey` — releases the hotkey if `g.qbar_hotkey_active`; safe to call when nothing is registered
+- `QuickBar_HotkeyText` — formats the configured combination for display (e.g. `Ctrl+Alt+Q`, or `(none)`); used by the status messages and by the "Enable Quick Bar" label in both menus
 
 Internal key functions:
 - `QuickBarProc` — bar window procedure; handles drag (background = drag handle), click, hover, scroll arrows, mouse wheel, right-click context menu, and `VK_ESCAPE` (calls `Repeat_Stop()` and `Runner_Stop()` so Escape cancels both repeat and the running script)
@@ -348,6 +352,7 @@ typedef struct {
     int    qbar_drag_ox;         /* drag start: cursor offset from left */
     int    qbar_drag_oy;         /* drag start: cursor offset from top */
     int    qbar_tip_idx;         /* button index shown in tip, -1 = none */
+    bool   qbar_hotkey_active;   /* show/hide hotkey is currently registered */
 
     /* Double-click repeat mode */
     bool   repeat_mode;          /* true while a script is looping */
@@ -392,6 +397,9 @@ typedef struct {
     int       qbar_x, qbar_y;
     WCHAR     qbar_target_app[MAX_NAME]; /* window-title substring; empty = no target */
     WCHAR     qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
+    bool      qbar_hotkey_enabled;       /* register the show/hide hotkey at all */
+    UINT      qbar_hotkey_mods;          /* MOD_* flags (default MOD_CONTROL|MOD_ALT) */
+    UINT      qbar_hotkey_vk;            /* virtual-key code (default 'Q') */
     bool      repeat_on_dblclick;        /* repeat main-window scripts on double-click */
     bool      qbar_repeat_on_dblclick;   /* repeat Quick Bar scripts on double-click */
 } Settings;
@@ -498,6 +506,12 @@ typedef struct {
 |----------|-------|-------------|
 | `TIMER_AUTO_REFRESH` | 1001 | `SetTimer` ID for the periodic auto-sync interval |
 | `TIMER_QBAR` | 1002 | `SetTimer` ID used by the Quick Launch Bar for visibility polling |
+
+### Hotkey IDs
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `HOTKEY_QBAR_TOGGLE` | 1 | `RegisterHotKey` ID on the main window; `WM_HOTKEY` routes it to `IDM_QBAR_TOGGLE` |
 
 ---
 

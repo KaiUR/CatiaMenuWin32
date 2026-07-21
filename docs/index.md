@@ -22,7 +22,7 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 - **No setup per script** — no manual path configuration, no copy-pasting, no CATIA macro editor
 - **Works offline** — scripts load from local cache immediately even without an internet connection
 - **Add your own sources** — connect additional GitHub repositories or local folders alongside the built-in scripts
-- **Quick Launch Bar** — floating button bar sourced from your Favourites; stays above CATIA and hides when CATIA is not open
+- **Quick Launch Bar** — floating button bar sourced from your Favourites; stays above CATIA and hides when CATIA is not open. Show or hide it from any application with a configurable hotkey (`Ctrl+Alt+Q`)
 - **Secure** — every HTTPS connection validates the server certificate; every script is SHA-verified before running
 
 ---
@@ -78,6 +78,7 @@ Built primarily for CATIA V5 engineers running PyCATIA automation scripts, but e
 | Favourites tab | Star any script; a dedicated Favourites tab appears automatically |
 | Quick Launch Bar | Floating button bar sourced from your Favourites — drag anywhere, always on top, hides when target app is not open |
 | Target app tracking | Bar rises to topmost when CATIA gains focus; hides when CATIA is closed or minimised |
+| Quick Bar hotkey | System-wide hotkey toggles the bar from any application — default `Ctrl+Alt+Q`, fully configurable |
 | Script details | Right-click any script to see full header info, add notes, hide, or favourite |
 | Script info tooltip | Hover the `i` badge on any button to see Purpose, Author, Version, Date, and Description |
 | Script notes | Per-script user notes stored locally |

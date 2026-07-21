@@ -9,6 +9,20 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.5.1 — Quick Bar show/hide hotkey
+
+### Added
+- **Quick Bar show/hide hotkey** — A system-wide hotkey now toggles the Quick Launch Bar from any application, so the bar can be dismissed and brought back without leaving CATIA. The default is `Ctrl+Alt+Q`.
+  - The hotkey toggles the same setting as **Enable Quick Bar**, so the tick in the View menu, the bar's right-click menu, and the Settings checkbox always agree, and the choice is remembered across restarts.
+  - The current combination is shown next to **Enable Quick Bar** in both menus.
+  - Configurable in **Settings → Quick Bar → Show / Hide Hotkey**: an enable checkbox, Ctrl/Alt/Shift/Win modifiers, and a key dropdown covering A–Z, 0–9 and F1–F12.
+  - At least one modifier is required — a bare key registered system-wide would be captured in every application, so the Settings dialog refuses to close without one, and a hand-edited `settings.ini` supplying a modifier-less combination disarms the hotkey instead of arming it.
+  - Registered with `MOD_NOREPEAT`, so holding the combination down does not flicker the bar.
+  - If another application already owns the combination, the status bar says so rather than leaving a silently dead hotkey.
+  - New `settings.ini` keys: `QuickBar\HotkeyEnabled`, `QuickBar\HotkeyMods`, `QuickBar\HotkeyKey`. They are included in settings export/import under **Options, theme, window & Quick Bar**.
+
+---
+
 ## v2.5.0 — Virtual environment management, log window controls
 
 ### Added
