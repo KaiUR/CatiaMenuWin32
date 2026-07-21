@@ -88,6 +88,14 @@ BEGIN
     PUSHBUTTON "Browse...",                                     467,308, 165,  46, 16
     LTEXT "(empty = match any process)",                        466, 10, 184, 200, 10
     AUTOCHECKBOX "Repeat script on double-click (Quick Bar)",   469, 16, 198, 310, 12
+    GROUPBOX "Show / Hide Hotkey",                              488, 10, 212, 344, 48
+    AUTOCHECKBOX "Enable global hotkey",                        489, 16, 226, 130, 12
+    AUTOCHECKBOX "Ctrl",                                        490, 16, 242,  42, 12
+    AUTOCHECKBOX "Alt",                                         491, 62, 242,  38, 12
+    AUTOCHECKBOX "Shift",                                       492,104, 242,  46, 12
+    AUTOCHECKBOX "Win",                                         493,154, 242,  40, 12
+    LTEXT "Key:",                                               494,202, 244,  22, 10
+    COMBOBOX                                                    495,226, 242,  60,120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     /* ── Close-group sentinel + bottom buttons ──────────────────── */
     PUSHBUTTON    "Reset to Defaults", 420,   7, 288,  78, 16, WS_GROUP

@@ -126,6 +126,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     /* WH_KEYBOARD_LL = low-level hook that fires regardless of which app has focus */
     g.kbd_repeat_hook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKbdHookProc, NULL, 0);
 
+    /* System-wide Quick Bar show/hide hotkey (default Ctrl+Alt+Q) */
+    QuickBar_RegisterHotkey();
+
     /* honor either cfg flag or /minimized command-line arg from autorun registry entry */
     bool launch_minimized = g.cfg.start_minimized ||
                             (lpCmd && wcsstr(lpCmd, L"/minimized"));
@@ -458,6 +461,23 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         break;
 
+    /* System-wide hotkey — works whatever application has focus */
+    case WM_HOTKEY:
+        if (wp == HOTKEY_QBAR_TOGGLE)
+        {
+            Handle_Command(IDM_QBAR_TOGGLE); /* shares the menu item's toggle path */
+            if (!g.cfg.qbar_enabled)
+                PostStatus(L"Quick Bar hidden.");
+            else if (g.cfg.qbar_target_app[0] && !IsWindowVisible(g.hwnd_qbar))
+                /* enabled, but the target app isn't on screen — say so rather
+                   than leaving the user staring at an unchanged desktop */
+                PostStatus(L"Quick Bar shown — appears when %s is visible.",
+                           g.cfg.qbar_target_app);
+            else
+                PostStatus(L"Quick Bar shown.");
+        }
+        return 0;
+
     case WM_COMMAND:
         if (LOWORD(wp) == IDC_SEARCH && HIWORD(wp) == EN_CHANGE)
         { /* EN_CHANGE fires as the user types */
@@ -650,6 +670,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             g.kbd_repeat_hook = NULL;
         }
         Log_Destroy();
+        QuickBar_UnregisterHotkey();
         QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
