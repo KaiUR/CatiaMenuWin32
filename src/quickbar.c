@@ -1325,8 +1325,8 @@ void QuickBar_UnregisterHotkey(void)
 /*  after a settings change.                                          */
 /*  MOD_NOREPEAT stops auto-repeat from flickering the bar while the  */
 /*  combination is held down.                                         */
-/*  A failure means another application already owns the combination; */
-/*  the user is told rather than left with a silently dead hotkey.    */
+/*  A failure means another application already owns the combination, */
+/*  so the user is told rather than left with a silently dead hotkey. */
 /* ================================================================== */
 void QuickBar_RegisterHotkey(void)
 {
