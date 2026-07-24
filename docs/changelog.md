@@ -9,6 +9,13 @@ All notable changes to CatiaMenuWin32 are documented here.
 
 ---
 
+## v2.5.2 — Favourites run the current script version
+
+### Fixed
+- **Favourites ran a stale script copy** — Running a script from the Quick Launch Bar or the ⭐ Favourites tab kept executing the version that was current when the script was first run from there, no matter how many syncs had fetched newer versions since. `Runner_Run` built the cache path from the tab name, so the synthetic Favourites tab resolved to a separate copy under `<cache>\Favourites\` that sync never refreshes; the copy was downloaded once and reused forever. The SHA tamper check did not catch it because it verifies `s->local` — the real folder's synced copy — not the file that was about to run. `Runner_Run` now runs `s->local` directly (the same copy sync maintains and Run with Arguments already used), falling back to the old path construction only when the field is empty. A leftover `<cache>\Favourites\` folder from earlier versions is ignored and can be deleted.
+
+---
+
 ## v2.5.1 — Quick Bar show/hide hotkey
 
 ### Added

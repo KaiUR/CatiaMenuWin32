@@ -313,7 +313,14 @@ bool Runner_Run(int fi, int si)
     }
     else
     {
-        Runner_BuildLocalPath(fi, si, local, MAX_APPPATH);
+        /* Run the cache copy sync maintains (s->local).  Building the path
+           from the tab name instead would resolve to a separate copy under
+           the synthetic Favourites tab, which sync never refreshes — the
+           quick bar would keep running a stale snapshot. */
+        if (s->local[0])
+            wcsncpy_s(local, MAX_APPPATH, s->local, _TRUNCATE);
+        else
+            Runner_BuildLocalPath(fi, si, local, MAX_APPPATH);
 
         bool missing = (GetFileAttributes(local) == INVALID_FILE_ATTRIBUTES);
         if (missing || g.cfg.download_before_run)
