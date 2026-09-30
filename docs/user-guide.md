@@ -16,6 +16,10 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - [Hiding Scripts](#hiding-scripts)
 - [Script Notes](#script-notes)
 - [Run with Arguments](#run-with-arguments)
+- [Command Palette](#command-palette)
+- [Dependency Check](#dependency-check)
+- [Drag and Drop](#drag-and-drop)
+- [New & Updated Badges](#new--updated-badges)
 - [Sorting Scripts](#sorting-scripts)
 - [Settings](#settings)
 - [Script Sources](#script-sources)
@@ -43,6 +47,17 @@ description: How to install and use CatiaMenuWin32 — the Python script launche
 - **Python 3.9+** — install from [python.org](https://www.python.org/downloads/)
 - **[PyCATIA](https://github.com/evereux/pycatia)** — install via `pip install pycatia` (or use **↓ Deps** in the app)
 - **CATIA V5** — must be running for scripts that interact with it
+
+### Portable mode
+
+To run the app from a USB stick or another folder without using `%APPDATA%`, create an empty file named `settings.ini` **next to `CatiaMenuWin32.exe`**. When that file exists the app keeps everything in the exe's folder — settings, `prefs.ini`, the manifest, the `scripts\` cache, the `trees\` listing cache and an optional `venv\`.
+
+- Paths inside that folder (the Python interpreter of a venv created there, the script cache) are saved **relative** to it, so the folder keeps working when it is moved or the drive letter changes.
+- **Start with Windows** is unavailable in portable mode and the app never touches the Windows registry — so it cannot remove the autorun entry of an installed copy on the same machine.
+- **Help → About** shows *(portable)* after the version number.
+- Only one copy of the app runs at a time; close any installed copy before starting the portable one.
+
+> **Tip:** an exported settings file only switches a copy to portable mode if it is saved as `settings.ini` in the same folder as the exe — keep exports under a different name or in another folder.
 
 ---
 
@@ -103,10 +118,12 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 - Each tab corresponds to a script folder
 - Click a tab to switch between script categories
 - When there are more tabs than fit, ◄ ► arrows appear — click or use the **mouse wheel** to scroll
+- A small blue dot in a tab's top-right corner means it contains [new or updated scripts](#new--updated-badges)
 
 **Script buttons:**
 - Click the main area to run the script
-- Click the **i** badge on the right to see script information (purpose, author, version, description)
+- Click the **i** badge on the right to see script information (purpose, author, version, description, latest change)
+- A green dot marks a new script, a blue dot an updated one — see [New & Updated Badges](#new--updated-badges)
 
 ---
 
@@ -115,8 +132,11 @@ If the sync fails with "Connect to internet to sync", check your internet connec
 Click any script button to run it. The app will:
 
 1. Verify the script's SHA hash against GitHub to confirm it hasn't been tampered with
-2. Launch Python with the script path
-3. Show "Script launched in console" or the exit code in the status bar
+2. [Check the packages it depends on](#dependency-check)
+3. Launch Python with the script path
+4. Show "Script launched in console" or the exit code in the status bar
+
+You can also [drop a `.py` file](#drag-and-drop) on the window to run it once.
 
 When a script is running in background mode (no console), the button highlights in **green** — border, left accent bar, and label text — for the duration of the run. The highlight clears automatically when the script exits or is stopped.
 
@@ -128,7 +148,13 @@ Without **Show console**, scripts run silently in the background.
 
 ### Stopping a Running Script
 
-Click the **■ Stop** toolbar button to immediately terminate the running script. The button is grayed out when no script is running and turns red when one is active.
+Click the **■ Stop** toolbar button (or press `Escape`) to immediately terminate the running script. The button is grayed out when no script is running and turns red when one is active.
+
+Stop ends the script **and every process it started** — for example a helper tool or a second Python process launched with `subprocess`. Processes a script deliberately leaves running when it finishes normally are not affected.
+
+Only one background script runs at a time: **starting another script stops the one that is running**, so ■ Stop always refers to the script that is actually running. The stopped run's log section ends with `--- Stopped: another script was started. ---`.
+
+There is no time limit — a script can run for as long as it needs, and the button stays green until it finishes or you stop it.
 
 > **Note:** Only background (no-console) runs can be stopped this way. If **Show console** is enabled, close the console window directly, or press `Ctrl+C` inside it.
 
@@ -143,7 +169,7 @@ When scripts run in background mode (no console), all stdout and stderr output i
   ... script output ...
   --- Finished successfully. ---
   ```
-  The footer reads `--- Stopped by user. ---` if the script was terminated via the **■ Stop** button, or `--- Exited with code N. ---` for a non-zero exit.
+  The footer reads `--- Stopped by user. ---` if the script was terminated via the **■ Stop** button, `--- Stopped: another script was started. ---` if starting another script ended it, or `--- Exited with code N. ---` for a non-zero exit.
 - **Syntax highlighting** — output is colour-coded automatically:
   - Header lines (`===`) → accent blue
   - `--- Finished successfully. ---` → green
@@ -214,11 +240,12 @@ Right-click any script button and select **Script Details...** to open a full de
 - Script name, purpose, author, version, date
 - Code environment and CATIA release
 - Full description and requirements
+- **Changes** — the script's change history from its `Change:` block, oldest first
 - Local cache path
 - Your personal note
 - Favourite and Hidden toggles
 
-Changes to the note, favourite, and hidden state are saved when you click OK.
+Changes to the note, favourite, and hidden state are saved when you click OK. Opening the details also clears the script's [new/updated badge](#new--updated-badges).
 
 ---
 
@@ -250,6 +277,83 @@ Right-click any script → **Add Note...** (or **Edit Note...**) to attach a per
 ## ▶️ Run with Arguments
 
 Right-click any script → **Run with Arguments...** to pass custom command line arguments when running the script.
+
+Type the arguments exactly as you would after `python script.py` on a command line — for example `--tolerance 0.01 "My Part"`. Quotes group words into one argument. The script then runs just like a normal click: it is SHA-verified, its dependencies are checked, its output goes to the [Script Output Log](#script-output-log), the button turns green, and **■ Stop** ends it.
+
+**Parameter form.** If the script declares its parameters in an `Args:` header block (see [Writing Your Own Scripts](#writing-your-own-scripts)), the dialog shows one labelled field per parameter instead of a single text box:
+
+| Parameter type | Field | Passed to the script as |
+|----------------|-------|-------------------------|
+| `str` (default) | Text box | `--name value` (omitted when empty) |
+| `int` / `float` | Text box — checked when you click **Run**; use `.` as the decimal point | `--name 3` / `--name 0.01` |
+| `bool` | Checkbox | `--name` when ticked, nothing when not |
+| `[a\|b\|c]` | Drop-down list | `--name b` |
+
+Values containing spaces or quotes are quoted automatically. The free-text box stays below the form as **Additional arguments**, appended unchanged. Each field starts with the value you used last time for that script (stored in `prefs.ini`), or the header's default the first time; scripts without an `Args:` block also remember their last arguments.
+
+---
+
+## Dependency Check
+
+Before a script runs, the packages it lists in its header's `dependencies = [...]` block are checked against the Python interpreter that will run it — including version limits such as `pycatia>=0.8` or `pywin32<310`.
+
+If everything is installed the script simply runs. If something is missing or the wrong version, a prompt lists it and lets you choose:
+
+| Button | Result |
+|--------|--------|
+| **Yes** | Installs the listed packages with `pip install` in a console window, checks again, then runs the script. The console only stays open if pip fails, so you can read the error. If a package is still missing afterwards, the script does not run. |
+| **No** | Runs the script anyway |
+| **Cancel** | Does not run the script |
+
+- A check that passed is remembered (for that interpreter and list) until you click **↓ Deps** or save the Settings dialog, so it only costs time the first time a script runs.
+- If the check itself cannot run (for example Python fails to start), the script is not blocked.
+- Scripts without a `dependencies` block are never checked. Turn the check off in **Settings → Console → Check a script's dependencies before running it**.
+
+---
+
+## Drag and Drop
+
+- **Drop a `.py` (or `.pyw`) file** on the main window to run it once — for example to try a script before adding it to a source. It runs like a script button: its dependencies are checked, its output goes to the [Script Output Log](#script-output-log) and **■ Stop** ends it. There is no download or SHA check, because you chose the file yourself. If several files are dropped, only the first one runs.
+- **Drop a folder** to add it as a [local script folder](#local-script-folders): the app asks for confirmation, saves it to your sources and re-syncs, so its subfolders appear as tabs.
+
+---
+
+## Command Palette
+
+Press **Ctrl+K** (or **☰ Menu → Run → Command Palette...**) to find and run any script from the keyboard, without switching tabs.
+
+- Type part of a script's name — the letters only need to appear **in order**, so `expcsv` finds *Export Properties To CSV*. Matches at word starts and runs of consecutive letters rank higher; if nothing matches the name, the purpose line is searched too.
+- With an empty search box every script is listed, most-used first; scripts you run often also win ties.
+- Each row shows the script name, its tab and its purpose, plus the [new/updated dot](#new--updated-badges).
+- Hidden scripts are not listed, and each favourite appears once (under its own tab).
+
+| Key | Action |
+|-----|--------|
+| `↑` `↓` `Page Up` `Page Down` | Move the selection |
+| `Enter` (or double-click) | Run the selected script |
+| `Shift+Enter` | [Run with Arguments](#run-with-arguments) |
+| `Ctrl+Enter` | Open [Script Details](#script-details) |
+| `Esc` (or click elsewhere) | Close the palette |
+
+**Ctrl+K is registered system-wide by default**, so it opens the palette from any application — including CATIA — even when the main window is hidden in the tray. While it is registered, Ctrl+K is captured in every other program too (Word and Outlook use it to insert a link, browsers to focus search, VS Code to start a chord); untick it or choose another combination in [Settings → Command Palette](#command-palette-tab) if you need it elsewhere. Inside this app Ctrl+K always works.
+
+---
+
+## New & Updated Badges
+
+After a sync, scripts that changed since you last looked are marked with a dot at the right end of the button:
+
+| Dot | Meaning |
+|-----|---------|
+| 🟢 Green | **New** — the script appeared since you last looked |
+| 🔵 Blue | **Updated** — the script's content changed since you last looked |
+
+A tab that contains any badged script shows a small blue dot in its top-right corner. The script's tooltip shows the badge and its **latest change** from the `Change:` block, and [Script Details](#script-details) lists the full change history.
+
+A badge clears when you **run** the script or **open its details**. **☰ Menu → View → Mark All Scripts as Seen** clears every badge at once, and **☰ Menu → View → Show New/Updated Badges** (or **Settings → Window**) turns them off entirely.
+
+- The first time the app sees your scripts — a fresh install, or the first start after updating to v3.0.0 — everything counts as already seen, so you are not greeted with a dot on every script.
+- Badges compare each script's Git SHA with the one recorded when you last saw it (stored in `prefs.ini`), so they work for the built-in repository and extra GitHub repositories. Local-folder scripts are never badged.
 
 ---
 
@@ -286,7 +390,7 @@ The sort mode is saved in Settings and applied to all tabs.
 
 Open via **☰ Menu → File → Settings...** or the **⚙ Settings** toolbar button.
 
-The Settings dialog is organised into five tabs:
+The Settings dialog is organised into six tabs:
 
 ### General tab
 
@@ -303,7 +407,7 @@ The Settings dialog is organised into five tabs:
 | Sync scripts automatically on startup | On | Downloads latest scripts when the app starts |
 | Always download latest before running | Off | Re-downloads the script every time before running |
 | Check for app updates on startup | On | Notifies you when a newer version is available |
-| Auto-install updates | On | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually |
+| Auto-install updates | On | Downloads and installs new versions automatically; also applies when triggering **Help → Check for Updates…** manually. A download is installed only if it is signed by the same publisher as the installed version — otherwise it is deleted and the releases page opens |
 | Auto-refresh every N hours | 6 | Background sync interval in hours; 0 = disabled |
 | Show cached scripts when offline | Off | Display previously synced scripts when there is no internet connection; an amber status bar warning is shown. When off, no buttons appear if the sync cannot reach GitHub |
 
@@ -315,6 +419,7 @@ The Settings dialog is organised into five tabs:
 | Keep console open after script finishes | On | Window stays open so you can read output/errors (`cmd /k` mode) |
 | Keep Update Deps console open | Off | Keeps the dependency install window open until you close it |
 | Repeat script on double-click (main window) | On | Enable [repeat mode](#repeat-script-on-double-click) for scripts in the main window |
+| Check a script's dependencies before running it | On | Check the packages in the script's `dependencies` list before each run — see [Dependency Check](#dependency-check) |
 
 ### Window tab
 
@@ -322,10 +427,12 @@ The Settings dialog is organised into five tabs:
 |--------|---------|-------------|
 | Always on Top | On | Keep the main window above other applications |
 | Minimize to Tray | On | Hide to system tray instead of taskbar when minimised |
-| Start with Windows | On | Launch automatically at login |
+| Start with Windows | On | Launch automatically at login (unavailable in [portable mode](#portable-mode)) |
 | Start Minimized | On | Start hidden in the tray |
 | Theme | System | Dark, Light, or follow Windows setting |
 | Sort Scripts | Default Order | Default, Alphabetical, By Date, or Most Used |
+| Tint local and extra-repo script buttons differently | On | Warm tint for local-folder scripts, cool tint for extra-repository scripts |
+| Mark new and updated scripts with a dot | On | Show [new/updated badges](#new--updated-badges) on script buttons and tabs |
 
 ### Quick Bar tab
 
@@ -338,8 +445,18 @@ The Settings dialog is organised into five tabs:
 | Target Exe | `CNEXT.exe` | Process executable filename to match alongside **Target App**. Click **Browse…** to pick the `.exe` from a file dialog instead of typing it. Leave empty to match any process. |
 | Repeat script on double-click (Quick Bar) | On | Enable [repeat mode](#repeat-script-on-double-click) for Quick Bar buttons |
 | Enable global hotkey | On | Register the system-wide [show/hide hotkey](#showhide-hotkey) |
-| Hotkey modifiers | Ctrl + Alt | Ctrl, Alt, Shift and/or Win — at least one is required |
+| Hotkey modifiers | Ctrl + Shift | Ctrl, Alt, Shift and/or Win — at least one is required |
 | Hotkey key | `Q` | A–Z, 0–9 or F1–F12 |
+
+### Command Palette tab
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| Enable system-wide hotkey | On | Register a hotkey that opens the [command palette](#command-palette) from any application |
+| Hotkey modifiers | Ctrl | Ctrl, Alt, Shift and/or Win — at least one is required |
+| Hotkey key | `K` | Space, A–Z, 0–9 or F1–F12 |
+
+While registered, the combination is captured in **every** application — Ctrl+K also inserts a link in Word and Outlook, focuses the search box in browsers, and starts chords in VS Code. Untick the hotkey or choose another combination if you need Ctrl+K elsewhere; **Ctrl+K** inside this app keeps working either way. The combination must differ from the Quick Bar hotkey, and Ctrl+Alt combinations should be avoided on keyboards with an AltGr key.
 
 ### Reset to Defaults
 The **Reset to Defaults** button at the bottom left resets all settings to their original values. Your script sources (extra repos and local folders) are not affected.
@@ -445,11 +562,11 @@ The Quick Launch Bar is a small floating button bar that gives you one-click acc
 
 ### Enabling the bar
 
-Go to **☰ Menu → View → Quick Bar → Enable Quick Bar**, or right-click the bar itself and tick **Enable Quick Bar**. You can also press the [show/hide hotkey](#showhide-hotkey) — **Ctrl+Alt+Q** by default — from anywhere.
+Go to **☰ Menu → View → Quick Bar → Enable Quick Bar**, or right-click the bar itself and tick **Enable Quick Bar**. You can also press the [show/hide hotkey](#showhide-hotkey) — **Ctrl+Shift+Q** by default — from anywhere.
 
 ### Show/hide hotkey
 
-A system-wide hotkey toggles the bar without switching away from whatever you are working in. The default is **Ctrl+Alt+Q**, and it works while CATIA (or any other application) has focus.
+A system-wide hotkey toggles the bar without switching away from whatever you are working in. The default is **Ctrl+Shift+Q**, and it works while CATIA (or any other application) has focus.
 
 The hotkey toggles the same setting as the menu item, so the tick in the View menu and the right-click menu always reflects what the hotkey did, and the state is remembered the next time you start the app. The current combination is shown next to **Enable Quick Bar** in both menus.
 
@@ -460,6 +577,8 @@ To change it, go to **Settings → Quick Bar → Show / Hide Hotkey**:
 - **Key** — any letter, digit, or F1–F12
 
 If another application has already claimed the combination, Windows refuses to register it and the status bar tells you so. Pick a different combination in that case.
+
+**Avoid Ctrl+Alt combinations on keyboards with an AltGr key** (German, French, Nordic and others). Windows treats Ctrl+Alt as AltGr, so a Ctrl+Alt hotkey blocks the character on that key in every application — Ctrl+Alt+Q is AltGr+Q, the `@` key on German keyboards. This is why the default changed from **Ctrl+Alt+Q** to **Ctrl+Shift+Q** in v3.0.0. If your hotkey was still the old default, the app moves it to Ctrl+Shift+Q once, on the first start after updating, and tells you so; any other combination you chose is left alone.
 
 > **Note:** If you have set a **Target App** and it is not currently on screen, the bar stays hidden until a visible target window appears — the hotkey still records your choice, and the status bar says so.
 
@@ -565,6 +684,8 @@ Switch between dark, light, and system-default themes via **☰ Menu → View �
 
 The app uses the GitHub REST API to fetch script lists. Without a token, GitHub allows **60 requests per hour per IP address**.
 
+Each sync lists every GitHub source with **one request** (the Git Trees API), and asks GitHub whether the listing changed since last time — an unchanged repository answers "not modified" and the listing cached in `%APPDATA%\CatiaMenuWin32\trees` is reused. Script files themselves are downloaded from `raw.githubusercontent.com`, which does not count against the API limit. Without a token, a "not modified" reply still counts as one request.
+
 A token increases this to **5,000 requests per hour** and is required for private repositories.
 
 **To create a token:**
@@ -603,6 +724,9 @@ CatiaMenuWin32 reads metadata from a structured header block at the top of each 
     Date:           DD.MM.YY
     Description:    Full description of what the script does. This is shown in the
                     tooltip popup. Continuation lines must be indented.
+    Args:           tolerance:float=0.01 "Merge tolerance in mm"
+                    mode:[fast|full]=fast "Search mode"
+                    overwrite:bool=false "Overwrite existing results"
     dependencies = [
                     "pycatia",
                     ]
@@ -611,7 +735,9 @@ CatiaMenuWin32 reads metadata from a structured header block at the top of each 
                     Catia V5 running with an open document.
     -----------------------------------------------------------------------------------------------------------------------
 
-    Change:
+    Change:         20.05.26 1.1: First change, one entry per version.
+                    03.06.26 1.2: Newest change last. Long entries may wrap
+                    onto indented continuation lines.
 
     -----------------------------------------------------------------------------------------------------------------------
 '''
@@ -620,10 +746,13 @@ CatiaMenuWin32 reads metadata from a structured header block at the top of each 
 ### Rules
 - The header must be inside a triple-quoted string `'''...'''` or `"""..."""` at the top of the file
 - The dashed separator lines (`-----...`) mark the start and end of the header block
-- Keys are matched case-insensitively: `Script name:`, `Purpose:`, `Author:`, `Date:`, `Version:`, `Description:`, `Change:`
+- Keys are matched case-insensitively: `Script name:`, `Purpose:`, `Author:`, `Date:`, `Version:`, `Description:`, `Args:`, `requirements:`, `Change:` (and the `dependencies = [...]` list)
 - **Purpose** — shown as the subtitle line on the script button (keep it short, one line)
 - **Description** — shown in the tooltip; continuation lines must be indented with spaces or tabs
-- Parsing stops at the second dashed separator line, or at `dependencies`, `requirements`, `import`, `def`, or `class`
+- **Args** — optional. One parameter per line: `name:type=default "help text"`. Types are `str` (the default), `int`, `float`, `bool`, or a list of choices `[a|b|c]`; the default and the quoted help text are optional. **Run with Arguments** shows a form with one field per parameter and passes them as `--name value` (a ticked `bool` passes `--name`), so read them with `argparse`
+- **dependencies** — optional. The pip requirement strings listed in quotes (`"pycatia"`, `"pywin32>=306"`) are checked against the Python interpreter before the script runs; missing packages can be installed from the prompt
+- **Change** — the block after the header's closing separator, up to the next separator. Each entry starts with a `DD.MM.YY` date (usually followed by the version); a line that does not start with a date continues the previous entry. List entries oldest first: the **last** one is shown in the tooltip as the script's latest change, and all of them appear under **Changes** in Script Details
+- Header parsing stops at the second dashed separator line (then only the `Change:` block is read, until the third separator), or at `import`, `from`, `def`, or `class`
 - If no metadata is found the script still appears as a button — just without tooltip details
 
 ### Folder Structure
@@ -725,7 +854,8 @@ The help window has a topic list on the left and formatted content on the right.
 | `F1` | Open Help |
 | `F5` | Refresh + Sync |
 | `F9` | Run last script |
-| `Ctrl+Alt+Q` | Show / hide the [Quick Launch Bar](#showhide-hotkey) — works from any application; configurable |
+| `Ctrl+K` | Open the [command palette](#command-palette) — works from any application; configurable |
+| `Ctrl+Shift+Q` | Show / hide the [Quick Launch Bar](#showhide-hotkey) — works from any application; configurable |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Escape` | Cancel repeat mode and stop running script (when active) |

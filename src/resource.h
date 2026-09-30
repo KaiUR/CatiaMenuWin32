@@ -144,12 +144,15 @@
 #define IDC_DETAIL_PATH 711
 #define IDC_CHK_FAVOURITE 712
 #define IDC_CHK_HIDDEN 713
+#define IDC_DETAIL_CHANGES 714 /* change history from the script's Change: block */
 
 /* ------------------------------------------------------------------ */
 /*  Run with args dialog  (305, 720)                                    */
 /* ------------------------------------------------------------------ */
 #define IDD_RUN_ARGS 305
 #define IDC_EDIT_RUN_ARGS 720
+#define IDC_LBL_RUN_ARGS 722 /* "Arguments:" label, moved when the Args: form is shown */
+#define IDC_ARGFORM_BASE 900 /* Args: form controls: 900 + 2*i label, 901 + 2*i field */
 
 /* ------------------------------------------------------------------ */
 /*  Script note dialog  (306, 721)                                      */
@@ -264,7 +267,10 @@
 /*  Double-click repeat menu commands  (256–257)                        */
 /* ------------------------------------------------------------------ */
 #define IDM_REPEAT_MAINAPP 256 /* toggle repeat-on-dblclick for main window */
-#define IDM_REPEAT_QBAR 257 /* toggle repeat-on-dblclick for Quick Bar   */
+#define IDM_REPEAT_QBAR 257
+#define IDM_SHOW_BADGES 258 /* View: toggle new/updated badges        */
+#define IDM_MARK_ALL_SEEN 259 /* View: clear every new/updated badge    */
+#define IDM_PALETTE 260 /* Run: open the command palette (Ctrl+K) */ /* toggle repeat-on-dblclick for Quick Bar   */
 
 /* ------------------------------------------------------------------ */
 /*  Quick Bar target app dialog  (309, 760–762)                         */
@@ -331,6 +337,22 @@
 #define IDC_CHK_HK_SHIFT 492 /* Shift modifier checkbox                  */
 #define IDC_CHK_HK_WIN 493 /* Win modifier checkbox                    */
 #define IDC_LBL_HK_KEY 494 /* "Key:" label                             */
-#define IDC_CBO_HK_KEY 495 /* key dropdown (A–Z, 0–9, F1–F12)          */
+#define IDC_CBO_HK_KEY 495
+#define IDC_CHK_SHOW_BADGES 496 /* Window tab: dot on new/updated scripts */
+#define IDC_CHK_CHECK_DEPS 497 /* Console tab: check dependencies before running */
+
+/* ------------------------------------------------------------------ */
+/*  Settings dialog — Command Palette tab  (520–529)                   */
+/* ------------------------------------------------------------------ */
+#define IDC_LBL_PALETTE_INFO 520 /* explanation at the top of the tab   */
+#define IDC_GRP_PALETTE_HOTKEY 521 /* "System-wide Hotkey" groupbox       */
+#define IDC_CHK_PALETTE_HOTKEY 522 /* "Enable system-wide hotkey"         */
+#define IDC_CHK_PK_CTRL 523 /* Ctrl modifier checkbox              */
+#define IDC_CHK_PK_ALT 524 /* Alt modifier checkbox               */
+#define IDC_CHK_PK_SHIFT 525 /* Shift modifier checkbox             */
+#define IDC_CHK_PK_WIN 526 /* Win modifier checkbox               */
+#define IDC_LBL_PK_KEY 527 /* "Key:" label                        */
+#define IDC_CBO_PK_KEY 528 /* key dropdown (Space, A–Z, 0–9, F1–F12) */
+#define IDC_LBL_PALETTE_WARN 529 /* off-by-default / AltGr note         */ /* key dropdown (A–Z, 0–9, F1–F12)          */
 
 #endif /* RESOURCE_H */

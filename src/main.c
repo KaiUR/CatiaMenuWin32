@@ -35,7 +35,7 @@ static LRESULT CALLBACK GlobalKbdHookProc(int nCode, WPARAM wp, LPARAM lp)
         if (GetForegroundWindow() != g.hwnd)
         { /* only forward when our window doesn't have focus */
             if (kb->vkCode == VK_ESCAPE &&
-                (g.repeat_mode || (!g.cfg.show_console && g.run_process)))
+                (g.repeat_mode || Runner_IsRunning()))
                 PostMessage(g.hwnd, WM_KEYDOWN, VK_ESCAPE, 0);
             if (kb->vkCode == VK_F9)
                 PostMessage(g.hwnd, WM_KEYDOWN, VK_F9, 0);
@@ -120,14 +120,24 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     App_ResolveTheme();
 
     InitializeCriticalSection(&g.cs_folders);
+    /* Never deleted: a Runner_Thread still waiting on a script at exit may
+       take it after WM_DESTROY; process teardown reclaims it. */
+    InitializeCriticalSection(&g.cs_run);
 
     Window_Create(hInst);
 
     /* WH_KEYBOARD_LL = low-level hook that fires regardless of which app has focus */
     g.kbd_repeat_hook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKbdHookProc, NULL, 0);
 
-    /* System-wide Quick Bar show/hide hotkey (default Ctrl+Alt+Q) */
+    /* System-wide Quick Bar show/hide hotkey (default Ctrl+Shift+Q) */
     QuickBar_RegisterHotkey();
+
+    /* System-wide command palette hotkey (default Ctrl+K) */
+    Palette_RegisterHotkey();
+
+    /* Settings_Load moved the old Ctrl+Alt+Q default — say so once the message loop runs */
+    if (g.qbar_hotkey_migrated)
+        PostMessage(g.hwnd, WM_HOTKEY_MIGRATED, 0, 0);
 
     /* honor either cfg flag or /minimized command-line arg from autorun registry entry */
     bool launch_minimized = g.cfg.start_minimized ||
@@ -201,6 +211,17 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev,
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {
+        /* Ctrl+K opens the command palette from anywhere in the main window,
+           including while the search box or a script button has focus.  While
+           the system-wide hotkey is Ctrl+K it arrives as WM_HOTKEY instead; this
+           covers the hotkey being switched off or set to another combination. */
+        if (msg.message == WM_KEYDOWN && msg.wParam == 'K' &&
+            (GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000) &&
+            (msg.hwnd == g.hwnd || IsChild(g.hwnd, msg.hwnd)))
+        {
+            Palette_Show();
+            continue;
+        }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
@@ -254,7 +275,10 @@ void App_ResolveTheme(void)
 
 /* ================================================================== */
 /*  App_BuildAppDataPath                                                */
-/*  Purpose: Resolves %APPDATA%\CatiaMenuWin32 and stores the full    */
+/*  Purpose: Resolves the data folder — the exe's own folder when a    */
+/*           settings.ini sits next to it (portable mode, sets       */
+/*           g.portable), otherwise %APPDATA%\CatiaMenuWin32 — and   */
+/*           stores the full path in g.appdata_dir.                  */
 /*           path in g.appdata_dir.  Creates the directory if it does  */
 /*           not exist.                                                */
 /*  In:  (none)                                                         */
@@ -262,6 +286,20 @@ void App_ResolveTheme(void)
 /* ================================================================== */
 void App_BuildAppDataPath(void)
 {
+    /* Portable mode: a settings.ini next to the exe keeps every file in the exe's
+       folder instead of %APPDATA%, so the folder can travel on a USB stick */
+    WCHAR exe_dir[MAX_APPPATH] = {0};
+    GetModuleFileNameW(NULL, exe_dir, MAX_APPPATH - 1);
+    PathRemoveFileSpecW(exe_dir);
+    WCHAR probe[MAX_APPPATH];
+    _snwprintf_s(probe, MAX_APPPATH, _TRUNCATE, L"%s\\%s", exe_dir, SETTINGS_FILE);
+    if (GetFileAttributes(probe) != INVALID_FILE_ATTRIBUTES)
+    {
+        wcsncpy_s(g.appdata_dir, MAX_APPPATH, exe_dir, _TRUNCATE);
+        g.portable = true;
+        return;
+    }
+
     WCHAR appdata[MAX_APPPATH] = {0};
     SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appdata);
     _snwprintf_s(g.appdata_dir, MAX_APPPATH, _TRUNCATE, L"%s\\%s", appdata, APP_APPDATA_DIR);
@@ -347,6 +385,80 @@ void App_RebuildGDI(void)
 }
 
 /* ================================================================== */
+/*  Main_OfferLocalFolder  (static)                                    */
+/*  Purpose: Asks whether a dropped folder should become a local       */
+/*           script folder and, if so, adds it to the sources, saves  */
+/*           the settings and re-syncs so its tabs appear.             */
+/*  In:  path — folder that was dropped                                */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Main_OfferLocalFolder(const WCHAR *path)
+{
+    for (int i = 0; i < g.cfg.local_dir_count; i++)
+    {
+        if (_wcsicmp(g.cfg.local_dirs[i].path, path) == 0)
+        {
+            PostStatus(L"%s is already a local script folder.", path);
+            return;
+        }
+    }
+    if (g.cfg.local_dir_count >= MAX_LOCAL_DIRS)
+    {
+        MessageBox(g.hwnd,
+                   L"The maximum number of local script folders is already configured.\n\n"
+                   L"Remove one in File > Sources... first.",
+                   L"Add Script Folder", MB_ICONWARNING | MB_OK);
+        return;
+    }
+
+    WCHAR msg[MAX_APPPATH + 256];
+    _snwprintf_s(msg, _countof(msg), _TRUNCATE,
+                 L"Add this folder as a local script folder?\n\n%s\n\n"
+                 L"Each subfolder that contains .py files becomes a tab.",
+                 path);
+    if (MessageBox(g.hwnd, msg, L"Add Script Folder", MB_ICONQUESTION | MB_YESNO) != IDYES) return;
+
+    LocalDir *d = &g.cfg.local_dirs[g.cfg.local_dir_count++];
+    ZeroMemory(d, sizeof(*d));
+    wcsncpy_s(d->path, MAX_APPPATH, path, _TRUNCATE);
+    d->enabled = true;
+    Settings_Save(&g.cfg);
+    SendMessage(g.hwnd, WM_COMMAND, IDM_REFRESH, 0); /* re-sync so the new tabs appear */
+}
+
+/* ================================================================== */
+/*  Main_OnDropFiles  (static)                                         */
+/*  Purpose: Handles items dropped on the main window.  A .py / .pyw  */
+/*           file is run once (Runner_RunPath); a folder can be added */
+/*           as a local script folder.  Only the first item is used.  */
+/*  In:  drop — HDROP from WM_DROPFILES (released here)               */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Main_OnDropFiles(HDROP drop)
+{
+    WCHAR path[MAX_APPPATH] = {0};
+    UINT count = DragQueryFileW(drop, 0xFFFFFFFF, NULL, 0); /* 0xFFFFFFFF = query the item count */
+    if (count > 0) DragQueryFileW(drop, 0, path, MAX_APPPATH);
+    DragFinish(drop);
+    if (!path[0]) return;
+
+    DWORD attr = GetFileAttributesW(path);
+    if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        Main_OfferLocalFolder(path);
+        return;
+    }
+    const WCHAR *ext = PathFindExtensionW(path);
+    if (_wcsicmp(ext, L".py") != 0 && _wcsicmp(ext, L".pyw") != 0)
+    {
+        PostStatus(L"Drop a .py script to run it, or a folder to add it as a script source.");
+        return;
+    }
+    if (count > 1) PostStatus(L"Only the first of the %u dropped files is run.", count);
+    Runner_RunPath(path);
+}
+
+/* ================================================================== */
 /*  MainWndProc                                                         */
 /*  Purpose: Window procedure for the main application window.  Routes */
 /*           keyboard shortcuts, paint messages, tray events, sync     */
@@ -371,14 +483,14 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         /* Escape cancels repeat mode and/or stops a running background script */
         if (wp == VK_ESCAPE &&
-            (g.repeat_mode || (!g.cfg.show_console && g.run_process)))
+            (g.repeat_mode || Runner_IsRunning()))
         {
             if (g.repeat_mode)
             {
                 Repeat_Stop();
                 PostStatus(L"Repeat cancelled.");
             }
-            if (!g.cfg.show_console && g.run_process)
+            if (Runner_IsRunning())
                 Runner_Stop();
             return 0;
         }
@@ -475,6 +587,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                            g.cfg.qbar_target_app);
             else
                 PostStatus(L"Quick Bar shown.");
+        }
+        else if (wp == HOTKEY_PALETTE)
+        {
+            Palette_Show(); /* works from any application, e.g. while CATIA has focus */
         }
         return 0;
 
@@ -584,7 +700,24 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
+    case WM_HOTKEY_MIGRATED:
+    {
+        /* One-time notice: the only time the app changes a user's hotkey on its own */
+        WCHAR hk[48], text[512];
+        QuickBar_HotkeyText(hk, (int)_countof(hk));
+        _snwprintf_s(text, _countof(text), _TRUNCATE,
+                     L"The Quick Bar show/hide hotkey has changed from Ctrl+Alt+Q to %s.\n\n"
+                     L"Ctrl+Alt+Q is the same as AltGr+Q, which types @ on German and other "
+                     L"keyboard layouts, so the old default blocked @ in every application.\n\n"
+                     L"You can choose a different combination in Settings \u2192 Quick Bar.",
+                     hk);
+        MessageBox(hwnd, text, L"Quick Bar Hotkey Changed", MB_ICONINFORMATION | MB_OK);
+        return 0;
+    }
+
     case WM_SCRIPT_STARTED:
+        /* A run replaced before this message arrived must not claim the UI */
+        if ((LONG)wp != g.run_seq) return 0;
         g.script_running = true;
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), TRUE);
         {
@@ -594,16 +727,22 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
         /* Add a timestamped header in the log window for this run */
         {
-            const WCHAR *sname =
-                (g.run_fi >= 0 && g.run_fi < g.folder_count &&
-                 g.run_si >= 0 && g.run_si < g.folders[g.run_fi].count)
-                    ? g.folders[g.run_fi].scripts[g.run_si].name
-                    : L"Script";
-            Log_AddHeader(sname);
+            /* run_name also covers dropped files, which have no button */
+            Log_AddHeader(g.run_name[0] ? g.run_name : L"Script");
         }
         return 0;
 
     case WM_SCRIPT_STOPPED:
+    {
+        /* wp = exit code; lp = run id + stopped-by-user flag (RUN_STOP_LPARAM) */
+        bool by_user = RUN_STOP_BY_USER(lp);
+        if (RUN_STOP_ID(lp) != g.run_seq)
+        {
+            /* A newer script replaced this run; Runner_Launch already cleared
+               its running state, so only close off its log section. */
+            Log_Append(L"--- Stopped: another script was started. ---\r\n\r\n");
+            return 0;
+        }
         g.script_running = false;
         EnableWindow(GetDlgItem(hwnd, IDC_BTN_STOP), FALSE);
         {
@@ -611,16 +750,16 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             if (hBtn) InvalidateRect(hBtn, NULL, FALSE);
         }
         if (g.hwnd_qbar) InvalidateRect(g.hwnd_qbar, NULL, FALSE);
-        /* Append a completion footer to the log.
-           lp=1 = Runner_Stop was called (user terminated);
-           lp=0 = natural exit; wp = exit code. */
-        if (lp)
+        /* Append a completion footer to the log and report the outcome */
+        if (by_user)
         {
             Log_Append(L"--- Stopped by user. ---\r\n\r\n");
+            PostStatus(L"Script stopped.");
         }
         else if (wp == 0)
         {
             Log_Append(L"--- Finished successfully. ---\r\n\r\n");
+            PostStatus(L"Script finished successfully.");
         }
         else
         {
@@ -629,8 +768,9 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                          L"--- Exited with code %llu. ---\r\n\r\n",
                          (unsigned long long)wp);
             Log_Append(_lf);
+            PostStatus(L"Script exited with code %llu.", (unsigned long long)wp);
         }
-        if (g.repeat_mode)
+        if (g.repeat_mode && !by_user)
         {
             if (wp != 0)
             { /* non-zero exit code = script failed; stop repeating */
@@ -644,12 +784,17 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
         }
         return 0;
+    }
 
     /* Re-apply always-on-top every time the window becomes visible
        (e.g. restored from tray) so it never gets lost */
     case WM_SHOWWINDOW:
         if (wp) Window_ApplyAlwaysOnTop(); /* wp = non-zero = window becoming visible — re-apply topmost */
         break;
+
+    case WM_DROPFILES:
+        Main_OnDropFiles((HDROP)wp);
+        return 0;
 
     case WM_CLOSE:
         if (g.cfg.minimize_to_tray && wp == 0)
@@ -671,6 +816,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         Log_Destroy();
         QuickBar_UnregisterHotkey();
+        Palette_UnregisterHotkey();
         QuickBar_Destroy();
         Window_RemoveTrayIcon();
         Settings_Save(&g.cfg);
@@ -763,6 +909,7 @@ static void Handle_Command(WPARAM wp)
         break;
 
     case IDM_START_WITH_WINDOWS:
+        if (g.portable) break; /* portable copies never touch the registry (menu item is greyed) */
         g.cfg.start_with_windows = !g.cfg.start_with_windows;
         CheckMenuItem(GetMenu(g.hwnd), IDM_START_WITH_WINDOWS,
                       g.cfg.start_with_windows ? MF_CHECKED : MF_UNCHECKED);
@@ -851,6 +998,22 @@ static void Handle_Command(WPARAM wp)
         DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_HIDDEN_SCRIPTS),
                   g.hwnd, HiddenScriptsDlgProc);
         Tabs_RebuildButtons();
+        break;
+
+    case IDM_SHOW_BADGES:
+        g.cfg.show_badges = !g.cfg.show_badges;
+        Settings_Save(&g.cfg);
+        InvalidateRect(g.hwnd_tab, NULL, FALSE);
+        Tabs_RebuildButtons();
+        break;
+
+    case IDM_MARK_ALL_SEEN:
+        Badges_MarkAllSeen();
+        PostStatus(L"All scripts marked as seen.");
+        break;
+
+    case IDM_PALETTE:
+        Palette_Show();
         break;
 
     case IDM_SORT_DEFAULT:

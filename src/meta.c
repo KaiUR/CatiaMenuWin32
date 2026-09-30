@@ -7,6 +7,8 @@
  */
 
 #include "main.h"
+#include <share.h> /* _SH_DENYNO for _wfsopen */
+#include <wctype.h> /* iswdigit */
 
 #define DESC_MAX 1023 /* ScriptMeta.description is [1024], so max writable index is 1023 */
 
@@ -91,12 +93,154 @@ static void AppendDesc(WCHAR *buf, const WCHAR *text)
 }
 
 /* ================================================================== */
+/*  Meta_IsChangeDate  (static)                                        */
+/*  Purpose: Reports whether a line starts a new change entry — it     */
+/*           begins with a DD.MM.YY date (one or two digits per part). */
+/*  In:  s — trimmed line                                               */
+/*  Out: true if s starts with a date                                   */
+/* ================================================================== */
+static bool Meta_IsChangeDate(const WCHAR *s)
+{
+    for (int part = 0; part < 3; part++)
+    {
+        int digits = 0;
+        while (iswdigit(*s) && digits < 4)
+        {
+            s++;
+            digits++;
+        }
+        if (digits == 0) return false;
+        if (part < 2 && *s++ != L'.') return false;
+    }
+    return true;
+}
+
+/* ================================================================== */
+/*  Meta_AddChange  (static)                                           */
+/*  Purpose: Adds one line of the Change: block to the metadata.  A    */
+/*           line starting with a date begins a new entry, which also  */
+/*           becomes last_change (entries are listed oldest first);    */
+/*           any other line continues the previous entry.              */
+/*  In:  m    — metadata being built                                   */
+/*       text — trimmed line text                                       */
+/*  Out: (void — m->change_log and m->last_change updated)             */
+/* ================================================================== */
+static void Meta_AddChange(ScriptMeta *m, const WCHAR *text)
+{
+    if (!text || !*text) return;
+    bool new_entry = Meta_IsChangeDate(text) || !m->last_change[0];
+    if (new_entry)
+    {
+        if (m->change_log[0]) wcsncat_s(m->change_log, _countof(m->change_log), L"\r\n", _TRUNCATE);
+        wcsncpy_s(m->last_change, _countof(m->last_change), text, _TRUNCATE);
+    }
+    else
+    {
+        wcsncat_s(m->change_log, _countof(m->change_log), L" ", _TRUNCATE);
+        wcsncat_s(m->last_change, _countof(m->last_change), L" ", _TRUNCATE);
+        wcsncat_s(m->last_change, _countof(m->last_change), text, _TRUNCATE);
+    }
+    wcsncat_s(m->change_log, _countof(m->change_log), text, _TRUNCATE);
+}
+
+/* ================================================================== */
+/*  Meta_IsKey  (static)                                               */
+/*  Purpose: Reports whether a trimmed line is "<key>:" (optionally    */
+/*           with spaces before the colon), whether or not a value     */
+/*           follows.                                                   */
+/*  In:  line — trimmed line; key — key name (case-insensitive)        */
+/*  Out: true if the line starts with that key                          */
+/* ================================================================== */
+static bool Meta_IsKey(const WCHAR *line, const WCHAR *key)
+{
+    size_t kl = wcslen(key);
+    if (_wcsnicmp(line, key, kl) != 0) return false;
+    const WCHAR *p = line + kl;
+    while (*p == L' ' || *p == L'\t')
+        p++;
+    return *p == L':';
+}
+
+/* ================================================================== */
+/*  Meta_IsKnownKey  (static)                                          */
+/*  Purpose: Reports whether a line starts one of the header keys, so  */
+/*           an Args: block ends there.  Only the known keys count —   */
+/*           an argument line such as "mode:[a|b]" also has a colon.   */
+/*  In:  line — trimmed line                                            */
+/*  Out: true if the line starts a known header key                     */
+/* ================================================================== */
+static bool Meta_IsKnownKey(const WCHAR *line)
+{
+    static const WCHAR *keys[] = {L"Script name", L"Version", L"Code", L"Release", L"Purpose",
+                                  L"Author", L"Date", L"Description", L"requirements", L"Args",
+                                  L"Change", NULL};
+    for (int i = 0; keys[i]; i++)
+        if (Meta_IsKey(line, keys[i])) return true;
+    return _wcsnicmp(line, L"dependencies", 12) == 0; /* "dependencies = [" has no colon */
+}
+
+/* ================================================================== */
+/*  Meta_AddLine  (static)                                             */
+/*  Purpose: Appends one entry to a newline-separated list buffer.     */
+/*  In:  buf — list buffer; max — its capacity; text — entry           */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Meta_AddLine(WCHAR *buf, size_t max, const WCHAR *text)
+{
+    if (!text || !*text) return;
+    if (buf[0]) wcsncat_s(buf, max, L"\n", _TRUNCATE);
+    wcsncat_s(buf, max, text, _TRUNCATE);
+}
+
+/* ================================================================== */
+/*  Meta_AddArg  (static)                                              */
+/*  Purpose: Records one Args: parameter line, e.g.                    */
+/*           tolerance:float=0.01 "Merge tolerance in mm".  Parsed     */
+/*           into form fields by the Run with Arguments dialog.        */
+/*  In:  m — metadata being built; text — trimmed parameter line      */
+/*  Out: (void — m->args_spec updated)                                 */
+/* ================================================================== */
+static void Meta_AddArg(ScriptMeta *m, const WCHAR *text)
+{
+    Meta_AddLine(m->args_spec, _countof(m->args_spec), text);
+}
+
+/* ================================================================== */
+/*  Meta_AddDeps  (static)                                             */
+/*  Purpose: Collects every quoted requirement string ("pycatia",      */
+/*           'pywin32>=306') on one line of a dependencies = [...]     */
+/*           list into m->dependencies.                                */
+/*  In:  m — metadata being built; raw — untrimmed line                */
+/*  Out: (void — m->dependencies updated)                              */
+/* ================================================================== */
+static void Meta_AddDeps(ScriptMeta *m, const WCHAR *raw)
+{
+    for (const WCHAR *p = raw; *p; p++)
+    {
+        if (*p != L'"' && *p != L'\'') continue;
+        WCHAR q = *p;
+        const WCHAR *end = wcschr(p + 1, q);
+        if (!end) break;
+        WCHAR req[128] = {0};
+        size_t n = (size_t)(end - p - 1);
+        if (n > 0 && n < _countof(req))
+        {
+            wcsncpy_s(req, _countof(req), p + 1, n);
+            Meta_AddLine(m->dependencies, _countof(m->dependencies), req);
+        }
+        p = end;
+    }
+}
+
+/* ================================================================== */
 /*  Meta_Parse                                                          */
 /*  Purpose: Opens the local cached .py file for script s and parses  */
 /*           its header block into s->meta.  The header is bounded by  */
 /*           dashed separator lines and contains Key: value pairs for  */
 /*           Purpose, Author, Version, Date, Description, Code,       */
-/*           Release, and requirements.  No-op if already loaded.     */
+/*           Release, and requirements.  The Change: block that       */
+/*           follows the header (up to the next separator) fills       */
+/*           change_log and last_change.  No-op if already loaded.    */
 /*  In:  s — script whose local path points to a downloaded .py file   */
 /*  Out: (void — sets s->meta and s->meta_loaded = true on success)   */
 /* ================================================================== */
@@ -106,8 +250,10 @@ void Meta_Parse(Script *s)
     if (!s->local[0]) return; /* no local path yet (not downloaded)*/
     if (GetFileAttributes(s->local) == INVALID_FILE_ATTRIBUTES) return; /* file missing — INVALID_FILE_ATTRIBUTES is the sentinel for "not found" */
 
-    FILE *f = _wfopen(s->local, L"r, ccs=UTF-8"); /* try UTF-8 first (script headers are ASCII-safe) */
-    if (!f) f = _wfopen(s->local, L"r"); /* fall back to system default encoding if UTF-8 open fails */
+    /* _wfsopen with _SH_DENYNO rather than _wfopen_s: _wfopen_s denies sharing, which
+       would make a sync download of this same file fail while the header is read */
+    FILE *f = _wfsopen(s->local, L"r, ccs=UTF-8", _SH_DENYNO); /* try UTF-8 first (script headers are ASCII-safe) */
+    if (!f) f = _wfsopen(s->local, L"r", _SH_DENYNO); /* fall back to system default encoding if UTF-8 open fails */
     if (!f) return; /* file exists but cannot be opened (e.g. locked) */
 
     ScriptMeta m;
@@ -116,6 +262,10 @@ void Meta_Parse(Script *s)
     WCHAR raw[1024], line[1024];
     int lineno = 0;
     bool in_header = false;
+    bool after_header = false; /* past the header's closing separator: only the Change: block is read */
+    bool in_change = false; /* inside the Change: block */
+    bool in_deps = false; /* inside a multi-line dependencies = [ ... ] list */
+    bool in_args = false; /* inside the Args: block */
     bool in_desc = false;
     bool found_any = false;
 
@@ -144,27 +294,88 @@ void Meta_Parse(Script *s)
         if (is_dashes)
         {
             if (!in_header)
-            {
-                in_header = true;
-            } /* first separator = start of header block */
+                in_header = true; /* first separator = start of header block */
+            else if (!after_header)
+                after_header = true; /* second separator = end of header; the Change: block follows */
             else
-            {
-                break;
-            } /* second separator = end of header; stop */
+                break; /* third separator closes the Change: block; stop */
+            in_desc = false;
             continue;
         }
 
         if (!in_header) continue; /* skip lines before the opening separator */
 
+        /* "Change:" starts the change history — normally just after the header's
+           closing separator, but older headers put it inside the header block */
+        bool change_key = _wcsnicmp(line, L"Change", 6) == 0; /* 6 = strlen("Change"); a ':' must follow */
+        if (change_key)
+        {
+            const WCHAR *p = line + 6;
+            while (*p == L' ' || *p == L'\t')
+                p++;
+            change_key = (*p == L':');
+        }
+        if (change_key)
+        {
+            in_change = true;
+            in_desc = false;
+            const WCHAR *first = MatchKey(line, L"Change"); /* NULL when "Change:" has nothing on its line */
+            if (first) Meta_AddChange(&m, first);
+            found_any = true;
+            continue;
+        }
+
         /* Stop if we reach actual Python code — the header is over */
         if (_wcsnicmp(line, L"import ", 7) == 0 || /* length includes the trailing space */
             _wcsnicmp(line, L"from ", 5) == 0 ||
             _wcsnicmp(line, L"def ", 4) == 0 ||
-            _wcsnicmp(line, L"class ", 6) == 0 ||
-            _wcsnicmp(line, L"Change", 6) == 0) break;
+            _wcsnicmp(line, L"class ", 6) == 0) break;
 
         /* Skip blank lines */
         if (line[0] == L'\0') continue;
+
+        /* Inside the Change: block every line is history; after the header but
+           outside it, nothing else is read */
+        if (in_change)
+        {
+            Meta_AddChange(&m, line);
+            continue;
+        }
+        if (after_header) continue;
+
+        /* dependencies = [ "pkg", "pkg>=1.2", ] — requirement strings are taken from
+           the raw line, because StripLeading would eat a leading quote */
+        if (in_deps && Meta_IsKnownKey(line)) in_deps = false; /* list never closed: the next key ends it */
+        if (in_deps || _wcsnicmp(line, L"dependencies", 12) == 0) /* 12 = strlen("dependencies") */
+        {
+            in_deps = true;
+            in_desc = false;
+            in_args = false;
+            Meta_AddDeps(&m, raw);
+            if (wcschr(raw, L']')) in_deps = false; /* closing bracket ends the list */
+            continue;
+        }
+
+        /* Args: — one script parameter per line, value on the key line optional */
+        if (Meta_IsKey(line, L"Args"))
+        {
+            in_args = true;
+            in_desc = false;
+            const WCHAR *first = MatchKey(line, L"Args"); /* NULL when "Args:" has nothing on its line */
+            if (first) Meta_AddArg(&m, first);
+            found_any = true;
+            continue;
+        }
+        if (in_args)
+        {
+            bool indented = (raw[0] == L' ' || raw[0] == L'\t');
+            if (indented && !Meta_IsKnownKey(line))
+            {
+                Meta_AddArg(&m, line);
+                continue;
+            }
+            in_args = false; /* this line is the next key: fall through */
+        }
 
         const WCHAR *val = NULL;
 
@@ -222,10 +433,6 @@ void Meta_Parse(Script *s)
             found_any = true;
             in_desc = false;
             /* Continuation lines are collected in the m.requirements[0] branch below */
-        }
-        else if (_wcsnicmp(line, L"dependencies", 12) == 0)
-        {
-            in_desc = false; /* "dependencies:" block is recognised but not stored */
         }
         else if (in_desc)
         {

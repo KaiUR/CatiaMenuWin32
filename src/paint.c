@@ -296,24 +296,42 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
                                ? s->meta.purpose
                                : NULL;
 
+    /* New/updated badge: an 8 px dot at the right end of the run area —
+       green for a new script, accent blue for an updated one */
+    int text_right = main_w - 6;
+    if (g.cfg.show_badges && s && s->badge != BADGE_NONE)
+    {
+        COLORREF dot = (s->badge == BADGE_NEW) ? COL_SUCCESS : COL_ACCENT;
+        HBRUSH db = CreateSolidBrush(dot);
+        HPEN dp = CreatePen(PS_SOLID, 1, dot);
+        HBRUSH ob = SelectObject(mem, db);
+        HPEN op = SelectObject(mem, dp);
+        Ellipse(mem, main_w - 16, h / 2 - 4, main_w - 8, h / 2 + 4); /* 8 px circle, vertically centred */
+        SelectObject(mem, ob);
+        SelectObject(mem, op);
+        DeleteObject(db);
+        DeleteObject(dp);
+        text_right = main_w - 20; /* keep text clear of the dot */
+    }
+
     SetTextColor(mem, repeat ? COL_WARN : running ? COL_SUCCESS
                                       : hot       ? COL_ACCENT
                                                   : COL_TEXT());
     SelectObject(mem, g.font_bold);
     if (purpose)
     {
-        RECT lr = {30, 3, main_w - 6, h / 2 + 2}; /* name in top half; 30 = past the arrow icon */
+        RECT lr = {30, 3, text_right, h / 2 + 2}; /* name in top half; 30 = past the arrow icon */
         DrawText(mem, label, -1, &lr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         SetTextColor(mem, COL_SUBTEXT());
         SelectObject(mem, g.font_small);
-        RECT pr = {30, h / 2, main_w - 6, h - 4}; /* purpose in bottom half */
+        RECT pr = {30, h / 2, text_right, h - 4}; /* purpose in bottom half */
         DrawText(mem, purpose, -1, &pr,
                  DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
     else
     {
-        RECT lr = {30, 0, main_w - 6, h};
+        RECT lr = {30, 0, text_right, h};
         DrawText(mem, label, -1, &lr,
                  DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
@@ -326,10 +344,53 @@ void Paint_ScriptButton(HWND hwnd_btn, HDC hdc,
 }
 
 /* ================================================================== */
+/*  Tip_ChangeText  (static)                                           */
+/*  Purpose: Builds the tooltip's change note: the badge state (when   */
+/*           badges are shown) followed by the script's newest         */
+/*           Change: entry.                                            */
+/*  In:  s   — script                                                   */
+/*       out — buffer to receive the text ("" when there is nothing)   */
+/*       max — capacity of out in WCHARs                               */
+/*  Out: (void — out is populated)                                      */
+/* ================================================================== */
+static void Tip_ChangeText(const Script *s, WCHAR *out, int max)
+{
+    out[0] = L'\0';
+    const WCHAR *state = L"";
+    if (g.cfg.show_badges && s->badge == BADGE_NEW)
+        state = L"New script. ";
+    else if (g.cfg.show_badges && s->badge == BADGE_UPDATED)
+        state = L"Updated since you last used it. ";
+    if (!state[0] && !s->meta.last_change[0]) return;
+    _snwprintf_s(out, max, _TRUNCATE, L"%s%s%s", state,
+                 s->meta.last_change[0] ? L"Latest change: " : L"", s->meta.last_change);
+}
+
+/* ================================================================== */
+/*  Tip_WrappedHeight  (static)                                        */
+/*  Purpose: Measures the height of word-wrapped small-font text at    */
+/*           the tooltip's text width.                                 */
+/*  In:  text — text to measure                                         */
+/*  Out: height in pixels                                               */
+/* ================================================================== */
+static int Tip_WrappedHeight(const WCHAR *text)
+{
+    HDC screen = GetDC(NULL);
+    HDC mem = CreateCompatibleDC(screen);
+    HFONT of = SelectObject(mem, g.font_small);
+    RECT dr = {0, 0, TIP_W - 14, 0}; /* TIP_W - 14 = TIP_W minus 8+6 side margins; height filled by DT_CALCRECT */
+    int text_h = DrawText(mem, text, -1, &dr, DT_LEFT | DT_TOP | DT_WORDBREAK | DT_CALCRECT);
+    SelectObject(mem, of);
+    DeleteDC(mem);
+    ReleaseDC(NULL, screen);
+    return text_h;
+}
+
+/* ================================================================== */
 /*  Tip_ComputeHeight  (static)                                        */
 /*  Purpose: Calculates the required pixel height for the tooltip popup */
 /*           based on the fixed header rows plus the word-wrapped       */
-/*           height of the description text (if any).                  */
+/*           height of the description and change note (if any).     */
 /*  In:  s — script whose metadata drives the height calculation        */
 /*  Out: total pixel height for the tooltip window                      */
 /* ================================================================== */
@@ -354,6 +415,12 @@ static int Tip_ComputeHeight(const Script *s)
         ReleaseDC(NULL, screen);
         h += text_h + 10; /* 10 = separator gap above description */
     }
+
+    WCHAR change[400];
+    if (s) Tip_ChangeText(s, change, (int)_countof(change));
+    if (s && change[0])
+        h += 6 + Tip_WrappedHeight(change) + 4; /* 6 = separator + gap, 4 = gap below */
+
     h += 10; /* 10 px bottom padding */
     return h;
 }
@@ -448,8 +515,27 @@ void Paint_Tooltip(HWND hwnd)
             RECT dr = {8, y, w - 6, h - 6};
             SelectObject(mem, g.font_small);
             SetTextColor(mem, COL_SUBTEXT());
-            DrawText(mem, s->meta.description, -1, &dr,
-                     DT_LEFT | DT_TOP | DT_WORDBREAK);
+            y += DrawText(mem, s->meta.description, -1, &dr,
+                          DT_LEFT | DT_TOP | DT_WORDBREAK) +
+                 5; /* 5 = same gap Tip_ComputeHeight reserves after the description */
+        }
+
+        /* Change note: badge state + newest Change: entry */
+        WCHAR change[400];
+        Tip_ChangeText(s, change, (int)_countof(change));
+        if (change[0])
+        {
+            HPEN sep = CreatePen(PS_SOLID, 1, COL_DIVIDER());
+            HPEN os = SelectObject(mem, sep);
+            MoveToEx(mem, 8, y, NULL);
+            LineTo(mem, w - 8, y);
+            SelectObject(mem, os);
+            DeleteObject(sep);
+            y += 5;
+            RECT cr = {8, y, w - 6, h - 6};
+            SelectObject(mem, g.font_small);
+            SetTextColor(mem, (g.cfg.show_badges && s->badge == BADGE_NEW) ? COL_SUCCESS : COL_ACCENT);
+            DrawText(mem, change, -1, &cr, DT_LEFT | DT_TOP | DT_WORDBREAK);
         }
     }
 
@@ -674,12 +760,12 @@ LRESULT CALLBACK BtnSubclassProc(HWND hwnd, UINT msg, WPARAM wp,
             break;
         case IDM_SCRIPT_RUN_ARGS:
         {
+            RunArgsDlgData d = {.script = s};
             if (DialogBoxParam(GetModuleHandle(NULL),
                                MAKEINTRESOURCE(IDD_RUN_ARGS),
-                               g.hwnd, RunWithArgsDlgProc, (LPARAM)s) == IDOK)
+                               g.hwnd, RunWithArgsDlgProc, (LPARAM)&d) == IDOK)
             {
-                /* Get args from a static buffer set by the dialog */
-                Runner_Run(fi, si);
+                Runner_RunWithArgs(fi, si, d.args);
             }
             break;
         }

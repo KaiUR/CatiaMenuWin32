@@ -47,11 +47,12 @@ BEGIN
     AUTOCHECKBOX "Show cached scripts when offline (may be out of date)", 470, 16, 110, 324, 12
 
     /* ── Tab 2: Console ─────────────────────────────────────────── */
-    GROUPBOX "Console Options",                                 458, 10,  22, 344, 76
+    GROUPBOX "Console Options",                                 458, 10,  22, 344, 90
     AUTOCHECKBOX "Show Python console window when running",     406, 16,  37, 310, 12
     AUTOCHECKBOX "Keep console open after script finishes",     410, 26,  51, 316, 12
     AUTOCHECKBOX "Keep Update Deps console open until closed",  412, 16,  65, 316, 12
     AUTOCHECKBOX "Repeat script on double-click (main window)", 468, 16,  79, 310, 12
+    AUTOCHECKBOX "Check a script's dependencies before running it", 497, 16,  93, 310, 12
 
     /* ── Tab 3: Window ──────────────────────────────────────────── */
     GROUPBOX "Window Behaviour",                                459, 10,  22, 344, 58
@@ -71,8 +72,9 @@ BEGIN
     AUTORADIOBUTTON "By Date",                                  426, 16, 173, 130, 12
     AUTORADIOBUTTON "Most Used",                                427,160, 173, 120, 12
 
-    GROUPBOX "Script Display",                                  472, 10, 208, 344, 30
+    GROUPBOX "Script Display",                                  472, 10, 208, 344, 44
     AUTOCHECKBOX "Tint local and extra-repo script buttons differently", 471, 16, 222, 324, 12
+    AUTOCHECKBOX "Mark new and updated scripts with a dot",     496, 16, 236, 324, 12
 
     /* ── Tab 4: Quick Bar ───────────────────────────────────────── */
     AUTOCHECKBOX "Enable Quick Launch Bar",                     428, 16,  28, 210, 12
@@ -96,6 +98,18 @@ BEGIN
     AUTOCHECKBOX "Win",                                         493,154, 242,  40, 12
     LTEXT "Key:",                                               494,202, 244,  22, 10
     COMBOBOX                                                    495,226, 242,  60,120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    /* ── Tab 5: Command Palette ─────────────────────────────────── */
+    LTEXT "Press Ctrl+K in the main window to open the command palette: type part of a script name and press Enter to run it. A system-wide hotkey can open it from any application, including CATIA.", 520, 10, 26, 344, 28
+    GROUPBOX "System-wide Hotkey",                              521, 10,  58, 344, 48
+    AUTOCHECKBOX "Enable system-wide hotkey",                   522, 16,  72, 150, 12
+    AUTOCHECKBOX "Ctrl",                                        523, 16,  88,  42, 12
+    AUTOCHECKBOX "Alt",                                         524, 62,  88,  38, 12
+    AUTOCHECKBOX "Shift",                                       525,104,  88,  46, 12
+    AUTOCHECKBOX "Win",                                         526,154,  88,  40, 12
+    LTEXT "Key:",                                               527,202,  90,  22, 10
+    COMBOBOX                                                    528,226,  88,  60,120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "On by default (Ctrl+K). While registered, the combination is captured in every application - untick or change it if another program needs it. Avoid Ctrl+Alt combinations on keyboards with an AltGr key.", 529, 10, 112, 344, 28
 
     /* ── Close-group sentinel + bottom buttons ──────────────────── */
     PUSHBUTTON    "Reset to Defaults", 420,   7, 288,  78, 16, WS_GROUP
@@ -173,7 +187,7 @@ END
 /* ================================================================== */
 /*  Script details dialog  (IDD_SCRIPT_DETAILS = 304)                  */
 /* ================================================================== */
-304 DIALOG 0, 0, 340, 310
+304 DIALOG 0, 0, 340, 352
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Script Details"
 FONT 9, "Segoe UI"
@@ -205,17 +219,20 @@ BEGIN
     LTEXT "Requirements:", -1,  7, 170, 60, 10
     EDITTEXT 709,           72, 168, 262, 36, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
 
-    LTEXT "Local path:",  -1,   7, 210, 60, 10
-    EDITTEXT 711,          72, 208, 262, 14, ES_AUTOHSCROLL | ES_READONLY
+    LTEXT "Changes:",     -1,   7, 212, 60, 10
+    EDITTEXT 714,          72, 210, 262, 36, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
 
-    GROUPBOX "User",      -1,   7, 228, 326, 52
-    LTEXT "Note:",        -1,  14, 242, 40, 10
-    EDITTEXT 710,          58, 240, 268, 14, ES_AUTOHSCROLL
-    AUTOCHECKBOX "Favourite", 712, 14, 260, 70, 12
-    AUTOCHECKBOX "Hidden",    713, 90, 260, 60, 12
+    LTEXT "Local path:",  -1,   7, 252, 60, 10
+    EDITTEXT 711,          72, 250, 262, 14, ES_AUTOHSCROLL | ES_READONLY
 
-    DEFPUSHBUTTON "OK",     1, 234, 290, 50, 14
-    PUSHBUTTON    "Cancel", 2, 290, 290, 50, 14
+    GROUPBOX "User",      -1,   7, 270, 326, 52
+    LTEXT "Note:",        -1,  14, 284, 40, 10
+    EDITTEXT 710,          58, 282, 268, 14, ES_AUTOHSCROLL
+    AUTOCHECKBOX "Favourite", 712, 14, 302, 70, 12
+    AUTOCHECKBOX "Hidden",    713, 90, 302, 60, 12
+
+    DEFPUSHBUTTON "OK",     1, 234, 332, 50, 14
+    PUSHBUTTON    "Cancel", 2, 290, 332, 50, 14
 END
 
 /* ================================================================== */
@@ -226,7 +243,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMEN
 CAPTION "Run with Arguments"
 FONT 9, "Segoe UI"
 BEGIN
-    LTEXT "Arguments:", -1, 7, 12, 55, 10
+    LTEXT "Arguments:", 722, 7, 12, 55, 10
     EDITTEXT 720, 66, 10, 227, 14, ES_AUTOHSCROLL
     DEFPUSHBUTTON "Run",    1, 194, 58, 50, 14
     PUSHBUTTON    "Cancel", 2, 248, 58, 50, 14

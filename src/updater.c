@@ -12,6 +12,96 @@
  */
 
 #include "main.h"
+#include <wintrust.h> /* WinVerifyTrust, WTHelper* */
+#include <softpub.h> /* WINTRUST_ACTION_GENERIC_VERIFY_V2 */
+
+/* ================================================================== */
+/*  Updater_GetSigner  (static)                                        */
+/*  Purpose: Verifies a file's Authenticode signature and returns a    */
+/*           copy of its signing certificate.  The signature must be  */
+/*           intact; a signer that chains to an untrusted root is      */
+/*           accepted, because releases are signed with a self-signed */
+/*           certificate — whether the signer is acceptable is decided */
+/*           by the caller comparing it with this exe's own signer.   */
+/*  In:  path — file to check                                           */
+/*  Out: duplicated signer certificate (free with                       */
+/*       CertFreeCertificateContext), or NULL if the file is unsigned, */
+/*       tampered, or unreadable                                       */
+/* ================================================================== */
+static PCCERT_CONTEXT Updater_GetSigner(const WCHAR *path)
+{
+    /* Deny writers while the file is checked so it cannot change underneath */
+    HANDLE hf = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hf == INVALID_HANDLE_VALUE) return NULL;
+
+    WINTRUST_FILE_INFO fi = {.cbStruct = sizeof(fi), .pcwszFilePath = path, .hFile = hf};
+    GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_DATA wd = {.cbStruct = sizeof(wd),
+                        .dwUIChoice = WTD_UI_NONE,
+                        .fdwRevocationChecks = WTD_REVOKE_NONE,
+                        .dwUnionChoice = WTD_CHOICE_FILE,
+                        .pFile = &fi,
+                        .dwStateAction = WTD_STATEACTION_VERIFY};
+
+    LONG status = WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &action, &wd);
+
+    /* ERROR_SUCCESS: fully trusted.  CERT_E_UNTRUSTEDROOT: the signature and
+       digest are valid, only the self-signed root is not in the trust store.
+       Anything else (TRUST_E_NOSIGNATURE, TRUST_E_BAD_DIGEST, ...) is rejected. */
+    PCCERT_CONTEXT signer = NULL;
+    if (status == ERROR_SUCCESS || status == CERT_E_UNTRUSTEDROOT)
+    {
+        CRYPT_PROVIDER_DATA *prov = WTHelperProvDataFromStateData(wd.hWVTStateData);
+        CRYPT_PROVIDER_SGNR *sgnr = prov ? WTHelperGetProvSignerFromChain(prov, 0, FALSE, 0) : NULL;
+        if (sgnr && sgnr->csCertChain > 0 && sgnr->pasCertChain[0].pCert)
+            signer = CertDuplicateCertificateContext(sgnr->pasCertChain[0].pCert);
+    }
+    else
+    {
+        Util_Log(L"Updater: WinVerifyTrust rejected %s (0x%08lx)", path, (unsigned long)status);
+    }
+
+    wd.dwStateAction = WTD_STATEACTION_CLOSE; /* release the state data */
+    WinVerifyTrust((HWND)INVALID_HANDLE_VALUE, &action, &wd);
+    CloseHandle(hf);
+    return signer;
+}
+
+/* ================================================================== */
+/*  Updater_VerifySignature  (static)                                  */
+/*  Purpose: Accepts a downloaded update only if its Authenticode      */
+/*           signature is intact and it was signed with the same key  */
+/*           as the running exe.  Comparing public keys (not           */
+/*           thumbprints) keeps updates working if the certificate is */
+/*           re-issued for the same key.  An unsigned running exe (a  */
+/*           local build) never accepts an update.                     */
+/*  In:  downloaded — path of the downloaded exe                       */
+/*  Out: true if the update may be installed                           */
+/* ================================================================== */
+static bool Updater_VerifySignature(const WCHAR *downloaded)
+{
+    WCHAR self[MAX_APPPATH] = {0};
+    GetModuleFileNameW(NULL, self, MAX_APPPATH - 1);
+
+    PCCERT_CONTEXT mine = Updater_GetSigner(self);
+    if (!mine)
+    {
+        Util_Log(L"Updater: running exe is unsigned - refusing to install an update");
+        return false;
+    }
+    PCCERT_CONTEXT theirs = Updater_GetSigner(downloaded);
+    bool same = theirs &&
+                CertComparePublicKeyInfo(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                                         &mine->pCertInfo->SubjectPublicKeyInfo,
+                                         &theirs->pCertInfo->SubjectPublicKeyInfo);
+    if (theirs && !same)
+        Util_Log(L"Updater: update is signed by a different key - refusing to install it");
+
+    if (theirs) CertFreeCertificateContext(theirs);
+    CertFreeCertificateContext(mine);
+    return same;
+}
 
 /* ================================================================== */
 /*  ParseVersion  (static)                                             */
@@ -246,6 +336,20 @@ static DWORD WINAPI Updater_DownloadThread(LPVOID lp)
     {
         DeleteFile(temp_path);
         MessageBox(g.hwnd, L"Download incomplete. Opening releases page instead.",
+                   L"Update", MB_ICONWARNING | MB_OK);
+        Updater_PromptAndInstall(latest_tag);
+        return 1;
+    }
+
+    /* Refuse to install anything not signed by the same publisher as this exe */
+    if (!Updater_VerifySignature(temp_path))
+    {
+        DeleteFile(temp_path);
+        MessageBox(g.hwnd,
+                   L"The downloaded update could not be verified: it is not signed by the "
+                   L"same publisher as the installed version, or its signature is damaged.\n\n"
+                   L"It has been deleted and nothing was installed. The releases page will "
+                   L"open so you can download the update manually.",
                    L"Update", MB_ICONWARNING | MB_OK);
         Updater_PromptAndInstall(latest_tag);
         return 1;
