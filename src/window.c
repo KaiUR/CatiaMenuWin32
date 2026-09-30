@@ -113,6 +113,7 @@ void Window_ShowMenu(void)
     AppendMenu(hFile, MF_STRING, IDM_EXIT, L"Exit");
 
     AppendMenu(hRun, MF_STRING, IDM_RUN_LAST, L"Run Last Script\tF9");
+    AppendMenu(hRun, MF_STRING, IDM_PALETTE, L"Command Palette...\tCtrl+K");
     AppendMenu(hRun, MF_SEPARATOR, 0, NULL);
     AppendMenu(hRun, MF_STRING, IDM_OPEN_CACHE, L"Open Cache Folder...");
     AppendMenu(hRun, MF_STRING, IDM_UPDATE_DEPS, L"Update Dependencies");
@@ -133,6 +134,9 @@ void Window_ShowMenu(void)
     AppendMenu(hSort, MF_STRING, IDM_SORT_DATE, L"By Date");
     AppendMenu(hSort, MF_STRING, IDM_SORT_MOST_USED, L"Most Used");
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hSort, L"Sort Scripts");
+    AppendMenu(hView, MF_SEPARATOR, 0, NULL);
+    AppendMenu(hView, MF_STRING, IDM_SHOW_BADGES, L"Show New/Updated Badges");
+    AppendMenu(hView, MF_STRING, IDM_MARK_ALL_SEEN, L"Mark All Scripts as Seen");
     AppendMenu(hView, MF_SEPARATOR, 0, NULL);
     bool qbar_has_target = g.cfg.qbar_target_app[0] != L'\0';
     /* Show the hotkey next to the toggle so it is discoverable */
@@ -159,7 +163,8 @@ void Window_ShowMenu(void)
     AppendMenu(hView, MF_POPUP, (UINT_PTR)hQBar, L"Quick Bar");
 
     AppendMenu(hWin, MF_STRING, IDM_MINIMIZE_TO_TRAY, L"Minimize to Tray");
-    AppendMenu(hWin, MF_STRING, IDM_START_WITH_WINDOWS, L"Start with Windows");
+    AppendMenu(hWin, g.portable ? (MF_STRING | MF_GRAYED) : MF_STRING, IDM_START_WITH_WINDOWS,
+               g.portable ? L"Start with Windows (not in portable mode)" : L"Start with Windows");
     AppendMenu(hWin, MF_STRING, IDM_START_MINIMIZED, L"Start Minimized");
 
     AppendMenu(hHelp, MF_STRING, IDM_HELP_CONTENTS, L"Help Contents\tF1");
@@ -182,6 +187,8 @@ void Window_ShowMenu(void)
 
     CheckMenuItem(hView, IDM_ALWAYS_ON_TOP,
                   g.cfg.always_on_top ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(hView, IDM_SHOW_BADGES,
+                  g.cfg.show_badges ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_MINIMIZE_TO_TRAY,
                   g.cfg.minimize_to_tray ? MF_CHECKED : MF_UNCHECKED);
     CheckMenuItem(hWin, IDM_START_WITH_WINDOWS,
@@ -474,6 +481,20 @@ static LRESULT CALLBACK TabBarProc(HWND hwnd, UINT msg,
             DrawText(hdc, g.folders[fi].display, -1, &lr,
                      DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             SelectObject(hdc, of);
+
+            /* New/updated scripts in this tab: 6 px dot in the tab's top-right corner */
+            if (g.cfg.show_badges && Badges_FolderHasUnseen(fi))
+            {
+                HBRUSH db = CreateSolidBrush(COL_ACCENT);
+                HPEN dp = CreatePen(PS_SOLID, 1, COL_ACCENT);
+                HBRUSH ob = SelectObject(hdc, db);
+                HPEN op = SelectObject(hdc, dp);
+                Ellipse(hdc, x + tw - 11, 5, x + tw - 5, 11); /* inside the 14 px text margin */
+                SelectObject(hdc, ob);
+                SelectObject(hdc, op);
+                DeleteObject(db);
+                DeleteObject(dp);
+            }
             x += tw;
         }
 
@@ -713,6 +734,14 @@ void Window_Create(HINSTANCE hInst)
                             (sw - ww) / 2, (sh - wh) / 2, ww, wh, NULL, NULL, hInst, NULL); /* (sw-ww)/2 centres horizontally */
 
     Window_ApplyDarkMode(g.hwnd);
+
+    /* Accept files dropped from Explorer: a .py runs once, a folder can become a
+       script source (Main_OnDropFiles).  The message filter lets drops through
+       even when the app runs elevated and Explorer does not. */
+    DragAcceptFiles(g.hwnd, TRUE);
+    ChangeWindowMessageFilterEx(g.hwnd, WM_DROPFILES, MSGFLT_ALLOW, NULL);
+    ChangeWindowMessageFilterEx(g.hwnd, WM_COPYDATA, MSGFLT_ALLOW, NULL);
+    ChangeWindowMessageFilterEx(g.hwnd, 0x0049, MSGFLT_ALLOW, NULL); /* 0x0049 = WM_COPYGLOBALDATA, used by drag and drop */
 
     CreateWindow(L"BUTTON", L"\u2630  Menu",
                  WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,

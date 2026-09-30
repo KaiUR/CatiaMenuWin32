@@ -42,6 +42,95 @@ static void Settings_ClampHotkey(Settings *s)
 }
 
 /* ================================================================== */
+/*  Settings_ReadExtras / Settings_WriteExtras  (static)             */
+/*  Purpose: Read and write the badge toggle, the dependency check    */
+/*           and the command palette hotkey — shared by settings.ini  */
+/*           and settings export /                                     */
+/*           import.  Reading sanitises the hotkey like                */
+/*           Settings_ClampHotkey: unknown modifier bits are dropped,  */
+/*           an invalid key falls back to Space, and a combination     */
+/*           with no modifier is disabled.                             */
+/*  In:  s   — settings to fill / write from                           */
+/*       ini — INI file                                                 */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_ReadExtras(Settings *s, const WCHAR *ini)
+{
+    s->show_badges = GetPrivateProfileInt(L"Options", L"ShowBadges", 1, ini) != 0; /* default 1 = on */
+    s->check_deps = GetPrivateProfileInt(L"Options", L"CheckDependencies", 1, ini) != 0; /* default 1 = on */
+    s->palette_hotkey_enabled = GetPrivateProfileInt(L"Palette", L"HotkeyEnabled",
+                                                     PALETTE_HOTKEY_DEFAULT_ON ? 1 : 0, ini) != 0;
+    s->palette_hotkey_mods = (UINT)GetPrivateProfileInt(L"Palette", L"HotkeyMods", PALETTE_HOTKEY_DEFAULT_MODS, ini);
+    s->palette_hotkey_vk = (UINT)GetPrivateProfileInt(L"Palette", L"HotkeyKey", PALETTE_HOTKEY_DEFAULT_VK, ini);
+    s->palette_hotkey_mods &= (MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN);
+    if (s->palette_hotkey_vk == 0 || s->palette_hotkey_vk > 0xFF)
+        s->palette_hotkey_vk = PALETTE_HOTKEY_DEFAULT_VK;
+    if (!s->palette_hotkey_mods) s->palette_hotkey_enabled = false; /* a bare key would be captured everywhere */
+}
+
+static void Settings_WriteExtras(const Settings *s, const WCHAR *ini)
+{
+    WCHAR tmp[8];
+    WritePrivateProfileString(L"Options", L"ShowBadges", s->show_badges ? L"1" : L"0", ini);
+    WritePrivateProfileString(L"Options", L"CheckDependencies", s->check_deps ? L"1" : L"0", ini);
+    WritePrivateProfileString(L"Palette", L"HotkeyEnabled", s->palette_hotkey_enabled ? L"1" : L"0", ini);
+    _snwprintf_s(tmp, _countof(tmp), _TRUNCATE, L"%u", s->palette_hotkey_mods);
+    WritePrivateProfileString(L"Palette", L"HotkeyMods", tmp, ini);
+    _snwprintf_s(tmp, _countof(tmp), _TRUNCATE, L"%u", s->palette_hotkey_vk);
+    WritePrivateProfileString(L"Palette", L"HotkeyKey", tmp, ini);
+}
+
+/* ================================================================== */
+/*  Settings_MigrateHotkey  (static)                                   */
+/*  Purpose: One-time move of the Quick Bar hotkey off the pre-3.0     */
+/*           default Ctrl+Alt+Q.  Windows treats Ctrl+Alt as AltGr,   */
+/*           so a registered Ctrl+Alt+Q swallowed AltGr+Q — the @ key  */
+/*           on German keyboards — in every application.  Only the    */
+/*           exact old default is moved; any other combination is a   */
+/*           deliberate choice and is left alone.  An INI written by   */
+/*           3.0 or later carries HotkeyMigrated=1 and is never       */
+/*           touched, so a user who sets Ctrl+Alt+Q again keeps it.   */
+/*  In:  s   — settings already loaded from ini                        */
+/*       ini — INI file the hotkey fields were read from               */
+/*  Out: true if the hotkey was changed                                */
+/* ================================================================== */
+static bool Settings_MigrateHotkey(Settings *s, const WCHAR *ini)
+{
+    if (GetPrivateProfileInt(L"QuickBar", L"HotkeyMigrated", 0, ini)) return false;
+    if (s->qbar_hotkey_mods != (MOD_CONTROL | MOD_ALT) || s->qbar_hotkey_vk != 'Q') return false;
+    s->qbar_hotkey_mods = QBAR_HOTKEY_DEFAULT_MODS;
+    s->qbar_hotkey_vk = QBAR_HOTKEY_DEFAULT_VK;
+    return true;
+}
+
+/* ================================================================== */
+/*  Settings_PathToStored / Settings_PathFromStored  (static)          */
+/*  Purpose: In portable mode, a path inside the data folder (the      */
+/*           exe's folder) is stored relative to it, so the folder     */
+/*           keeps working when it is moved or the drive letter        */
+/*           changes.  Outside portable mode paths are stored as-is.   */
+/*  In:  abs / path — absolute path to store / stored path to resolve  */
+/*       out, max   — buffer for the stored form                       */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_PathToStored(const WCHAR *abs, WCHAR *out, int max)
+{
+    size_t n = wcslen(g.appdata_dir);
+    if (g.portable && n && _wcsnicmp(abs, g.appdata_dir, n) == 0 && abs[n] == L'\\')
+        wcsncpy_s(out, max, abs + n + 1, _TRUNCATE); /* +1 skips the separator */
+    else
+        wcsncpy_s(out, max, abs, _TRUNCATE);
+}
+
+static void Settings_PathFromStored(WCHAR *path, int max)
+{
+    if (!g.portable || !path[0] || !PathIsRelativeW(path)) return;
+    WCHAR full[MAX_APPPATH];
+    _snwprintf_s(full, MAX_APPPATH, _TRUNCATE, L"%s\\%s", g.appdata_dir, path);
+    wcsncpy_s(path, max, full, _TRUNCATE);
+}
+
+/* ================================================================== */
 /*  Settings_Load                                                       */
 /*  Purpose: Reads all application settings from settings.ini into the */
 /*           provided Settings struct.  Applies defaults for missing   */
@@ -60,6 +149,8 @@ void Settings_Load(Settings *s)
     GetPrivateProfileString(L"Python", L"Executable", L"", s->python_exe, MAX_APPPATH, ini);
     GetPrivateProfileString(L"Scripts", L"CacheDir", L"", s->cache_dir, MAX_APPPATH, ini);
     GetPrivateProfileString(L"GitHub", L"Token", L"", s->github_token, 256, ini);
+    Settings_PathFromStored(s->python_exe, MAX_APPPATH); /* portable: relative to the exe's folder */
+    Settings_PathFromStored(s->cache_dir, MAX_APPPATH);
 
     s->auto_sync = GetPrivateProfileInt(L"Options", L"AutoSync", 1, ini) != 0; /* default 1 = on */
     s->download_before_run = GetPrivateProfileInt(L"Options", L"DownloadBeforeRun", 0, ini) != 0; /* default 0 = off */
@@ -104,6 +195,7 @@ void Settings_Load(Settings *s)
     s->always_on_top = GetPrivateProfileInt(L"Window", L"AlwaysOnTop", 1, ini) != 0;
     s->minimize_to_tray = GetPrivateProfileInt(L"Window", L"MinimizeToTray", 1, ini) != 0;
     s->start_with_windows = GetPrivateProfileInt(L"Window", L"StartWithWindows", 1, ini) != 0;
+    if (g.portable) s->start_with_windows = false; /* a portable copy never registers itself to start with Windows */
     s->start_minimized = GetPrivateProfileInt(L"Window", L"StartMinimized", 1, ini) != 0;
     s->theme = (ThemeMode)GetPrivateProfileInt(L"Window", L"Theme", 0, ini);
     if (s->theme < 0 || s->theme > 2) s->theme = THEME_SYSTEM; /* clamp: a corrupt INI could store an out-of-range value */
@@ -119,12 +211,21 @@ void Settings_Load(Settings *s)
     GetPrivateProfileString(L"QuickBar", L"TargetExe", L"CNEXT.exe",
                             s->qbar_target_exe, MAX_NAME, ini);
 
-    /* Quick Bar show/hide hotkey — default Ctrl+Alt+Q */
+    /* Quick Bar show/hide hotkey — default Ctrl+Shift+Q */
     s->qbar_hotkey_enabled = GetPrivateProfileInt(L"QuickBar", L"HotkeyEnabled", 1, ini) != 0; /* default 1 = registered */
     s->qbar_hotkey_mods = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyMods",
-                                                     MOD_CONTROL | MOD_ALT, ini);
-    s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", 'Q', ini);
+                                                     QBAR_HOTKEY_DEFAULT_MODS, ini);
+    s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", QBAR_HOTKEY_DEFAULT_VK, ini);
     Settings_ClampHotkey(s);
+    if (Settings_MigrateHotkey(s, ini))
+    {
+        /* Persist now so the move happens exactly once, even if the app never saves settings */
+        WCHAR tmp[8];
+        _snwprintf_s(tmp, _countof(tmp), _TRUNCATE, L"%u", s->qbar_hotkey_mods);
+        WritePrivateProfileString(L"QuickBar", L"HotkeyMods", tmp, ini);
+        g.qbar_hotkey_migrated = true;
+    }
+    WritePrivateProfileString(L"QuickBar", L"HotkeyMigrated", L"1", ini);
 
     /* Double-click repeat */
     s->repeat_on_dblclick = GetPrivateProfileInt(L"Options", L"RepeatOnDblClick", 1, ini) != 0;
@@ -132,6 +233,7 @@ void Settings_Load(Settings *s)
 
     /* Script display */
     s->tint_script_sources = GetPrivateProfileInt(L"Options", L"TintScriptSources", 1, ini) != 0; /* default 1 = on */
+    Settings_ReadExtras(s, ini); /* badges + command palette hotkey */
 
     if (!s->cache_dir[0]) /* no cache dir stored — default to %APPDATA%\CatiaMenuWin32\scripts */
         _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
@@ -154,8 +256,11 @@ void Settings_Save(const Settings *s)
     IniPath(ini, MAX_APPPATH);
     WCHAR tmp[8];
 
-    WritePrivateProfileString(L"Python", L"Executable", s->python_exe, ini);
-    WritePrivateProfileString(L"Scripts", L"CacheDir", s->cache_dir, ini);
+    WCHAR stored[MAX_APPPATH];
+    Settings_PathToStored(s->python_exe, stored, MAX_APPPATH); /* portable: relative to the exe's folder */
+    WritePrivateProfileString(L"Python", L"Executable", stored, ini);
+    Settings_PathToStored(s->cache_dir, stored, MAX_APPPATH);
+    WritePrivateProfileString(L"Scripts", L"CacheDir", stored, ini);
     WritePrivateProfileString(L"GitHub", L"Token", s->github_token, ini);
 
 #define WB(sec, key, val) WritePrivateProfileString(sec, key, (val) ? L"1" : L"0", ini) /* writes "1" or "0" for each boolean flag */
@@ -230,6 +335,7 @@ void Settings_Save(const Settings *s)
     /* Script display */
     WritePrivateProfileString(L"Options", L"TintScriptSources",
                               s->tint_script_sources ? L"1" : L"0", ini);
+    Settings_WriteExtras(s, ini); /* badges + command palette hotkey */
 
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%d", (int)s->theme);
     WritePrivateProfileString(L"Window", L"Theme", tmp, ini);
@@ -247,6 +353,10 @@ void Settings_Save(const Settings *s)
 /* ================================================================== */
 void Settings_ApplyAutorun(bool enable, bool minimized)
 {
+    /* A portable copy never touches the registry — not even to remove the entry,
+       which may belong to an installed copy on the same machine */
+    if (g.portable) return;
+
     HKEY hk;
     if (RegOpenKeyEx(HKEY_CURRENT_USER, AUTORUN_KEY, 0,
                      KEY_SET_VALUE, &hk) != ERROR_SUCCESS) return;
@@ -292,7 +402,7 @@ static const int s_stab1[] = {/* Sync */
 static const int s_stab2[] = {/* Console */
                               IDC_GRP_CONSOLE,
                               IDC_CHK_CONSOLE, IDC_CHK_KEEP_OPEN, IDC_CHK_DEPS_KEEP_OPEN,
-                              IDC_CHK_REPEAT_MAIN,
+                              IDC_CHK_REPEAT_MAIN, IDC_CHK_CHECK_DEPS,
                               -1};
 static const int s_stab3[] = {/* Window */
                               IDC_GRP_WINDOW,
@@ -303,7 +413,7 @@ static const int s_stab3[] = {/* Window */
                               IDC_GRP_SORT,
                               IDC_RAD_SORT_DEFAULT, IDC_RAD_SORT_ALPHA, IDC_RAD_SORT_DATE, IDC_RAD_SORT_USED,
                               IDC_GRP_DISPLAY,
-                              IDC_CHK_TINT_SOURCES,
+                              IDC_CHK_TINT_SOURCES, IDC_CHK_SHOW_BADGES,
                               -1};
 static const int s_stab4[] = {/* Quick Bar */
                               IDC_CHK_QBAR_ENABLE,
@@ -317,8 +427,16 @@ static const int s_stab4[] = {/* Quick Bar */
                               IDC_CHK_HK_CTRL, IDC_CHK_HK_ALT, IDC_CHK_HK_SHIFT, IDC_CHK_HK_WIN,
                               IDC_LBL_HK_KEY, IDC_CBO_HK_KEY,
                               -1};
-static const int *s_stabs[5] = {
-    s_stab0, s_stab1, s_stab2, s_stab3, s_stab4};
+static const int s_stab5[] = {/* Command Palette */
+                              IDC_LBL_PALETTE_INFO,
+                              IDC_GRP_PALETTE_HOTKEY, IDC_CHK_PALETTE_HOTKEY,
+                              IDC_CHK_PK_CTRL, IDC_CHK_PK_ALT, IDC_CHK_PK_SHIFT, IDC_CHK_PK_WIN,
+                              IDC_LBL_PK_KEY, IDC_CBO_PK_KEY,
+                              IDC_LBL_PALETTE_WARN,
+                              -1};
+#define SETTINGS_TABS 6 /* General, Sync, Console, Window, Quick Bar, Command Palette */
+static const int *s_stabs[SETTINGS_TABS] = {
+    s_stab0, s_stab1, s_stab2, s_stab3, s_stab4, s_stab5};
 
 /* ================================================================== */
 /*  Settings_ShowTab  (static)                                          */
@@ -330,7 +448,7 @@ static const int *s_stabs[5] = {
 /* ================================================================== */
 static void Settings_ShowTab(HWND hwnd, int tab)
 {
-    for (int t = 0; t < 5; t++)
+    for (int t = 0; t < SETTINGS_TABS; t++)
     {
         int sw = (t == tab) ? SW_SHOW : SW_HIDE;
         for (const int *p = s_stabs[t]; *p != -1; p++)
@@ -424,6 +542,76 @@ static int Settings_HotkeyIndexFromVk(UINT vk)
     if (vk >= '0' && vk <= '9') return 26 + (int)(vk - '0');
     if (vk >= VK_F1 && vk <= VK_F12) return 36 + (int)(vk - VK_F1);
     return Settings_HotkeyIndexFromVk('Q'); /* unknown key — show the default */
+}
+
+/* ================================================================== */
+/*  Palette hotkey key list                                            */
+/*  Same list as the Quick Bar hotkey with "Space" in front (index 0), */
+/*  so the palette can also use a Ctrl+Shift+Space-style combination.  */
+/* ================================================================== */
+static void Settings_FillPaletteKeyCombo(HWND hwnd)
+{
+    HWND cb = GetDlgItem(hwnd, IDC_CBO_PK_KEY);
+    SendMessage(cb, CB_RESETCONTENT, 0, 0);
+    SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)L"Space");
+    WCHAR item[8];
+    for (int i = 0; i < HK_COUNT; i++)
+    {
+        UINT vk = Settings_HotkeyVkFromIndex(i);
+        if (vk >= VK_F1 && vk <= VK_F12)
+            _snwprintf_s(item, 8, _TRUNCATE, L"F%u", vk - VK_F1 + 1);
+        else
+        {
+            item[0] = (WCHAR)vk;
+            item[1] = L'\0';
+        }
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)item);
+    }
+}
+
+static UINT Settings_PaletteVkFromIndex(int idx)
+{
+    return (idx <= 0) ? VK_SPACE : Settings_HotkeyVkFromIndex(idx - 1); /* index 0 (or none) = Space */
+}
+
+static int Settings_PaletteIndexFromVk(UINT vk)
+{
+    return (vk == VK_SPACE) ? 0 : 1 + Settings_HotkeyIndexFromVk(vk);
+}
+
+/* ================================================================== */
+/*  Settings_PaletteEnableControls  (static)                           */
+/*  Purpose: Greys the palette hotkey's modifiers and key when the     */
+/*           hotkey is switched off.                                   */
+/*  In:  hwnd    — settings dialog handle                              */
+/*       enabled — true to enable the sub-controls                     */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_PaletteEnableControls(HWND hwnd, bool enabled)
+{
+    static const int ids[] = {
+        IDC_CHK_PK_CTRL, IDC_CHK_PK_ALT, IDC_CHK_PK_SHIFT, IDC_CHK_PK_WIN,
+        IDC_LBL_PK_KEY, IDC_CBO_PK_KEY,
+        -1};
+    for (const int *p = ids; *p != -1; p++)
+        EnableWindow(GetDlgItem(hwnd, *p), enabled);
+}
+
+/* ================================================================== */
+/*  Settings_ShowPaletteHotkey  (static)                               */
+/*  Purpose: Loads a palette hotkey combination into the dialog.       */
+/*  In:  hwnd — settings dialog; on/mods/vk — combination to show      */
+/*  Out: (void)                                                         */
+/* ================================================================== */
+static void Settings_ShowPaletteHotkey(HWND hwnd, bool on, UINT mods, UINT vk)
+{
+    CheckDlgButton(hwnd, IDC_CHK_PALETTE_HOTKEY, on ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_CHK_PK_CTRL, (mods & MOD_CONTROL) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_CHK_PK_ALT, (mods & MOD_ALT) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_CHK_PK_SHIFT, (mods & MOD_SHIFT) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_CHK_PK_WIN, (mods & MOD_WIN) ? BST_CHECKED : BST_UNCHECKED);
+    SendDlgItemMessage(hwnd, IDC_CBO_PK_KEY, CB_SETCURSEL, (WPARAM)Settings_PaletteIndexFromVk(vk), 0);
+    Settings_PaletteEnableControls(hwnd, on);
 }
 
 /* ================================================================== */
@@ -523,6 +711,8 @@ static void Settings_WriteGeneralTo(const Settings *s, const WCHAR *ini,
     WritePrivateProfileString(L"QuickBar", L"HotkeyMods", tmp, ini);
     _snwprintf_s(tmp, 7, _TRUNCATE, L"%u", s->qbar_hotkey_vk);
     WritePrivateProfileString(L"QuickBar", L"HotkeyKey", tmp, ini);
+    WritePrivateProfileString(L"QuickBar", L"HotkeyMigrated", L"1", ini); /* post-3.0 file: import must not migrate it */
+    Settings_WriteExtras(s, ini); /* badges + command palette hotkey */
 }
 
 /* ================================================================== */
@@ -581,9 +771,11 @@ static void Settings_ReadGeneralFrom(Settings *s, const WCHAR *ini,
                                 s->qbar_target_exe, MAX_NAME, ini);
         s->qbar_hotkey_enabled = GetPrivateProfileInt(L"QuickBar", L"HotkeyEnabled", 1, ini) != 0;
         s->qbar_hotkey_mods = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyMods",
-                                                         MOD_CONTROL | MOD_ALT, ini);
-        s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", 'Q', ini);
+                                                         QBAR_HOTKEY_DEFAULT_MODS, ini);
+        s->qbar_hotkey_vk = (UINT)GetPrivateProfileInt(L"QuickBar", L"HotkeyKey", QBAR_HOTKEY_DEFAULT_VK, ini);
         Settings_ClampHotkey(s);
+        Settings_MigrateHotkey(s, ini); /* file exported before 3.0 still carries the old default */
+        Settings_ReadExtras(s, ini); /* badges + command palette hotkey */
     }
 
     if (incl_cache_dir && !s->cache_dir[0])
@@ -875,9 +1067,9 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         HWND hTab = GetDlgItem(hwnd, IDC_TAB_SETTINGS);
         {
             TCITEM ti = {TCIF_TEXT, 0, 0, NULL, 0, -1, 0}; /* only TCIF_TEXT is set; other members zeroed */
-            static const WCHAR *labels[] = {
-                L"General", L"Sync", L"Console", L"Window", L"Quick Bar"};
-            for (int i = 0; i < 5; i++)
+            static const WCHAR *labels[SETTINGS_TABS] = {
+                L"General", L"Sync", L"Console", L"Window", L"Quick Bar", L"Command Palette"};
+            for (int i = 0; i < SETTINGS_TABS; i++)
             {
                 ti.pszText = (LPWSTR)labels[i];
                 TabCtrl_InsertItem(hTab, i, &ti);
@@ -911,12 +1103,14 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN, s->console_keep_open ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, s->deps_keep_open ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_REPEAT_MAIN, s->repeat_on_dblclick ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_CHECK_DEPS, s->check_deps ? BST_CHECKED : BST_UNCHECKED);
         EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), s->show_console); /* keep-open only meaningful when a console window is visible */
 
         /* ── Tab 3: Window ──────────────────────────────────────── */
         CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, s->always_on_top ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, s->minimize_to_tray ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, s->start_with_windows ? BST_CHECKED : BST_UNCHECKED);
+        EnableWindow(GetDlgItem(hwnd, IDC_CHK_START_WINDOWS), !g.portable); /* portable copies never register autorun */
         CheckDlgButton(hwnd, IDC_CHK_START_MIN, s->start_minimized ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_THEME_DARK, s->theme == THEME_DARK ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_THEME_LIGHT, s->theme == THEME_LIGHT ? BST_CHECKED : BST_UNCHECKED);
@@ -926,6 +1120,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         CheckDlgButton(hwnd, IDC_RAD_SORT_DATE, s->sort_mode == SORT_DATE ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_RAD_SORT_USED, s->sort_mode == SORT_MOST_USED ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd, IDC_CHK_TINT_SOURCES, s->tint_script_sources ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_CHK_SHOW_BADGES, s->show_badges ? BST_CHECKED : BST_UNCHECKED);
+
+        /* ── Tab 5: Command Palette ─────────────────────────────── */
+        Settings_FillPaletteKeyCombo(hwnd);
+        Settings_ShowPaletteHotkey(hwnd, s->palette_hotkey_enabled, s->palette_hotkey_mods, s->palette_hotkey_vk);
 
         /* ── Tab 4: Quick Bar ───────────────────────────────────── */
         CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE, s->qbar_enabled ? BST_CHECKED : BST_UNCHECKED);
@@ -1279,6 +1478,11 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                                           IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_HOTKEY) == BST_CHECKED);
             break;
 
+        case IDC_CHK_PALETTE_HOTKEY:
+            Settings_PaletteEnableControls(hwnd,
+                                           IsDlgButtonChecked(hwnd, IDC_CHK_PALETTE_HOTKEY) == BST_CHECKED);
+            break;
+
         /* ================================================================== */
         /*  IDC_BTN_EXPORT_SETTINGS                                           */
         /*  Purpose: Shows IDD_SETTINGS_TRANSFER so the user picks which     */
@@ -1521,6 +1725,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
 
             QuickBar_RegisterHotkey(); /* imported file may carry a different combination */
+            Palette_RegisterHotkey();
 
             MessageBox(hwnd,
                        L"Settings imported successfully.\n\n"
@@ -1568,8 +1773,8 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             wcsncpy_s(s->qbar_target_app, MAX_NAME, L"CATIA V5", _TRUNCATE);
             wcsncpy_s(s->qbar_target_exe, MAX_NAME, L"CNEXT.exe", _TRUNCATE);
             s->qbar_hotkey_enabled = true;
-            s->qbar_hotkey_mods = MOD_CONTROL | MOD_ALT;
-            s->qbar_hotkey_vk = 'Q';
+            s->qbar_hotkey_mods = QBAR_HOTKEY_DEFAULT_MODS;
+            s->qbar_hotkey_vk = QBAR_HOTKEY_DEFAULT_VK;
             s->repeat_on_dblclick = true;
             s->qbar_repeat_on_dblclick = true;
             _snwprintf_s(s->cache_dir, MAX_APPPATH, _TRUNCATE, L"%s\\scripts", g.appdata_dir);
@@ -1593,11 +1798,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_CHK_KEEP_OPEN, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_DEPS_KEEP_OPEN, BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_CHK_REPEAT_MAIN, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_CHECK_DEPS, BST_CHECKED);
+            s->check_deps = true;
             EnableWindow(GetDlgItem(hwnd, IDC_CHK_KEEP_OPEN), FALSE);
 
             CheckDlgButton(hwnd, IDC_CHK_ALWAYS_ON_TOP, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_MINIMIZE_TRAY, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_START_WINDOWS, g.portable ? BST_UNCHECKED : BST_CHECKED);
             CheckDlgButton(hwnd, IDC_CHK_START_MIN, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_THEME_SYSTEM, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_THEME_DARK, BST_UNCHECKED);
@@ -1607,7 +1814,13 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             CheckDlgButton(hwnd, IDC_RAD_SORT_DATE, BST_UNCHECKED);
             CheckDlgButton(hwnd, IDC_RAD_SORT_USED, BST_UNCHECKED);
             s->tint_script_sources = true;
+            s->show_badges = true;
+            s->palette_hotkey_enabled = PALETTE_HOTKEY_DEFAULT_ON;
+            s->palette_hotkey_mods = PALETTE_HOTKEY_DEFAULT_MODS;
+            s->palette_hotkey_vk = PALETTE_HOTKEY_DEFAULT_VK;
             CheckDlgButton(hwnd, IDC_CHK_TINT_SOURCES, BST_CHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_SHOW_BADGES, BST_CHECKED);
+            Settings_ShowPaletteHotkey(hwnd, PALETTE_HOTKEY_DEFAULT_ON, PALETTE_HOTKEY_DEFAULT_MODS, PALETTE_HOTKEY_DEFAULT_VK);
 
             CheckDlgButton(hwnd, IDC_CHK_QBAR_ENABLE, BST_CHECKED);
             CheckDlgButton(hwnd, IDC_RAD_QBAR_VERT, BST_CHECKED);
@@ -1619,12 +1832,12 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             Settings_QBarEnableControls(hwnd, true);
 
             CheckDlgButton(hwnd, IDC_CHK_QBAR_HOTKEY, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_HK_CTRL, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_HK_ALT, BST_CHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_HK_SHIFT, BST_UNCHECKED);
-            CheckDlgButton(hwnd, IDC_CHK_HK_WIN, BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_CTRL, (QBAR_HOTKEY_DEFAULT_MODS & MOD_CONTROL) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_ALT, (QBAR_HOTKEY_DEFAULT_MODS & MOD_ALT) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_SHIFT, (QBAR_HOTKEY_DEFAULT_MODS & MOD_SHIFT) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(hwnd, IDC_CHK_HK_WIN, (QBAR_HOTKEY_DEFAULT_MODS & MOD_WIN) ? BST_CHECKED : BST_UNCHECKED);
             SendDlgItemMessage(hwnd, IDC_CBO_HK_KEY, CB_SETCURSEL,
-                               (WPARAM)Settings_HotkeyIndexFromVk('Q'), 0);
+                               (WPARAM)Settings_HotkeyIndexFromVk(QBAR_HOTKEY_DEFAULT_VK), 0);
             Settings_HotkeyEnableControls(hwnd, true);
             break;
         }
@@ -1659,6 +1872,33 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 return TRUE; /* keep the dialog open; nothing has been changed */
             }
 
+            /* Command palette hotkey — validated the same way, and it must not
+               clash with the Quick Bar hotkey */
+            bool pk_on = IsDlgButtonChecked(hwnd, IDC_CHK_PALETTE_HOTKEY) == BST_CHECKED;
+            UINT pk_mods = 0;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_PK_CTRL) == BST_CHECKED) pk_mods |= MOD_CONTROL;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_PK_ALT) == BST_CHECKED) pk_mods |= MOD_ALT;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_PK_SHIFT) == BST_CHECKED) pk_mods |= MOD_SHIFT;
+            if (IsDlgButtonChecked(hwnd, IDC_CHK_PK_WIN) == BST_CHECKED) pk_mods |= MOD_WIN;
+            UINT pk_vk = Settings_PaletteVkFromIndex(
+                (int)SendDlgItemMessage(hwnd, IDC_CBO_PK_KEY, CB_GETCURSEL, 0, 0));
+            const WCHAR *pk_error = NULL;
+            if (pk_on && !pk_mods)
+                pk_error = L"The command palette hotkey needs at least one modifier "
+                           L"(Ctrl, Alt, Shift or Win).\n\n"
+                           L"Without one, the key would be captured in every "
+                           L"application, not just this one.";
+            else if (pk_on && hk_on && pk_mods == hk_mods && pk_vk == hk_vk)
+                pk_error = L"The command palette hotkey is the same combination as the "
+                           L"Quick Bar hotkey. Choose a different one.";
+            if (pk_error)
+            {
+                TabCtrl_SetCurSel(GetDlgItem(hwnd, IDC_TAB_SETTINGS), 5);
+                Settings_ShowTab(hwnd, 5); /* bring the offending controls into view */
+                MessageBox(hwnd, pk_error, L"Command Palette Hotkey", MB_OK | MB_ICONWARNING);
+                return TRUE; /* keep the dialog open; nothing has been changed */
+            }
+
             /* General */
             GetDlgItemText(hwnd, IDC_EDIT_PYTHON, s->python_exe, MAX_APPPATH);
             GetDlgItemText(hwnd, IDC_EDIT_CACHE, s->cache_dir, MAX_APPPATH);
@@ -1686,6 +1926,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s->console_keep_open = IsDlgButtonChecked(hwnd, IDC_CHK_KEEP_OPEN) == BST_CHECKED;
             s->deps_keep_open = IsDlgButtonChecked(hwnd, IDC_CHK_DEPS_KEEP_OPEN) == BST_CHECKED;
             s->repeat_on_dblclick = IsDlgButtonChecked(hwnd, IDC_CHK_REPEAT_MAIN) == BST_CHECKED;
+            s->check_deps = IsDlgButtonChecked(hwnd, IDC_CHK_CHECK_DEPS) == BST_CHECKED;
 
             /* Window */
             s->always_on_top = IsDlgButtonChecked(hwnd, IDC_CHK_ALWAYS_ON_TOP) == BST_CHECKED;
@@ -1707,6 +1948,12 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             else
                 s->sort_mode = SORT_ORDER; /* fall through to SORT_ORDER (GitHub/disk order) */
             s->tint_script_sources = IsDlgButtonChecked(hwnd, IDC_CHK_TINT_SOURCES) == BST_CHECKED;
+            s->show_badges = IsDlgButtonChecked(hwnd, IDC_CHK_SHOW_BADGES) == BST_CHECKED;
+
+            /* Command palette */
+            s->palette_hotkey_enabled = pk_on; /* validated above */
+            s->palette_hotkey_mods = pk_mods;
+            s->palette_hotkey_vk = pk_vk;
 
             /* Quick Bar */
             s->qbar_enabled = IsDlgButtonChecked(hwnd, IDC_CHK_QBAR_ENABLE) == BST_CHECKED;
@@ -1760,6 +2007,9 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
 
             QuickBar_RegisterHotkey(); /* re-register with the new combination */
+            Palette_RegisterHotkey();
+            if (g.hwnd_tab) InvalidateRect(g.hwnd_tab, NULL, FALSE); /* tab dots follow the badge setting */
+            Runner_ForgetDeps(); /* the Python interpreter may have changed: re-check dependencies */
 
             EndDialog(hwnd, IDOK);
             break;
@@ -1814,7 +2064,7 @@ INT_PTR CALLBACK AboutDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         /* Version line */
         SetDlgItemTextW(hwnd, IDC_ABOUT_VER,
-                        L"Version " VERSION_DISPLAY_W);
+                        g.portable ? L"Version " VERSION_DISPLAY_W L" (portable)" : L"Version " VERSION_DISPLAY_W);
         return TRUE;
     }
     case WM_COMMAND:

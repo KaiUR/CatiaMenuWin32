@@ -1012,7 +1012,7 @@ static LRESULT CALLBACK QuickBarProc(HWND hwnd, UINT msg,
                 Repeat_Stop();
                 PostStatus(L"Repeat cancelled.");
             }
-            if (!g.cfg.show_console && g.run_process)
+            if (Runner_IsRunning())
                 Runner_Stop();
         }
         return 0;
@@ -1275,7 +1275,7 @@ void QuickBar_SetTopmost(bool topmost)
 
 /* ================================================================== */
 /*  QuickBar_HotkeyText                                                */
-/*  Formats the configured hotkey for display, e.g. "Ctrl+Alt+Q".     */
+/*  Formats the configured hotkey for display, e.g. "Ctrl+Shift+Q".   */
 /*  Writes "(none)" when no hotkey is configured.                     */
 /* ================================================================== */
 void QuickBar_HotkeyText(WCHAR *buf, int len)

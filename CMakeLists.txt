@@ -105,6 +105,7 @@ add_executable(CatiaMenuWin32 WIN32
     src/paint.c
     src/quickbar.c
     src/log.c
+    src/palette.c
     "${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 )
 
@@ -128,7 +129,7 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/resource.rc"
 # --- Link Libraries ---
 target_link_libraries(CatiaMenuWin32 PRIVATE
     user32 gdi32 comctl32 comdlg32
-    wininet shell32 shlwapi uxtheme dwmapi crypt32
+    wininet shell32 shlwapi uxtheme dwmapi crypt32 wintrust
 )
 
 # Ensure Unicode entry point is used on all Windows toolchains
@@ -151,6 +152,9 @@ endif()
 
 if(MSVC)
     target_compile_options(CatiaMenuWin32 PRIVATE /W4)
+    # Sources are UTF-8.  clang-cl already assumes so; cl.exe would otherwise read
+    # them as the ANSI code page and garble non-ASCII characters in string literals.
+    target_compile_options(CatiaMenuWin32 PRIVATE /utf-8)
 else()
     target_compile_options(CatiaMenuWin32 PRIVATE -Wall -Wextra -Wpedantic)
 endif()

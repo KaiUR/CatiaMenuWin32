@@ -10,100 +10,135 @@
 #include <wincrypt.h>
 
 /* ================================================================== */
+/*  GitHub_HostAllowed  (static)                                       */
+/*  Purpose: Reports whether a host name belongs to GitHub: exactly    */
+/*           github.com, or a subdomain of github.com or              */
+/*           githubusercontent.com (raw files, release downloads).    */
+/*           Suffixes are matched on a dot boundary, so a look-alike   */
+/*           such as evilgithub.com is rejected.                       */
+/*  In:  host — host name to test                                      */
+/*  Out: true if the host is a GitHub host                             */
+/* ================================================================== */
+static bool GitHub_HostAllowed(const WCHAR *host)
+{
+    static const WCHAR *suffixes[] = {L".github.com", L".githubusercontent.com", NULL};
+    if (_wcsicmp(host, L"github.com") == 0) return true;
+    size_t hl = wcslen(host);
+    for (int i = 0; suffixes[i]; i++)
+    {
+        size_t sl = wcslen(suffixes[i]);
+        if (hl > sl && _wcsicmp(host + hl - sl, suffixes[i]) == 0) return true;
+    }
+    return false;
+}
+
+/* ================================================================== */
 /*  GitHub_VerifyCert  (static)                                        */
 /*  Purpose: Validates the TLS server certificate after HttpSendRequest */
-/*           by checking two conditions:                               */
-/*           1. Subject CN contains the expected host or a GitHub alias*/
-/*           2. Issuer is a known GitHub CA (DigiCert, Sectigo, etc.)  */
-/*           Blocks the request if either check fails.                 */
+/*           by checking three conditions against the server actually  */
+/*           answered (after any redirect):                            */
+/*           1. Its host is a GitHub host (GitHub_HostAllowed)         */
+/*           2. The certificate chain passes the Windows SSL policy    */
+/*              for that exact host name (SAN / wildcard rules)        */
+/*           3. The issuing CA's organisation exactly matches a CA     */
+/*              GitHub uses                                            */
+/*           Blocks the request if any check fails.                    */
 /*  In:  hReq          — open WinINet request handle after send        */
 /*       expected_host — wide string hostname (e.g. L"api.github.com") */
-/*  Out: true if certificate passes both checks; false to abort        */
+/*  Out: true if the certificate passes all checks; false to abort     */
 /* ================================================================== */
 static bool GitHub_VerifyCert(HINTERNET hReq, const WCHAR *expected_host)
 {
-    /* INTERNET_CERTIFICATE_INFO string fields are always ANSI even in
-       Unicode builds - WinINet fills them with narrow strings regardless
-       of the UNICODE define. Cast to char* for correct string ops. */
-    INTERNET_CERTIFICATE_INFO ci;
-    DWORD ci_size = sizeof(ci);
-    if (!InternetQueryOption(hReq, INTERNET_OPTION_SECURITY_CERTIFICATE_STRUCT,
-                             &ci, &ci_size))
-        return false;
+    /* Organisation (O=) of the CAs GitHub issues its certificates from.
+       Exact matches — the O= field is stable across the CAs' intermediate
+       rotations, unlike the intermediate names themselves. */
+    static const WCHAR *trusted_orgs[] = {
+        L"Sectigo Limited", /* github.com, api.github.com            */
+        L"Let's Encrypt", /* *.githubusercontent.com               */
+        L"DigiCert Inc", /* used by GitHub before Sectigo          */
+        L"GlobalSign nv-sa", /* used by GitHub's CDN previously        */
+        NULL};
 
-    /* Convert expected_host to narrow for comparison */
-    char host_a[256] = {0};
-    WideCharToMultiByte(CP_ACP, 0, expected_host, -1,
-                        host_a, sizeof(host_a) - 1, NULL, NULL);
+    /* ── Check 1: the answering host (after redirects) is GitHub's ─── */
+    WCHAR url[2048] = {0};
+    DWORD url_size = sizeof(url);
+    if (!InternetQueryOption(hReq, INTERNET_OPTION_URL, url, &url_size))
+        return false;
+    WCHAR host[256] = {0};
+    URL_COMPONENTSW uc = {.dwStructSize = sizeof(uc),
+                          .lpszHostName = host,
+                          .dwHostNameLength = (DWORD)_countof(host)};
+    if (!InternetCrackUrlW(url, 0, 0, &uc) || !GitHub_HostAllowed(host))
+    {
+        Util_Log(L"CertCheck: %s redirected to non-GitHub host %s", expected_host, host);
+        return false;
+    }
+
+    /* ── Check 2: chain valid for exactly this host ───────────────── */
+    PCCERT_CHAIN_CONTEXT chain = NULL;
+    DWORD chain_size = sizeof(chain);
+    if (!InternetQueryOption(hReq, INTERNET_OPTION_SERVER_CERT_CHAIN_CONTEXT,
+                             (LPVOID)&chain, &chain_size) ||
+        !chain)
+        return false;
 
     bool ok = false;
-
-    /* ── Check 1: subject must contain the expected host ─────────── */
-    if (ci.lpszSubjectInfo)
+    HTTPSPolicyCallbackData https = {.cbStruct = sizeof(https),
+                                     .dwAuthType = AUTHTYPE_SERVER,
+                                     .pwszServerName = host};
+    CERT_CHAIN_POLICY_PARA para = {.cbSize = sizeof(para),
+                                   .pvExtraPolicyPara = &https};
+    CERT_CHAIN_POLICY_STATUS status = {.cbSize = sizeof(status)};
+    if (!CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL, chain, &para, &status) ||
+        status.dwError != 0)
     {
-        const char *subj = (const char *)ci.lpszSubjectInfo;
-        if (strstr(subj, host_a) ||
-            strstr(subj, "github.com") ||
-            strstr(subj, "github.io") ||
-            strstr(subj, "githubusercontent.com"))
-        {
-            ok = true;
-        }
+        Util_Log(L"CertCheck: SSL policy failed for %s (0x%08lx)", host, status.dwError);
+        goto done;
     }
 
+    /* ── Check 3: issuing CA is one GitHub uses ───────────────────── */
+    if (chain->cChain < 1 || chain->rgpChain[0]->cElement < 1) goto done;
+    PCCERT_CONTEXT leaf = chain->rgpChain[0]->rgpElement[0]->pCertContext;
+    WCHAR org[128] = {0};
+    CertGetNameStringW(leaf, CERT_NAME_ATTR_TYPE, CERT_NAME_ISSUER_FLAG,
+                       (void *)szOID_ORGANIZATION_NAME, org, (DWORD)_countof(org));
+    for (int i = 0; trusted_orgs[i]; i++)
+    {
+        if (wcscmp(org, trusted_orgs[i]) == 0)
+        {
+            ok = true;
+            break;
+        }
+    }
     if (!ok)
-    {
-        Util_Log(L"CertCheck: subject mismatch for %s", expected_host);
-        LocalFree(ci.lpszSubjectInfo);
-        LocalFree(ci.lpszIssuerInfo);
-        LocalFree(ci.lpszProtocolName);
-        LocalFree(ci.lpszSignatureAlgName);
-        LocalFree(ci.lpszEncryptionAlgName);
-        return false;
-    }
+        Util_Log(L"CertCheck: UNKNOWN CA \"%s\" for %s - BLOCKING", org, host);
 
-    /* ── Check 2: issuer must be a known GitHub CA ────────────────── */
-    ok = false;
-    if (ci.lpszIssuerInfo)
-    {
-        const char *issr = (const char *)ci.lpszIssuerInfo;
-        if (strstr(issr, "DigiCert") ||
-            strstr(issr, "Sectigo") ||
-            strstr(issr, "GlobalSign") ||
-            strstr(issr, "Encrypt"))
-        {
-            ok = true;
-        }
-        if (!ok)
-            Util_Log(L"CertCheck: UNKNOWN CA - BLOCKING");
-    }
-
-    LocalFree(ci.lpszSubjectInfo);
-    LocalFree(ci.lpszIssuerInfo);
-    LocalFree(ci.lpszProtocolName);
-    LocalFree(ci.lpszSignatureAlgName);
-    LocalFree(ci.lpszEncryptionAlgName);
-
+done:
+    CertFreeCertificateChain(chain);
     return ok;
 }
 
 /* ================================================================== */
-/*  GitHub_HttpGet                                                      */
+/*  GitHub_HttpGetEx                                                    */
 /*  Purpose: Performs a secure HTTPS GET request via WinINet, adds the */
-/*           JSON Accept header (API calls only) and optional Bearer   */
-/*           token, validates the TLS certificate, checks the HTTP     */
-/*           status code, and reads the response body into buf.        */
-/*  In:  host  — server hostname (e.g. L"api.github.com")              */
-/*       path  — request path (e.g. L"/repos/owner/repo/contents/dir") */
-/*       token — OAuth token string, or NULL/empty to skip auth header */
-/*       buf   — caller-allocated buffer for the response body         */
-/*       len   — in: capacity of buf; out: bytes received              */
-/*  Out: true if HTTP 200 and at least one byte received; false on err  */
+/*           JSON Accept header (API calls only), optional token and   */
+/*           optional If-None-Match header, validates the TLS          */
+/*           certificate, and reads the whole response body into a    */
+/*           heap buffer that grows as needed (up to HTTP_MAX_BODY).  */
+/*  In:  host          — server hostname (e.g. L"api.github.com")      */
+/*       path          — request path                                  */
+/*       token         — OAuth token string, or NULL/empty for none    */
+/*       if_none_match — ETag from an earlier 200, or NULL/empty       */
+/*       r             — receives status, ETag and body (see Out)      */
+/*  Out: true on HTTP 200 (r->body holds the null-terminated body) or  */
+/*       HTTP 304 (r->body NULL — the cached copy is still current);   */
+/*       false on any other status or error.  The caller frees         */
+/*       r->body with free().                                          */
 /* ================================================================== */
-bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
-                    const WCHAR *token, char *buf, DWORD *len)
+bool GitHub_HttpGetEx(const WCHAR *host, const WCHAR *path, const WCHAR *token,
+                      const char *if_none_match, HttpResponse *r)
 {
-    *len = 0;
+    ZeroMemory(r, sizeof(*r));
 
     HINTERNET hInet = InternetOpen(
         L"CatiaMenuWin32/1.0",
@@ -153,6 +188,14 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
         HttpAddRequestHeaders(hReq, auth, (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
     }
 
+    /* Conditional request: GitHub answers 304 with no body when the resource is unchanged */
+    if (if_none_match && if_none_match[0])
+    {
+        WCHAR inm[200];
+        _snwprintf_s(inm, _countof(inm), _TRUNCATE, L"If-None-Match: %S\r\n", if_none_match);
+        HttpAddRequestHeaders(hReq, inm, (DWORD)-1L, HTTP_ADDREQ_FLAG_ADD);
+    }
+
     if (!HttpSendRequest(hReq, NULL, 0, NULL, 0))
     {
         InternetCloseHandle(hReq);
@@ -176,32 +219,101 @@ bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
     HttpQueryInfo(hReq,
                   HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
                   &status, &ssz, NULL);
+    r->status = status;
     if (status != 200)
     {
-        /* 404 = not found, 401/403 = auth failure, 429 = rate-limited, etc. */
-        Util_Log(L"GitHub_HttpGet: HTTP %d for %s%s", status, host, path);
+        /* 304 = unchanged since the ETag we sent; 404 = not found, 401/403 = auth
+           failure, 429 = rate-limited, etc. */
+        if (status != 304)
+            Util_Log(L"GitHub_HttpGetEx: HTTP %d for %s%s", status, host, path);
         InternetCloseHandle(hReq);
         InternetCloseHandle(hConn);
         InternetCloseHandle(hInet);
-        return false;
+        return status == 304;
     }
 
-    DWORD total = 0, read = 0;
-    DWORD max_read = (*len > 0) ? *len : HTTP_BUF_SIZE; /* use caller-supplied capacity when provided */
-    while (InternetReadFile(hReq, buf + total,
-                            max_read - total - 1, &read) &&
-           read)
-    { /* -1 reserves space for the null terminator */
+    /* ETag for the next conditional request (absent on some responses) */
+    DWORD esz = sizeof(r->etag) - 1;
+    if (!HttpQueryInfoA(hReq, HTTP_QUERY_ETAG, r->etag, &esz, NULL))
+        r->etag[0] = '\0';
+
+    /* Read the whole body, growing the buffer as needed */
+    DWORD cap = 64 * 1024, total = 0, read = 0; /* 64 KB start: most API responses fit */
+    char *body = (char *)malloc(cap);
+    bool ok = (body != NULL);
+    while (ok)
+    {
+        if (cap - total < 4096) /* keep room for a full read chunk plus the terminator */
+        {
+            if (cap >= HTTP_MAX_BODY)
+            {
+                Util_Log(L"GitHub_HttpGetEx: body over %u bytes for %s%s", HTTP_MAX_BODY, host, path);
+                ok = false;
+                break;
+            }
+            char *nb = (char *)realloc(body, (size_t)cap * 2);
+            if (!nb)
+            {
+                ok = false;
+                break;
+            }
+            body = nb;
+            cap *= 2;
+        }
+        if (!InternetReadFile(hReq, body + total, cap - total - 1, &read))
+        {
+            ok = false; /* connection dropped mid-body — never hand back a partial response */
+            break;
+        }
+        if (read == 0) break; /* end of body */
         total += read;
-        if (total >= max_read - 1) break; /* buffer full — stop reading */
     }
-    buf[total] = '\0'; /* null-terminate so callers can use string functions on the response */
-    *len = total;
 
     InternetCloseHandle(hReq);
     InternetCloseHandle(hConn);
     InternetCloseHandle(hInet);
-    return total > 0; /* false if the response body was empty even with HTTP 200 */
+
+    if (!ok || total == 0) /* an empty 200 body is treated as a failure */
+    {
+        free(body);
+        return false;
+    }
+    body[total] = '\0'; /* null-terminate so callers can use string functions on the response */
+    r->body = body;
+    r->len = total;
+    return true;
+}
+
+/* ================================================================== */
+/*  GitHub_HttpGet                                                      */
+/*  Purpose: Fixed-buffer convenience wrapper around GitHub_HttpGetEx  */
+/*           for callers with a caller-allocated buffer.  Only HTTP    */
+/*           200 counts as success.                                     */
+/*  In:  host  — server hostname (e.g. L"api.github.com")              */
+/*       path  — request path                                           */
+/*       token — OAuth token string, or NULL/empty to skip auth header */
+/*       buf   — caller-allocated buffer for the response body         */
+/*       len   — in: capacity of buf (0 = HTTP_BUF_SIZE); out: bytes   */
+/*  Out: true if HTTP 200 and the body fits in buf; false otherwise    */
+/* ================================================================== */
+bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
+                    const WCHAR *token, char *buf, DWORD *len)
+{
+    DWORD cap = (*len > 0) ? *len : HTTP_BUF_SIZE;
+    *len = 0;
+
+    HttpResponse r;
+    if (!GitHub_HttpGetEx(host, path, token, NULL, &r) || !r.body) return false;
+    bool fits = (r.len < cap); /* a body that does not fit would be truncated — fail instead */
+    if (fits)
+    {
+        memcpy_s(buf, cap, r.body, r.len + 1); /* +1 copies the terminator */
+        *len = r.len;
+    }
+    else
+        Util_Log(L"GitHub_HttpGet: %u-byte body exceeds %u-byte buffer for %s%s", r.len, cap, host, path);
+    free(r.body);
+    return fits;
 }
 
 /* ================================================================== */
@@ -330,39 +442,7 @@ bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
     for (int attempt = 0; attempt < 3; attempt++)
     {
         if (attempt > 0) Sleep(1000 * attempt); /* back off: attempt 1 = 1 s, attempt 2 = 2 s */
-
-        char *buf = (char *)malloc(HTTP_BUF_SIZE);
-        if (!buf) return false;
-
-        DWORD len = 0;
-        bool ok = GitHub_HttpGet(GITHUB_RAW_HOST, raw_url, token, buf, &len);
-        if (ok && len > 0)
-        {
-            WCHAR dir[MAX_APPPATH];
-            wcsncpy_s(dir, MAX_APPPATH, local_path, _TRUNCATE);
-            PathRemoveFileSpec(dir);
-            SHCreateDirectoryEx(NULL, dir, NULL);
-
-            HANDLE hf = CreateFile(local_path, GENERIC_WRITE, 0, NULL,
-                                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-            if (hf != INVALID_HANDLE_VALUE)
-            {
-                DWORD written = 0;
-                WriteFile(hf, buf, len, &written, NULL);
-                CloseHandle(hf);
-                free(buf);
-                if (written == len) return true; /* all bytes written — success */
-                /* partial write: fall through to retry */
-            }
-            else
-            {
-                free(buf); /* couldn't create the file — retry */
-            }
-        }
-        else
-        {
-            free(buf); /* HTTP GET failed — retry */
-        }
+        if (GitHub_DownloadRawFull(GITHUB_RAW_HOST, raw_url, local_path, token)) return true;
     }
     return false; /* all 3 attempts exhausted */
 }
@@ -413,31 +493,10 @@ bool GitHub_ParseOwnerRepo(const WCHAR *url, WCHAR *owner, WCHAR *repo)
 bool GitHub_DownloadRawFull(const WCHAR *host, const WCHAR *path,
                             const WCHAR *local_path, const WCHAR *token)
 {
-    char *buf = (char *)malloc(HTTP_BUF_SIZE);
-    if (!buf) return false;
-
-    DWORD len = 0;
-    bool ok = GitHub_HttpGet(host, path, token, buf, &len);
-    if (ok && len > 0)
-    {
-        WCHAR dir[MAX_APPPATH];
-        wcsncpy_s(dir, MAX_APPPATH, local_path, _TRUNCATE);
-        PathRemoveFileSpec(dir);
-        SHCreateDirectoryEx(NULL, dir, NULL);
-
-        HANDLE hf = CreateFile(local_path, GENERIC_WRITE, 0, NULL,
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hf != INVALID_HANDLE_VALUE)
-        {
-            DWORD written = 0;
-            WriteFile(hf, buf, len, &written, NULL);
-            CloseHandle(hf);
-            ok = (written == len);
-        }
-        else
-            ok = false;
-    }
-    free(buf);
+    HttpResponse r;
+    if (!GitHub_HttpGetEx(host, path, token, NULL, &r) || !r.body) return false; /* no ETag sent, so never 304 */
+    bool ok = Util_WriteFile(local_path, r.body, r.len);
+    free(r.body);
     return ok;
 }
 
@@ -486,140 +545,143 @@ static const char *json_str(const char *p, const char *key,
 }
 
 /* ================================================================== */
-/*  GitHub_ParseRoot                                                    */
-/*  Purpose: Parses the GitHub Contents API JSON response for the root */
-/*           of the repository and populates g.folders[] with one      */
-/*           ScriptFolder per top-level directory (excluding setup/    */
-/*           and dot-folders).  Frees any previous folder allocations. */
-/*  In:  json — null-terminated UTF-8 JSON buffer from GitHub_HttpGet  */
-/*  Out: (void — populates g.folders[] and g.folder_count)             */
+/*  GitHub_ParseTree                                                    */
+/*  Purpose: Parses a Git Trees API response (?recursive=1) into the   */
+/*           list of scripts the app shows: every blob whose path is  */
+/*           "<folder>/<file>.py" directly inside a top-level folder, */
+/*           skipping setup/ and dot-folders.  Also reports the SHA of */
+/*           setup/requirements.txt and whether GitHub truncated the  */
+/*           listing.                                                  */
+/*  In:  json      — null-terminated UTF-8 response body               */
+/*       out       — receives a heap array of TreeEntry (caller frees; */
+/*                   NULL when there are no scripts)                   */
+/*       req_sha   — receives the setup/requirements.txt blob SHA, or  */
+/*                   "" if there is none (MAX_SHA WCHARs)              */
+/*       truncated — receives true if GitHub cut the listing short     */
+/*  Out: number of entries, or -1 if json is not a tree listing        */
 /* ================================================================== */
-void GitHub_ParseRoot(const char *json)
+int GitHub_ParseTree(const char *json, TreeEntry **out, WCHAR *req_sha, bool *truncated)
 {
-    /* Hold cs_folders for the entire function — we modify g.folder_count and
-       g.folders[] struct fields, and Folder_Free is called on existing entries. */
-    EnterCriticalSection(&g.cs_folders);
+    *out = NULL;
+    req_sha[0] = L'\0';
+    *truncated = false;
 
-    for (int _fi = 0; _fi < g.folder_count; _fi++)
-        Folder_Free(&g.folders[_fi]);
-    g.folder_count = 0;
+    /* The top-level "tree" key precedes the entry array; entry values of
+       "tree" (type of a directory) only appear inside that array */
+    const char *p = strstr(json, "\"tree\"");
+    if (!p) return -1;
+    p = strchr(p, '[');
+    if (!p) return -1;
 
-    const char *p = json;
-    while ((p = strstr(p, "\"type\"")) != NULL && g.folder_count < MAX_FOLDERS)
+    const char *t = strstr(json, "\"truncated\"");
+    if (t)
     {
+        t += 11; /* strlen("\"truncated\"") */
+        while (*t == ' ' || *t == ':')
+            t++;
+        *truncated = (strncmp(t, "true", 4) == 0);
+    }
 
-        char type_val[32] = {0};
-        const char *after = json_str(p, "type", type_val, sizeof(type_val));
-        if (!after)
+    TreeEntry *arr = NULL;
+    int count = 0, cap = 0;
+    while ((p = strchr(p, '{')) != NULL)
+    {
+        /* Entry objects are flat, so the next '}' closes this one */
+        const char *end = strchr(p, '}');
+        if (!end) break;
+
+        char path_a[MAX_APPPATH] = {0}, type_a[16] = {0}, sha_a[MAX_SHA] = {0};
+        const char *a = json_str(p, "path", path_a, sizeof(path_a));
+        const char *b = json_str(p, "type", type_a, sizeof(type_a));
+        const char *c = json_str(p, "sha", sha_a, sizeof(sha_a));
+        p = end + 1;
+        if (!a || a > end || !b || b > end || !c || c > end) continue; /* key missing from this object */
+        if (strcmp(type_a, "blob") != 0) continue; /* directories and submodules */
+
+        if (_stricmp(path_a, "setup/requirements.txt") == 0)
         {
-            p++;
+            MultiByteToWideChar(CP_UTF8, 0, sha_a, -1, req_sha, MAX_SHA);
             continue;
         }
 
-        if (strcmp(type_val, "dir") == 0)
+        /* Only files directly inside a top-level folder */
+        char *slash = strchr(path_a, '/');
+        if (!slash || strchr(slash + 1, '/')) continue;
+        *slash = '\0';
+        const char *folder = path_a, *file = slash + 1;
+        size_t fl = strlen(file);
+        if (fl < 4 || strcmp(file + fl - 3, ".py") != 0) continue; /* fl < 4 rejects anything shorter than "x.py" */
+        if (folder[0] == '.' || _stricmp(folder, "setup") == 0) continue; /* hidden folders; setup/ holds build files */
+
+        if (count == cap)
         {
-            /* Walk back to the opening '{' of this JSON object to read other fields */
-            const char *obj = p;
-            while (obj > json && *obj != '{')
-                obj--;
-
-            char name_a[MAX_NAME] = {0};
-            json_str(obj, "name", name_a, sizeof(name_a));
-
-            /* Skip the setup folder (build files, not scripts) and hidden dot-folders */
-            if (_stricmp(name_a, "setup") == 0 || name_a[0] == '.')
-            {
-                p = after;
-                continue;
-            }
-
-            ScriptFolder *f = &g.folders[g.folder_count++];
-            ZeroMemory(f, sizeof(*f));
-
-            MultiByteToWideChar(CP_UTF8, 0, name_a, -1, f->name, MAX_NAME);
-            wcsncpy_s(f->display, MAX_NAME, f->name, _TRUNCATE);
-            Util_SnakeToTitle(f->display); /* convert "Part_Document_Scripts" → "Part Document Scripts" */
+            int ncap = cap ? cap * 2 : 128; /* 128: room for a typical repository in one allocation */
+            TreeEntry *na = (TreeEntry *)realloc(arr, (size_t)ncap * sizeof(TreeEntry));
+            if (!na) break; /* OOM — return what was parsed so far */
+            arr = na;
+            cap = ncap;
         }
-        p = after;
+        TreeEntry *e = &arr[count++];
+        ZeroMemory(e, sizeof(*e));
+        MultiByteToWideChar(CP_UTF8, 0, folder, -1, e->folder, MAX_NAME);
+        MultiByteToWideChar(CP_UTF8, 0, file, -1, e->file, MAX_NAME);
+        MultiByteToWideChar(CP_UTF8, 0, sha_a, -1, e->sha, MAX_SHA);
     }
-
-    LeaveCriticalSection(&g.cs_folders);
+    *out = arr;
+    return count;
 }
 
 /* ================================================================== */
-/*  GitHub_ParseFolder                                                  */
-/*  Purpose: Parses the GitHub Contents API JSON response for a single */
-/*           repository folder and populates g.folders[fi].scripts[]  */
-/*           with one Script per .py file found.  Strips the .py ext, */
-/*           converts snake_case to Title Case, and builds the local  */
-/*           cache path for each script.  Frees old scripts first.    */
-/*  In:  json — null-terminated UTF-8 JSON from GitHub_HttpGet        */
-/*       fi   — index into g.folders[] to populate                    */
-/*  Out: (void — populates g.folders[fi].scripts[] and sets loaded)   */
+/*  Util_WriteFile                                                      */
+/*  Purpose: Writes a buffer to a file, replacing any existing file,   */
+/*           and creates the parent directory if needed.               */
+/*  In:  path — destination file                                        */
+/*       data — bytes to write                                          */
+/*       len  — number of bytes                                         */
+/*  Out: true if every byte was written                                 */
 /* ================================================================== */
-void GitHub_ParseFolder(const char *json, int fi)
+bool Util_WriteFile(const WCHAR *path, const void *data, DWORD len)
 {
-    ScriptFolder *f = &g.folders[fi];
-    /* Hold cs_folders for the entire parse — Folder_Push may call realloc,
-       which moves f->scripts. Releasing before the loop would let a concurrent
-       WM_DRAWITEM or tooltip paint dereference the freed pointer. */
-    EnterCriticalSection(&g.cs_folders);
-    Folder_Free(f);
-    Folder_Alloc(f, 64);
+    WCHAR dir[MAX_APPPATH];
+    wcsncpy_s(dir, MAX_APPPATH, path, _TRUNCATE);
+    PathRemoveFileSpec(dir);
+    SHCreateDirectoryEx(NULL, dir, NULL);
 
-    const char *p = json;
-    while ((p = strstr(p, "\"type\"")) != NULL)
+    HANDLE hf = CreateFile(path, GENERIC_WRITE, 0, NULL,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hf == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0;
+    BOOL ok = WriteFile(hf, data, len, &written, NULL);
+    CloseHandle(hf);
+    return ok && written == len;
+}
+
+/* ================================================================== */
+/*  Util_ReadFile                                                       */
+/*  Purpose: Reads a whole file into a null-terminated heap buffer.    */
+/*  In:  path — file to read                                            */
+/*       len  — receives the number of bytes read                       */
+/*  Out: heap buffer (caller frees), or NULL if the file is missing,   */
+/*       unreadable, or larger than HTTP_MAX_BODY                      */
+/* ================================================================== */
+char *Util_ReadFile(const WCHAR *path, DWORD *len)
+{
+    *len = 0;
+    HANDLE hf = CreateFile(path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hf == INVALID_HANDLE_VALUE) return NULL;
+
+    DWORD size = GetFileSize(hf, NULL);
+    char *buf = (size == INVALID_FILE_SIZE || size >= HTTP_MAX_BODY) ? NULL : (char *)malloc((size_t)size + 1);
+    DWORD read = 0;
+    if (buf && (!ReadFile(hf, buf, size, &read, NULL) || read != size))
     {
-
-        char type_val[32] = {0};
-        const char *after = json_str(p, "type", type_val, sizeof(type_val));
-        if (!after)
-        {
-            p++;
-            continue;
-        }
-
-        if (strcmp(type_val, "file") == 0)
-        {
-            const char *obj = p;
-            while (obj > json && *obj != '{')
-                obj--;
-
-            char name_a[MAX_NAME] = {0};
-            char path_a[MAX_APPPATH] = {0};
-            char sha_a[MAX_SHA] = {0};
-            json_str(obj, "name", name_a, sizeof(name_a));
-            json_str(obj, "path", path_a, sizeof(path_a));
-            json_str(obj, "sha", sha_a, sizeof(sha_a));
-
-            size_t nl = strlen(name_a);
-            if (nl < 4 || strcmp(name_a + nl - 3, ".py") != 0)
-            {
-                /* nl < 4 rejects anything shorter than "x.py"; the strcmp checks the extension */
-                p = after;
-                continue;
-            }
-
-            Script *s = Folder_Push(f);
-            if (!s) break;
-            ZeroMemory(s, sizeof(*s));
-
-            MultiByteToWideChar(CP_UTF8, 0, name_a, -1, s->name, MAX_NAME);
-            MultiByteToWideChar(CP_UTF8, 0, path_a, -1, s->gh_path, MAX_APPPATH);
-            MultiByteToWideChar(CP_UTF8, 0, sha_a, -1, s->sha, MAX_SHA);
-
-            /* Strip .py from display name before building local path */
-            Util_StripExt(s->name);
-            Util_SnakeToTitle(s->name);
-
-            /* Build local path from original filename (still has .py) */
-            WCHAR fname_w[MAX_NAME] = {0};
-            MultiByteToWideChar(CP_UTF8, 0, name_a, -1, fname_w, MAX_NAME);
-            _snwprintf_s(s->local, MAX_APPPATH, _TRUNCATE, L"%s\\%s\\%s",
-                         g.cfg.cache_dir, g.folders[fi].name, fname_w);
-        }
-        p = after;
+        free(buf);
+        buf = NULL;
     }
-    f->loaded = true;
-    LeaveCriticalSection(&g.cs_folders);
+    CloseHandle(hf);
+    if (!buf) return NULL;
+    buf[size] = '\0';
+    *len = size;
+    return buf;
 }

@@ -102,6 +102,17 @@
 /*  Global hotkey identifiers  (RegisterHotKey ids, main window)       */
 /* ------------------------------------------------------------------ */
 #define HOTKEY_QBAR_TOGGLE 1 /* show/hide the Quick Launch Bar          */
+#define HOTKEY_PALETTE 2 /* open the command palette                 */
+
+/* Command palette system-wide hotkey default: Ctrl+K, enabled */
+#define PALETTE_HOTKEY_DEFAULT_ON true
+#define PALETTE_HOTKEY_DEFAULT_MODS MOD_CONTROL
+#define PALETTE_HOTKEY_DEFAULT_VK 'K'
+
+/* Quick Bar hotkey default: Ctrl+Shift+Q.  Avoid Ctrl+Alt defaults — Windows
+   treats Ctrl+Alt as AltGr, so Ctrl+Alt+Q is the @ key on German keyboards. */
+#define QBAR_HOTKEY_DEFAULT_MODS (MOD_CONTROL | MOD_SHIFT)
+#define QBAR_HOTKEY_DEFAULT_VK 'Q'
 
 /* ------------------------------------------------------------------ */
 /*  Limits                                                              */
@@ -112,6 +123,7 @@
 #define MAX_SHA 64 /* SHA1 as hex = 40 chars; 64 gives headroom      */
 #define MAX_APPPATH 520 /* MAX_PATH (260) doubled for wide + decoration    */
 #define HTTP_BUF_SIZE (512 * 1024) /* 512 KB download buffer for GitHub API responses */
+#define HTTP_MAX_BODY (64u * 1024 * 1024) /* 64 MB cap for GitHub_HttpGetEx's growable buffer */
 #define MAX_EXTRA_REPOS 8 /* max user-added GitHub repository sources        */
 #define MAX_LOCAL_DIRS 8 /* max user-added local folder sources             */
 #define MAX_FAVOURITES 256 /* max favourite scripts stored in prefs.ini       */
@@ -126,9 +138,15 @@
 #define WM_TRAYICON (WM_USER + 10) /* Shell_NotifyIcon callback (lp = mouse message)  */
 #define WM_UPDATE_AVAIL (WM_USER + 11) /* Updater_CheckThread → UI: new version available */
 #define WM_AUTO_REFRESH (WM_USER + 12) /* timer-triggered automatic sync                  */
-#define WM_SCRIPT_STARTED (WM_USER + 13) /* posted by Runner_Thread when a bg script starts */
-#define WM_SCRIPT_STOPPED (WM_USER + 14) /* posted when bg script exits or is terminated   */
+#define WM_SCRIPT_STARTED (WM_USER + 13) /* Runner_Thread → UI: bg script started (wp = run id) */
+#define WM_SCRIPT_STOPPED (WM_USER + 14) /* Runner_Thread → UI: bg script ended (wp = exit code, lp = RUN_STOP_LPARAM) */
+
+/* WM_SCRIPT_STOPPED lParam: run id in the upper bits, bit 0 = ended by Runner_Stop */
+#define RUN_STOP_LPARAM(id, by_user) ((LPARAM)(((LONG_PTR)(id) << 1) | ((by_user) ? 1 : 0)))
+#define RUN_STOP_ID(lp) ((LONG)((lp) >> 1))
+#define RUN_STOP_BY_USER(lp) (((lp) & 1) != 0)
 #define WM_LOG_OUTPUT (WM_USER + 15) /* LogReader_Thread → UI: script output (lp = WCHAR* heap) */
+#define WM_HOTKEY_MIGRATED (WM_USER + 16) /* startup → UI: Quick Bar hotkey moved off Ctrl+Alt+Q */
 #define TRAY_ID 1 /* notification area icon ID passed to Shell_NotifyIcon */
 #define TIMER_AUTO_REFRESH 1001 /* SetTimer ID for the auto-sync interval          */
 #define TIMER_QBAR 1002 /* SetTimer ID for quick bar deferred update       */
@@ -161,6 +179,22 @@ typedef enum
     SCRIPT_SRC_EXTRA = 1, /* user-added extra GitHub repository       */
     SCRIPT_SRC_LOCAL = 2 /* user-added local folder                  */
 } ScriptSource;
+
+/* ================================================================== */
+/*  ScriptBadge                                                         */
+/*  Purpose: Marks a repository script the user has not seen in its   */
+/*           current version (new since first run, or changed since   */
+/*           last seen).  Computed by Prefs_ApplyToFolders from the    */
+/*           per-script "seen SHA" in prefs.ini.                       */
+/*  In:  (set by Prefs_ApplyToFolders / Badges_MarkSeen)               */
+/*  Out: (read by paint.c for the dot, window.c for the tab dot)       */
+/* ================================================================== */
+typedef enum
+{
+    BADGE_NONE = 0, /* seen in its current version, or a local script */
+    BADGE_NEW = 1, /* appeared since the user last looked           */
+    BADGE_UPDATED = 2 /* SHA changed since the user last looked        */
+} ScriptBadge;
 
 /* ================================================================== */
 /*  ThemeMode                                                           */
@@ -214,6 +248,10 @@ typedef struct
     WCHAR code[64]; /* e.g. "Python3.10.4, Pycatia 0.8.3"       */
     WCHAR release[32]; /* e.g. "V5R32"                              */
     WCHAR requirements[512];
+    WCHAR last_change[256]; /* newest "Change:" entry, e.g. "20.05.26 1.1: Added ..." */
+    WCHAR change_log[1024]; /* every "Change:" entry, oldest first, CRLF-separated */
+    WCHAR dependencies[512]; /* dependencies = [...] requirement strings, '\n'-separated */
+    WCHAR args_spec[1024]; /* Args: parameter lines, '\n'-separated */
 } ScriptMeta;
 
 /* ================================================================== */
@@ -236,6 +274,7 @@ typedef struct
     int run_count;
     WCHAR note[MAX_NOTE_LEN];
     ScriptSource source; /* where the script was loaded from          */
+    ScriptBadge badge; /* new/updated since the user last looked     */
 } Script;
 
 /* ================================================================== */
@@ -327,6 +366,54 @@ static inline Script *Folder_Push(ScriptFolder *f)
 }
 
 /* ================================================================== */
+/*  RunArgsDlgData                                                      */
+/*  Purpose: Passed to RunWithArgsDlgProc as its init LPARAM.  The     */
+/*           dialog copies the entered arguments into args on IDOK,   */
+/*           because the edit control is gone once DialogBoxParam      */
+/*           returns.                                                  */
+/*  In:  script — script being run (title only)                        */
+/*  Out: args   — arguments entered by the user (valid after IDOK)     */
+/* ================================================================== */
+typedef struct
+{
+    const Script *script;
+    WCHAR args[MAX_APPPATH];
+    void *form; /* dialog-owned parameter form (Args: header); NULL outside the dialog */
+} RunArgsDlgData;
+
+/* ================================================================== */
+/*  HttpResponse                                                        */
+/*  Purpose: Result of GitHub_HttpGetEx.                               */
+/*  In:  (filled by GitHub_HttpGetEx)                                  */
+/*  Out: status — HTTP status (200, or 304 = unchanged since the ETag) */
+/*       body   — null-terminated heap body on 200, NULL on 304;       */
+/*                the caller frees it                                   */
+/*       len    — body length in bytes (excluding the terminator)      */
+/*       etag   — ETag header of a 200 reply, or ""                    */
+/* ================================================================== */
+typedef struct
+{
+    DWORD status;
+    char *body;
+    DWORD len;
+    char etag[128];
+} HttpResponse;
+
+/* ================================================================== */
+/*  TreeEntry                                                           */
+/*  Purpose: One script from a Git Trees API listing: a .py blob       */
+/*           directly inside a top-level folder of the repository.    */
+/*  In:  (filled by GitHub_ParseTree)                                  */
+/*  Out: (read by the sync thread to build folders and download)       */
+/* ================================================================== */
+typedef struct
+{
+    WCHAR folder[MAX_NAME]; /* top-level folder = tab name  */
+    WCHAR file[MAX_NAME]; /* file name including ".py"     */
+    WCHAR sha[MAX_SHA]; /* Git blob SHA of the file      */
+} TreeEntry;
+
+/* ================================================================== */
 /*  ExtraRepo                                                           */
 /*  Purpose: Describes one user-added GitHub repository script source. */
 /*  In:  (loaded from settings.ini by Settings_Load)                   */
@@ -396,13 +483,19 @@ typedef struct
     WCHAR qbar_target_exe[MAX_NAME]; /* process exe name (e.g. CNEXT.exe); empty = any */
     /* Show/hide hotkey — system-wide, registered on the main window */
     bool qbar_hotkey_enabled; /* register the hotkey at all (default: true)     */
-    UINT qbar_hotkey_mods; /* MOD_* flags (default: MOD_CONTROL|MOD_ALT)     */
+    UINT qbar_hotkey_mods; /* MOD_* flags (default: MOD_CONTROL|MOD_SHIFT)   */
     UINT qbar_hotkey_vk; /* virtual-key code (default: 'Q')                */
     /* Double-click repeat */
     bool repeat_on_dblclick; /* repeat main-window scripts on double-click (default: true) */
     bool qbar_repeat_on_dblclick; /* repeat Quick Bar scripts on double-click (default: true)   */
     /* Script display */
     bool tint_script_sources; /* tint local/extra-repo buttons differently (default: true)  */
+    bool show_badges; /* dot on new/updated scripts and their tabs (default: true)   */
+    bool check_deps; /* check a script's dependencies before running (default: true) */
+    /* Command palette — system-wide hotkey (Ctrl+K inside the app always works) */
+    bool palette_hotkey_enabled; /* register the hotkey at all (default: true)   */
+    UINT palette_hotkey_mods; /* MOD_* flags (default: MOD_CONTROL)            */
+    UINT palette_hotkey_vk; /* virtual-key code (default: 'K')               */
 } Settings;
 
 /* ------------------------------------------------------------------ */
@@ -496,8 +589,15 @@ typedef struct
 
     CRITICAL_SECTION cs_folders; /* guards g.folders[] and g.folder_count */
 
-    /* Running script — NULL when idle; set/cleared atomically via InterlockedExchangePointer */
-    volatile HANDLE run_process;
+    /* Running background script — fields guarded by cs_run.  The owning
+       Runner_Thread publishes its handles and is the only one to close them,
+       after unpublishing, so a published handle is always open. */
+    CRITICAL_SECTION cs_run;
+    HANDLE run_job; /* job object holding the script's process tree; NULL if none */
+    HANDLE run_proc; /* the script's python.exe process; NULL when idle */
+    bool run_stop_requested; /* Runner_Stop has ended the published run */
+    LONG run_seq; /* UI thread only: id of the most recent launch; STARTED/STOPPED
+                     messages carrying an older id belong to a replaced run */
 
     /* Filter */
     WCHAR filter_text[MAX_NAME]; /* current search/filter string       */
@@ -518,6 +618,11 @@ typedef struct
     int qbar_drag_oy; /* drag start: cursor offset from top   */
     int qbar_tip_idx; /* button index shown in tip, -1 = none */
     bool qbar_hotkey_active; /* show/hide hotkey is currently registered */
+    bool qbar_hotkey_migrated; /* Settings_Load moved the old Ctrl+Alt+Q default to Ctrl+Shift+Q this launch */
+
+    /* Command palette */
+    HWND hwnd_palette; /* palette popup; NULL until first opened    */
+    bool palette_hotkey_active; /* system-wide palette hotkey is registered */
 
     /* Double-click repeat mode */
     bool repeat_mode; /* true = re-run script after each completion  */
@@ -530,6 +635,15 @@ typedef struct
     bool script_running; /* true while a background script is in flight */
     int run_fi; /* folder index of the running script           */
     int run_si; /* script index of the running script           */
+    WCHAR run_name[MAX_NAME]; /* name of the running script (log header)      */
+
+    /* Dependency checks that passed, remembered as Runner_DepsHash(python, deps)
+       until Runner_ForgetDeps (Update Dependencies, Settings OK) */
+    DWORD deps_ok[64];
+    int deps_ok_count;
+
+    /* Portable mode: a settings.ini next to the exe keeps all data in the exe's folder */
+    bool portable;
 
     /* Script output log */
     HWND hwnd_log; /* modeless log window; NULL when not open      */
@@ -650,8 +764,11 @@ LRESULT CALLBACK ScrollPanelProc(HWND, UINT, WPARAM, LPARAM);
 /* github.c */
 bool GitHub_HttpGet(const WCHAR *host, const WCHAR *path,
                     const WCHAR *token, char *buf, DWORD *len);
-void GitHub_ParseRoot(const char *json);
-void GitHub_ParseFolder(const char *json, int fi);
+bool GitHub_HttpGetEx(const WCHAR *host, const WCHAR *path, const WCHAR *token,
+                      const char *if_none_match, HttpResponse *r);
+int GitHub_ParseTree(const char *json, TreeEntry **out, WCHAR *req_sha, bool *truncated);
+bool Util_WriteFile(const WCHAR *path, const void *data, DWORD len);
+char *Util_ReadFile(const WCHAR *path, DWORD *len);
 bool GitHub_DownloadRaw(const WCHAR *gh_path, const WCHAR *local_path,
                         const WCHAR *token);
 bool GitHub_DownloadRawFull(const WCHAR *host, const WCHAR *path,
@@ -674,9 +791,12 @@ void Meta_ParseAll(void);
 /* runner.c */
 bool Runner_Run(int fi, int si);
 bool Runner_RunWithArgs(int fi, int si, const WCHAR *args);
+bool Runner_RunPath(const WCHAR *path);
+void Runner_ForgetDeps(void);
 bool Runner_FindPython(WCHAR *out, int max);
 void Runner_UpdateDeps(void);
 void Runner_Stop(void);
+bool Runner_IsRunning(void);
 
 /* Repeat-mode helpers (main.c) */
 void Repeat_Start(int fi, int si); /* activate repeat + install global ESC hook */
@@ -712,6 +832,9 @@ void Prefs_IncrementRunCount(const WCHAR *gh_path);
 void Prefs_GetNote(const WCHAR *gh_path, WCHAR *note, int max);
 void Prefs_SetNote(const WCHAR *gh_path, const WCHAR *note);
 void Prefs_ApplyToFolders(void);
+void Badges_MarkSeen(const WCHAR *gh_path, const WCHAR *sha);
+void Badges_MarkAllSeen(void);
+bool Badges_FolderHasUnseen(int fi);
 void Tabs_BuildFavourites(void);
 INT_PTR CALLBACK ScriptDetailsDlgProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK RunWithArgsDlgProc(HWND, UINT, WPARAM, LPARAM);
@@ -738,6 +861,12 @@ void QuickBar_ShowTargetDlg(void);
 void QuickBar_RegisterHotkey(void);
 void QuickBar_UnregisterHotkey(void);
 void QuickBar_HotkeyText(WCHAR *buf, int len);
+
+/* palette.c */
+void Palette_Show(void);
+void Palette_RegisterHotkey(void);
+void Palette_UnregisterHotkey(void);
+void Palette_HotkeyText(WCHAR *buf, int len);
 
 /* paint.c */
 void Paint_MainWindow(HWND, HDC);
