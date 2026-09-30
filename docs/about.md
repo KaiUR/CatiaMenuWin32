@@ -54,17 +54,23 @@ added or removed from the repo, tabs update automatically on the next sync:
 
 | Feature | Detail |
 |---------|--------|
-| **Live GitHub sync** | Fetches repo structure and compares SHA hashes — only downloads changed files |
+| **Live GitHub sync** | One Git Trees API request lists each repository; an unchanged repository answers "not modified" and the cached listing is reused. Only changed files are downloaded, and scripts deleted from the repository are removed from the cache |
 | **Offline cache** | Scripts load from local cache immediately on startup — works without internet |
 | **Dynamic tabs** | Folder additions/removals detected automatically; no recompile needed |
 | **Favourites tab** | Star any script; a dedicated ⭐ Favourites tab appears automatically |
 | **Search/filter** | Real-time filter bar — find scripts by name or purpose instantly |
-| **Script info tooltip** | Hover over the `i` badge on any button to see Purpose, Author, Version, Date, and full Description parsed from the script header |
-| **Script details** | Right-click → Script Details shows all header fields, notes, favourite/hidden controls |
+| **Script info tooltip** | Hover over the `i` badge on any button to see Purpose, Author, Version, Date, full Description and the latest `Change:` entry parsed from the script header |
+| **New & updated badges** | A green dot marks new scripts and a blue dot updated ones (tabs get a dot too); cleared when you run the script or open its details, or via View → Mark All Scripts as Seen |
+| **Command palette** | **Ctrl+K** opens a search box over every script — type letters in order, Enter runs, Shift+Enter runs with arguments, Ctrl+Enter shows details. System-wide by default, so it works from inside CATIA |
+| **Script details** | Right-click → Script Details shows all header fields, the change history, notes, favourite/hidden controls |
 | **Hide scripts** | Right-click → Hide Script; restore via Menu → File → Manage Hidden Scripts |
 | **Sort scripts** | Sort by Default, Alphabetical, By Date, or Most Used |
-| **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments |
-| **Stop running script** | ■ Stop toolbar button terminates a running background script instantly |
+| **Run with arguments** | Right-click → Run with Arguments to pass custom CLI arguments; the run is SHA-verified, logged and stoppable like a normal click |
+| **Script parameter form** | Scripts that declare an `Args:` header get a Run with Arguments form — text boxes, checkboxes and drop-downs — with the last values remembered per script |
+| **Dependency check** | Packages in a script's `dependencies = [...]` list are checked against the Python interpreter before it runs; missing ones can be installed with pip from the prompt |
+| **Drag and drop** | Drop a `.py` file on the window to run it once, or a folder to add it as a local script source |
+| **Portable mode** | A `settings.ini` next to the exe keeps all settings, cache and data in the exe's folder — runs from a USB stick; never touches the registry |
+| **Stop running script** | ■ Stop toolbar button terminates a running background script and every process it started; starting another script stops the running one |
 | **Script notes** | Per-script user notes stored locally in `prefs.ini` |
 | **Certificate validation** | Every HTTPS connection validates the server certificate subject and issuer — blocks MITM attacks |
 | **SHA verification** | Every script is verified against its GitHub blob SHA before running — detects tampered files |
@@ -76,7 +82,7 @@ added or removed from the repo, tabs update automatically on the next sync:
 | **System Tray** | Minimize to tray; restore with double-click |
 | **Start with Windows** | Autorun via registry with optional start-minimized flag |
 | **Auto-refresh** | Background sync every N hours (default 6); configurable in Settings |
-| **Auto-update** | Optionally download and install new versions automatically |
+| **Auto-update** | Optionally download and install new versions automatically — only if the download is signed with the same key as the installed version |
 | **Update Dependencies** | Upgrades pip then runs `pip install --upgrade -r requirements.txt` for each configured source that has a `setup/requirements.txt` |
 | **Dark / Light / System theme** | Follows Windows theme by default; toggle via Menu → View → Theme |
 | **Auto-versioning** | CMake increments `build_number.txt` on every configure; CI appends it to the release tag |
@@ -97,6 +103,7 @@ Add any public (or private, with a token) GitHub repository that follows the sam
 - If two repositories have a subfolder with the same name, their scripts are merged into one tab
 - Each repo can have its own branch and optional Personal Access Token
 - All connections go through the same certificate validation and SHA verification as the built-in repo
+- Each repository is listed from its configured branch with a single API request per sync; scripts removed from the repository are also removed from the local cache
 
 **To add a repository:**
 1. Open **Menu → File → Sources...**
@@ -140,9 +147,11 @@ When more tabs exist than can fit in the window width, left (◄) and right (►
 
 All communication with GitHub is secured at two levels:
 
-**Certificate validation** — every HTTPS request (API and raw downloads) validates that the server certificate subject contains `github.com` or `github.io` and the issuer is a known CA (DigiCert, Sectigo, GlobalSign, or Let's Encrypt). Connections that fail this check are aborted before any data is read.
+**Certificate validation** — every HTTPS request (API calls, script downloads and update downloads) is checked against the server that actually answers, after any redirect: the host must be `github.com` or a subdomain of `github.com` or `githubusercontent.com` (matched exactly, so look-alikes such as `evilgithub.com` fail); the certificate chain must pass Windows' SSL policy check for that exact host name; and the issuing CA's organisation must exactly match one GitHub uses (Sectigo Limited, Let's Encrypt, DigiCert Inc or GlobalSign nv-sa). Connections that fail any check are aborted before any data is read.
 
 **SHA verification** — before any script is executed, its local file SHA is computed using Git's blob SHA format (`SHA1("blob <size>\0<content>")`) and compared against the SHA returned by the GitHub API. If they don't match, a warning is shown and the script is blocked until re-downloaded and verified.
+
+**Signed updates** — before an auto-update is installed, the downloaded exe's Authenticode signature is verified with `WinVerifyTrust` and its signing key must match the key that signed the running exe. A tampered or differently-signed download is deleted and the releases page opens instead; nothing is installed.
 
 ## 🛠️ Built With
 
@@ -189,6 +198,8 @@ Local builds automatically detect the latest git tag for the version number and 
 
 ## ⚙️ Settings (`%APPDATA%\CatiaMenuWin32\settings.ini`)
 
+> **Portable mode:** if a `settings.ini` exists next to `CatiaMenuWin32.exe`, that file is used instead and all data (cache, `prefs.ini`, manifest) lives in the exe's folder. Paths inside that folder are stored relative to it, and Start with Windows is unavailable.
+
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Python\Executable` | auto-detect | Full path to `python.exe` |
@@ -212,16 +223,22 @@ Local builds automatically detect the latest git tag for the version number and 
 | `QuickBar\TargetApp` | `CATIA V5` | Window-title substring to track; empty = always visible, no topmost |
 | `QuickBar\TargetExe` | `CNEXT.exe` | Process executable name filter; empty = match any process |
 | `QuickBar\X` / `QuickBar\Y` | auto | Saved position of the floating bar |
+| `QuickBar\HotkeyEnabled` | on | Register the system-wide Quick Bar show/hide hotkey |
+| `QuickBar\HotkeyMods` / `HotkeyKey` | 6 (Ctrl+Shift) / 81 (`Q`) | Quick Bar hotkey modifiers (1 = Alt, 2 = Ctrl, 4 = Shift, 8 = Win) and virtual-key code |
+| `Options\ShowBadges` | on | Mark new and updated scripts (and their tabs) with a dot |
+| `Options\CheckDependencies` | on | Check a script's `dependencies` list against the Python interpreter before running it |
+| `Palette\HotkeyEnabled` | on | Register the system-wide command palette hotkey |
+| `Palette\HotkeyMods` / `HotkeyKey` | 2 (Ctrl) / 75 (`K`) | Command palette hotkey modifiers and virtual-key code (32 = Space) |
 
 ## 🔑 GitHub Token (optional)
 
-The app uses the GitHub REST API to fetch the script list. Without a token, GitHub allows 60 requests per hour per IP. A token increases this to 5,000 req/hr and is also required for private repositories. If you hit the limit, or if you want to add a private repo source, add a **Personal Access Token**:
+The app uses the GitHub REST API to fetch the script list — one request per GitHub source per sync. Without a token, GitHub allows 60 requests per hour per IP. A token increases this to 5,000 req/hr and is also required for private repositories. If you hit the limit, or if you want to add a private repo source, add a **Personal Access Token**:
 
 1. Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
 2. Create a token with **read-only** access to public repositories
 3. Paste it in **Menu → Settings → Use token**
 
-The token is stored in `settings.ini` and sent as an `Authorization: token` header. It is never transmitted anywhere except `api.github.com` and `raw.githubusercontent.com`.
+The token is stored in `settings.ini` and sent as an `Authorization: token` header. It is never transmitted anywhere except GitHub (`api.github.com`, `raw.githubusercontent.com`, and `github.com` for update downloads).
 
 > **Office / shared network users:** GitHub's unauthenticated API limit is 60 requests per hour per public IP address. If multiple people in your organisation use CatiaMenuWin32 on the same network, you may occasionally see a "Connect to internet to sync" message even with a working internet connection. This is the rate limit being hit, not a connectivity issue. Each user should add a Personal Access Token in **Menu → Settings → Use token** to raise their individual limit to 5000 requests per hour.
 

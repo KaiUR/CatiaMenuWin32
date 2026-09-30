@@ -30,6 +30,8 @@ description: Build CatiaMenuWin32 from source. Covers prerequisites, project str
 | [CMake](https://cmake.org/) | 3.16+ | Build system |
 | [Ninja](https://ninja-build.org/) | any | Build backend |
 | [Visual Studio](https://visualstudio.microsoft.com/) | 2019+ | Windows SDK and linker (`rc.exe`, `link.exe`) |
+
+The executable links `user32 gdi32 comctl32 comdlg32 wininet shell32 shlwapi uxtheme dwmapi crypt32 wintrust` (`wintrust` provides `WinVerifyTrust` for the update signature check). Sources are UTF-8; MSVC-style builds pass `/utf-8` so `cl.exe` reads them correctly (clang-cl already assumes UTF-8). Keep string literals under 4095 characters — long RTF help topics are split into several arrays joined at runtime.
 | [Qt Creator](https://www.qt.io/product/development-tools) | any | IDE (optional) |
 | [Git](https://git-scm.com/) | any | Version control |
 
@@ -84,16 +86,18 @@ CatiaMenuWin32/
 │   ├── window.c            Window creation, tab bar, tray, menu popup
 │   ├── tabs.c              Tab switching, script button creation, scroll panel
 │   ├── paint.c             All GDI rendering — toolbar, buttons, tooltip
-│   ├── github.c            HTTPS requests, cert validation, SHA computation
-│   ├── sync.c              GitHub sync thread, local dir scanning, manifest
+│   ├── github.c            HTTPS requests (ETag-aware), cert validation, tree parsing, SHA
+│   ├── sync.c              Sync thread (Git Trees API + cache), local dir scanning, manifest
 │   ├── runner.c            Script execution, Python detection, Update Deps
-│   ├── meta.c              Script header parser (Purpose, Author, etc.)
+│   ├── meta.c              Script header parser (Purpose, Author, Change: history, etc.)
 │   ├── help.c              In-app help window (TreeView + RichEdit)
-│   ├── prefs.c             Favourites, hidden scripts, run counts, notes
+│   ├── prefs.c             Favourites, hidden scripts, run counts, notes, new/updated badges
 │   ├── sources.c           Sources dialog — extra repos and local folders
 │   ├── settings.c          Settings load/save, Settings dialog, About dialog
-│   ├── updater.c           Update checker — GitHub releases API
-│   └── quickbar.c          Floating Quick Launch Bar
+│   ├── updater.c           Update checker, auto-update, signature verification
+│   ├── quickbar.c          Floating Quick Launch Bar
+│   ├── log.c               Script Output Log window
+│   └── palette.c           Command palette (Ctrl+K)
 ├── res/
 │   ├── resource.rc.in      Resource script template (CMake substitutes version)
 │   ├── version.h.in        Version header template
@@ -294,8 +298,8 @@ PostStatus(L"Sync done.");  // inline helper in main.h
 
 // Custom messages (defined in main.h):
 PostMessage(g.hwnd, WM_SYNC_DONE, (WPARAM)result, 0);
-PostMessage(g.hwnd, WM_SCRIPT_STARTED, 0, 0);
-PostMessage(g.hwnd, WM_SCRIPT_STOPPED, 0, 0);
+PostMessage(g.hwnd, WM_SCRIPT_STARTED, (WPARAM)run_id, 0);
+PostMessage(g.hwnd, WM_SCRIPT_STOPPED, (WPARAM)exit_code, RUN_STOP_LPARAM(run_id, by_user));
 ```
 
 `WM_STATUS_SET` frees the heap buffer after displaying it. All other custom messages use simple `wParam`/`lParam` values.
@@ -309,24 +313,35 @@ EnterCriticalSection(&g.cs_folders);
 LeaveCriticalSection(&g.cs_folders);
 ```
 
-### Atomic handle ownership (`g.run_process`)
-The running-script process handle is shared between `Runner_Thread` (writer) and `Runner_Stop` / `MainWndProc` (readers). Use `InterlockedExchangePointer` for ownership transfer — exactly one caller gets the non-NULL handle:
+### Running-script ownership (`g.cs_run`)
+The running background script is shared between its `Runner_Thread` (the owner), `Runner_Stop` / `Runner_IsRunning` (UI thread), and `Runner_Launch`, which ends the previous run before starting a new one. `g.run_job`, `g.run_proc` and `g.run_stop_requested` are guarded by `g.cs_run`, and one rule makes it safe: **only the owning thread closes its handles, and only after unpublishing them.** A published handle is therefore always open, so Stop can never hit a closed or recycled handle.
 
 ```c
-// Runner_Thread — store a duplicate after CreateProcess:
-DuplicateHandle(..., pi.hProcess, ..., &dup, ...);
-InterlockedExchangePointer((void **)&g.run_process, dup);
+// Runner_Thread — publish after CreateProcess (the process is in a job object):
+EnterCriticalSection(&g.cs_run);
+g.run_job = job;  g.run_proc = pi.hProcess;  g.run_stop_requested = false;
+LeaveCriticalSection(&g.cs_run);
 
-// Runner_Stop — atomically claim it:
-HANDLE h = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
-if (h) { TerminateProcess(h, 1); CloseHandle(h); }
+// Runner_Stop — end the whole job; the owner still closes the handles:
+EnterCriticalSection(&g.cs_run);
+if (g.run_proc && !g.run_stop_requested) {
+    if (!g.run_job || !TerminateJobObject(g.run_job, 1)) TerminateProcess(g.run_proc, 1);
+    g.run_stop_requested = true;
+}
+LeaveCriticalSection(&g.cs_run);
 
-// Runner_Thread cleanup — take back if Stop hasn't claimed it:
-HANDLE old = (HANDLE)InterlockedExchangePointer((void **)&g.run_process, NULL);
-if (old) CloseHandle(old);  // normal completion path
+// Runner_Thread — after the process exits, unpublish only if still ours:
+EnterCriticalSection(&g.cs_run);
+if (g.run_proc == pi.hProcess) { by_user = g.run_stop_requested; g.run_job = g.run_proc = NULL; }
+LeaveCriticalSection(&g.cs_run);
+CloseHandle(pi.hProcess);  // safe: no longer published
 ```
 
-This pattern guarantees no double-close and no double-terminate regardless of which side wins the race.
+Comparing handle values is safe because the owner's handle is still open, so no other open handle can have the same value.
+
+**Run ids.** Each launch increments `g.run_seq` (UI thread only). The run's `WM_SCRIPT_STARTED` carries the id in `wParam`; `WM_SCRIPT_STOPPED` carries it in `lParam` together with the stopped-by-user flag (`RUN_STOP_LPARAM` / `RUN_STOP_ID` / `RUN_STOP_BY_USER`). When another script is started, `Runner_Launch` ends the old run (waiting up to 5 s for it to exit), clears the running state itself and increments `g.run_seq`, so the old run's late messages are recognised as stale: its `WM_SCRIPT_STOPPED` only appends `--- Stopped: another script was started. ---` to the log and never touches the Stop button, the green highlight or repeat mode.
+
+**Job object.** Background runs are created suspended, assigned to a job object, then resumed, so every process the script starts belongs to the job and `TerminateJobObject` ends the whole tree. The job has no kill-on-close limit, so processes a script deliberately leaves running on a normal exit survive. If the assignment fails, Stop falls back to ending `python.exe` alone. There is no wait timeout — a run lasts until the script exits or is stopped.
 
 ---
 
@@ -349,7 +364,7 @@ Win32 double-click sends: `WM_LBUTTONDOWN` → `WM_LBUTTONUP` (first click, runs
 
 ### Repeat trigger
 
-`WM_SCRIPT_STOPPED` (`main.c → MainWndProc`) checks `g.repeat_mode` and calls `Runner_Run(g.repeat_fi, g.repeat_si)` to start the next iteration.
+`WM_SCRIPT_STOPPED` (`main.c → MainWndProc`) checks `g.repeat_mode` and calls `Runner_Run(g.repeat_fi, g.repeat_si)` to start the next iteration. It does not repeat when the run was stopped by the user or when the message belongs to a replaced run (stale run id).
 
 ### Cancellation
 
@@ -357,6 +372,7 @@ Win32 double-click sends: `WM_LBUTTONDOWN` → `WM_LBUTTONUP` (first click, runs
 - **Single-click same script** (`Handle_Command`): clears `g.repeat_mode`, skips the run.
 - **Single-click different script** (`Handle_Command`): clears `g.repeat_mode`, runs the new script.
 - **Stop button** (`IDC_BTN_STOP` in `Handle_Command`): clears `g.repeat_mode`, then calls `Runner_Stop()`.
+- **Any launch of a different script** (`Runner_Launch` — main window, Quick Bar, Run with Arguments): calls `Repeat_Stop()` before ending the running script, so the replaced run can never trigger a repeat.
 
 ### Quick Bar
 
